@@ -1,5 +1,7 @@
 from enum import Enum
 
+# This package contains dictionaries of information we need for
+# next steps in the process
 
 class Location(Enum):
     HOME = "HOME"
