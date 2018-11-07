@@ -123,3 +123,7 @@ POSITION_ABBREVIATIONS_TO_POSITION = {
     "PF": Position.POWER_FORWARD,
     "C": Position.CENTER,
 }
+
+bball_ref_tbl_names = {
+    misc_stats : "misc_stats"
+}
