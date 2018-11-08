@@ -73,6 +73,8 @@ class Position(Enum):
     POWER_FORWARD = "POWER FORWARD"
     CENTER = "CENTER"
 
+class Tables(Enum):
+    misc_stats = "misc_stats"
 
 TEAM_ABBREVIATIONS_TO_TEAM = {
     'ATL': Team.ATLANTA_HAWKS,
@@ -125,5 +127,9 @@ POSITION_ABBREVIATIONS_TO_POSITION = {
 }
 
 bball_ref_tbl_names = {
-    misc_stats : "misc_stats"
+    "misc_stats" : Tables.misc_stats
+}
+
+bball_ref_reserved = {
+
 }
