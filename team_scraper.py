@@ -47,7 +47,7 @@ def tbl_to_list_of_lists(table):
                     try:
                         float(words[i])
                     except:
-                        print("changing words!")
+                        print("changing {}".word)
                         words[i] = team
                         break
         words = list(words)

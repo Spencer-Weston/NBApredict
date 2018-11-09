@@ -129,7 +129,3 @@ POSITION_ABBREVIATIONS_TO_POSITION = {
 bball_ref_tbl_names = {
     "misc_stats" : Tables.misc_stats
 }
-
-bball_ref_reserved = {
-
-}
