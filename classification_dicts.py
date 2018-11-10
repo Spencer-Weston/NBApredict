@@ -141,3 +141,5 @@ data_stat_headers = [
     "drb_pct", "opp_ft_rate", "arena_name",
     "attendance", "attendance_per_g",
 ]
+
+BASE_URL = 'https://www.basketball-reference.com'
