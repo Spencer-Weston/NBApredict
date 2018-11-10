@@ -129,3 +129,15 @@ POSITION_ABBREVIATIONS_TO_POSITION = {
 bball_ref_tbl_names = {
     "misc_stats" : Tables.misc_stats
 }
+
+data_stat_headers = [
+    "team_name", "age", "wins",
+    "losses", "wins_pyth", "losses_pyth",
+    "mov", "sos", "srs", "off_rtg",
+    "def_rtg", "pace", "fta_per_fga_pct",
+    "fg3a_per_fga_pct", "ts_pct",
+    "efg_pct", "tov_pct", "orb_pct",
+    "ft_rate", "opp_efg_pct", "opp_tov_pct",
+    "drb_pct", "opp_ft_rate", "arena_name",
+    "attendance", "attendance_per_g",
+]
