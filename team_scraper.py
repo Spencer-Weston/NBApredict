@@ -1,23 +1,9 @@
-import classification_dicts as cd
 from classification_dicts import data_stat_headers as HEADERS
 from classification_dicts import BASE_URL
-import pandas
-import numpy as np
-import csv
 from bs4 import BeautifulSoup
 import re
 import requests
-
-
-def write_table_txt(table, out_file, write_type):
-    """Writes the contents of table to the specified out_file"""
-    file = open(out_file, write_type)
-    file.write(table.text)
-    print("table written to" + out_file)
-
-def write_table_csv(table, out_file, write_type):
-    pass
-
+import general
 
 ### USABLE STUFF
 def team_box_scores(year, tbl_name):
@@ -34,7 +20,7 @@ def team_box_scores(year, tbl_name):
     if 200 <= response.status_code < 300:
         return parse_table(response.content, tbl_name)  # Note that this uses the .content attribute
 
-    raise InvalidDate(year=year)
+    print("Could not connect to URL")
 
 
 def parse_table(page, tbl_name):
@@ -45,8 +31,11 @@ def parse_table(page, tbl_name):
     cleaned_soup = BeautifulSoup(re.sub("<!--|-->", "", str(page)), features="lxml")
     table = cleaned_soup.find('table', {'id': '{}'.format(tbl_name)})
     data_dict = get_data_dict_from_tbl(table)
+    keys = data_dict.keys()
+    for key in keys:
+        data_dict[key] = general.set_type(data_dict[key])
 
-    return (data_dict)
+    return data_dict
 
 
 def get_data_from_tbl(table, remove_nones=True):
@@ -55,7 +44,7 @@ def get_data_from_tbl(table, remove_nones=True):
     data = [[td.findChildren(text=True) for td in tr.findAll("td")] for tr in rows]
     if remove_nones:
         data = [x for x in data if x]
-    return (data)
+    return data
 
 
 def get_data_dict_from_tbl(table):
@@ -79,6 +68,7 @@ def get_data_dict_from_tbl(table):
     return data_dict
 
 
+
 # Pathes and URLs
 txt_out = r"./test.txt"
 csv_out = r"./test.csv"
@@ -90,5 +80,4 @@ print("FINISHED")
 
 #TO-DO:
 # 1. Convert table_dict to pandas DF
-# 2. Write to CSV
-# 3. Write to DB 
+# 3. Write to DB
