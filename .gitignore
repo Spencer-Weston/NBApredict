@@ -1,0 +1,8 @@
+#Ignore the following file extensions:
+*.exe
+*.log
+*.txt
+*.pyc
+*.json
+*.idea
+*.csv
