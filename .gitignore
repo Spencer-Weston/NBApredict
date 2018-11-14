@@ -6,3 +6,5 @@
 *.json
 *.idea
 *.csv
+*.db
+*.sqlite

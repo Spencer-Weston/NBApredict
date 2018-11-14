@@ -4,6 +4,12 @@ from bs4 import BeautifulSoup
 import re
 import requests
 import general
+import db_interface as db_int
+from sqlalchemy import create_engine
+from sqlalchemy import Table
+from sqlalchemy import MetaData
+from sqlalchemy import inspect
+from sqlalchemy import Column, Integer, String
 
 ### USABLE STUFF
 def team_box_scores(year, tbl_name):
@@ -72,10 +78,39 @@ def get_data_dict_from_tbl(table):
 # Pathes and URLs
 txt_out = r"./test.txt"
 csv_out = r"./test.csv"
+db = r"./database/nba_db.db"
 year = 2019
 tbl = "misc_stats"
 
 tbl_dict = team_box_scores(year, tbl)
+conn = db_int.db_connect(db)
+#db_int.create_table_from_dict(conn, "misc_stats", tbl_dict, False)
+
+db_uri = "sqlite:///database//nba_db.db"
+engine = create_engine(db_uri)
+m = MetaData()
+table = Table('EX1', m,
+              Column('id', Integer, primary_key=True),
+              Column('key', String, nullable=True),
+              Column('val', String))
+#table.drop(engine)
+#inspector = inspect(engine)
+#print('EX1' in inspector.get_table_names())
+engine.execute('CREATE TABLE "EX1" ('
+               'id INTEGER NOT NULL,'
+               'name VARCHAR, '
+               'PRIMARY KEY (id));')
+
+engine.execute('INSERT INTO "EX1"'
+               '(id, name) '
+               'VALUES (1, "raw1")')
+
+result = engine.execute('SELECT * FROM '
+                        '"EX1"')
+for _r in result:
+   print(_r)
+
+
 print("FINISHED")
 
 #TO-DO:
