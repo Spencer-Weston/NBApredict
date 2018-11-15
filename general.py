@@ -12,9 +12,8 @@ def set_type(values):
         return values
 
 
-
 def get_type(values):
-    """Returns the type of the values in a list"""
+    """Returns the type of the values in a list where type is defined as the modal type in the list"""
     val_types = []
     for i in values:
         if isinstance(i, int):
@@ -23,7 +22,7 @@ def get_type(values):
             val_types.append("float")
         else:
             val_types.append("string")
-    return(max(set(val_types), key=val_types.count))  # Return the modal value of integer, float, or str
+    return max(set(val_types), key=val_types.count)  # The max, set, and key combo returns the modal type
 
 
 def is_int(x):
@@ -45,7 +44,7 @@ def is_float(x):
 def _set_type(values, new_type):
     new_vals = []
     for i in values:
-#        print("value({}) is being set to type({})".format(i, new_type))
+        # print("value({}) is being set to type({})".format(i, new_type))
         if len(i) > 0:  # Some values may have len(0); we convert them to None to put into sql db
             new_vals.append(new_type(i))
         else:

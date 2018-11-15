@@ -11,7 +11,8 @@ from sqlalchemy import MetaData
 from sqlalchemy import inspect
 from sqlalchemy import Column, Integer, String
 
-### USABLE STUFF
+
+# USABLE STUFF
 def team_box_scores(year, tbl_name):
     """Function builds a URL for the specified year and returns team box scores for a specified table on 
     that page"""
@@ -33,8 +34,7 @@ def parse_table(page, tbl_name):
     """Takes the content from a URL response as page, uses re.sub to remove comments on the page, and finally
      returns a dictionary with the data from the specified table"""
 
-    # comm = re.compile('<!--|-->')
-    cleaned_soup = BeautifulSoup(re.sub("<!--|-->", "", str(page)), features="lxml")
+    cleaned_soup = BeautifulSoup(re.sub('<!--|-->', "", str(page)), features="lxml")
     table = cleaned_soup.find('table', {'id': '{}'.format(tbl_name)})
     data_dict = get_data_dict_from_tbl(table)
     keys = data_dict.keys()
@@ -74,41 +74,37 @@ def get_data_dict_from_tbl(table):
     return data_dict
 
 
-
 # Pathes and URLs
-txt_out = r"./test.txt"
-csv_out = r"./test.csv"
-db = r"./database/nba_db.db"
 year = 2019
 tbl = "misc_stats"
 
+# Get tbl_dictionary from basketball reference
 tbl_dict = team_box_scores(year, tbl)
-conn = db_int.db_connect(db)
-#db_int.create_table_from_dict(conn, "misc_stats", tbl_dict, False)
 
-db_uri = "sqlite:///database//nba_db.db"
-engine = create_engine(db_uri)
+# Database work set_up
+db_url = "sqlite:///database//nba_db.db"
+engine = create_engine(db_url)
 m = MetaData()
-table = Table('EX1', m,
-              Column('id', Integer, primary_key=True),
-              Column('key', String, nullable=True),
-              Column('val', String))
-#table.drop(engine)
-#inspector = inspect(engine)
-#print('EX1' in inspector.get_table_names())
-engine.execute('CREATE TABLE "EX1" ('
-               'id INTEGER NOT NULL,'
-               'name VARCHAR, '
-               'PRIMARY KEY (id));')
 
-engine.execute('INSERT INTO "EX1"'
-               '(id, name) '
-               'VALUES (1, "raw1")')
+# table = Table('EX1', m,
+#              Column('id', Integer, primary_key=True),
+#              Column('key', String, nullable=True),
+#              Column('val', String))
 
-result = engine.execute('SELECT * FROM '
-                        '"EX1"')
-for _r in result:
-   print(_r)
+
+# engine.execute('CREATE TABLE "EX1" ('
+#               'id INTEGER NOT NULL,'
+#               'name VARCHAR, '
+#               'PRIMARY KEY (id));')
+
+# engine.execute('INSERT INTO "EX1"'
+               #'(id, name) '
+#               'VALUES (1, "raw1")')
+
+# result = engine.execute('SELECT * FROM '
+#                        '"EX1"')
+# for _r in result:
+#   print(_r)
 
 
 print("FINISHED")

@@ -1,64 +1,62 @@
 import sqlite3
 import general
 from sqlalchemy import create_engine
-
-def db_connect(db_path):
-    """Returns a connection to the specified db"""
-    conn = sqlite3.connect(db_path)
-    return conn
-
-def create_table_from_dict(conn, tbl_name, tbl_dict, overwrite = True):
-    """Creates a sql table from a dictionary
-    conn - sql db connection
-    tbl_name - name of the requested table
-    tbl_dict - dictionary to insert into table"""
-
-    colnames = list(tbl_dict.keys())
-    py_types = []
-    for name in colnames:
-        py_types.append(general.get_type(tbl_dict[name]))
-    coltypes = py_type_to_sql_type(py_types)
-
-    query = create_tbl_query(tbl_name, colnames, coltypes, overwrite)
-    conn.execute(query)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, Float, String
 
 
-def create_tbl_query(tbl_name, colnames, coltypes, overwrite):
+# Type conversion functions
+def get_py_type(tbl_dict):
+    """Given a table dictionary (formatted as key:[list]), returns a dictionary of tbl_key: py_type where py_type can
+    be 'integer', 'float', or 'string' (at the moment)"""
 
-    cols_string = ""
-    for idx, val in enumerate(colnames):
-        if idx != len(colnames):  # if not the last index
-            cols_string = cols_string + colnames[idx] + " " + coltypes[idx] + ", "
-        else:  # if the last index
-            cols_string = cols_string + colnames[idx] + " " + coltypes[idx]
-    if overwrite:
-        query = """ CREATE TABLE "{}" (
-                                            {}
-                                        );""".format(tbl_name, cols_string)
-    else:
-        query = """ CREATE TABLE IF NOT EXISTS "{}" (
-                                                    {}
-                                                );""".format(tbl_name, cols_string)
-    return query
+    tbl_keys = list(tbl_dict.keys())
+    py_types = [general.get_type(tbl_dict[key]) for key in list(tbl_dict.keys())]
+    py_types_dict = dict(zip(tbl_keys, py_types))
+    return py_types_dict
+
+
+def get_sql_type(tbl_dict):
+    """Given a table dictionary (formatted as key:[list]), returns a dictionary of tbl_key: sql_type
+    where sql_type is a sqlalchemy sql_type class"""
+
+    py_types = get_py_type(tbl_dict) #py_types is a dict
+    sql_types = py_type_to_sql_type(py_types)
+    return(sql_types)
 
 
 def py_type_to_sql_type(py_types):
-    """Converts a list of python types to a list of sql types"""
+    """Converts a dictionary of python types to a dictionary of sql types where sql type is a sqlalchemy sql_type
+    class"""
 
-    sql_types = []
-    for val in py_types:
-        if val == "integer":
-            sql_types.append("INTEGER")
-        elif val == "float":
-            sql_types.append("REAL")
-        elif val == "string":
-            sql_types.append("TEXT")
+    sql_types = dict()
+    for key in py_types:
+        if py_types[key] == "integer":
+            sql_types[key] = Integer
+        elif py_types[key] == "float":
+            sql_types[key] = Float
+        elif py_types[key] == "string":
+            sql_types[key] = String
         else:
-            raise Exception("Error: no modal type found in list")
+            raise Exception("Error: py_type {} is not an integer, float, or string".format(py_types[key]))
     return sql_types
 
 
-if __name__ == "__main__":
-    db = "database/nba_db.db"
-    test = db_connect(db)
-    print("bleghghg")
+# Database interaction functions
+
+Base = declarative_base()
+
+def create_table(engine, name, cols):
+    Base.metadata.reflect(engine)
+    if name in Base.metadata.tables: return
+    table = type(name, (Base,), cols)
+    table.__table__.create(bind=engine)
+
+
+def create_col_definitions(tbl_name, id_type_dict):
+    col_specs = {'__tablename__': '{}'.format(tbl_name),
+                 'id': Column(Integer, primary_key=True)}
+    for key in id_type_dict:
+        col_specs[key] = Column(id_type_dict[key])
+
+    return col_specs
