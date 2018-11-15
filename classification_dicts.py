@@ -142,4 +142,10 @@ data_stat_headers = [
     "attendance", "attendance_per_g"
 ]
 
+four_factors = [
+    "efg_pct", "tov_pct", "orb_pct",
+    "ft_rate", "opp_efg_pct", "opp_tov_pct",
+    "drb_pct", "opp_ft_rate"
+]
+
 BASE_URL = 'https://www.basketball-reference.com'

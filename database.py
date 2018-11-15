@@ -3,6 +3,7 @@ import general
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, Float, String
 from sqlalchemy import MetaData
+from sqlalchemy import select
 
 
 # Type conversion functions (python types, sql types, sqlalchemy types)
@@ -99,11 +100,13 @@ def insert_row(engine, table, row):
     #   {'l_name': 'Hi', 'f_name': 'bob'},
     #   {'l_name': 'yo', 'f_name': 'alice'}])
 
+
 def insert_rows(engine, table, rows):
     """To Improve: concatenate rows so that only one call to the DB is made when inserting"""
 
     for row in rows:
         insert_row(engine, table, row)
+
 
 def dict_to_rows(tbl_dict):
     """Converts an input dictionary into rows compatible with sqlalchemy's insert function
@@ -117,4 +120,12 @@ def dict_to_rows(tbl_dict):
         for key in keys:
             row_dict[key] = tbl_dict[key][i]
         rows.append(row_dict)
-    return(rows)
+    return rows
+
+
+def select_rows(conn, table):
+    select_st = select([table]).where(
+        table.c.l_name == 'efg_pct')
+    res = conn.execute(select_st)
+    for _row in res:
+        print(_row)
