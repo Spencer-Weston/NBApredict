@@ -2,6 +2,9 @@
 
 
 def set_type(values):
+    """Converts string values to integers or floats if applicable. Otherwise, returns strings.
+    If the string value has zero length, none is returned """
+
     test_val = values[0]  # Is there a better method than taking a test val?
     if is_int(test_val):
         return _set_type(values, int)
@@ -26,6 +29,7 @@ def get_type(values):
 
 
 def is_int(x):
+    """Returns true if X can be coerced to a integer. Otherwise, returns false."""
     try:
         int(x)  # Will raise ValueError if '.2'; will not raise error if .2
         return True
@@ -34,6 +38,7 @@ def is_int(x):
 
 
 def is_float(x):
+    """Returns true if X can be coerced to a float. Otherwise, returns false."""
     try:
         float(x)
         return True
@@ -42,6 +47,8 @@ def is_float(x):
 
 
 def _set_type(values, new_type):
+    """Transforms a list of values into the specified new type. If the value has zero length, returns none"""
+
     new_vals = []
     for i in values:
         # print("value({}) is being set to type({})".format(i, new_type))
@@ -50,3 +57,15 @@ def _set_type(values, new_type):
         else:
             new_vals.append(None)
     return new_vals
+
+
+def check_dict_list_equivalence(dict_object):
+    keys = dict_object.keys()
+    lengths=[]
+    for key in keys:
+        lengths.append(len(dict_object[key]))
+    length_set = set(lengths)
+    if len(length_set) == 1:
+        return True
+    else:
+        return False

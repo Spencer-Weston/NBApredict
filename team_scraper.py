@@ -4,12 +4,11 @@ from bs4 import BeautifulSoup
 import re
 import requests
 import general
-import db_interface as db_int
+import database as db
 from sqlalchemy import create_engine
 from sqlalchemy import Table
 from sqlalchemy import MetaData
 from sqlalchemy import inspect
-
 
 
 # USABLE STUFF
@@ -76,44 +75,29 @@ def get_data_dict_from_tbl(table):
 
 # Pathes and URLs
 year = 2019
-tbl = "misc_stats"
+tbl_name = "misc_stats"
 
 # Get tbl_dictionary from basketball reference
-tbl_dict = team_box_scores(year, tbl)
+tbl_dict = team_box_scores(year, tbl_name)
 
 # Database work set_up
 db_url = "sqlite:///database//nba_db.db"
 engine = create_engine(db_url)
 m = MetaData()
 
-sql_types = db_int.get_sql_type(tbl_dict)
-col_defs = db_int.create_col_definitions(tbl, sql_types)
-db_int.create_table(engine, tbl, col_defs, overwrite=True)
+sql_types = db.get_sql_type(tbl_dict)
+col_defs = db.create_col_definitions(tbl_name, sql_types)
+db.create_table(engine, tbl_name, col_defs, overwrite=False)
 
-
-# table = Table('EX1', m,
-#              Column('id', Integer, primary_key=True),
-#              Column('key', String, nullable=True),
-#              Column('val', String))
-
-
-# engine.execute('CREATE TABLE "EX1" ('
-#               'id INTEGER NOT NULL,'
-#               'name VARCHAR, '
-#               'PRIMARY KEY (id));')
-
-# engine.execute('INSERT INTO "EX1"'
-               #'(id, name) '
-#               'VALUES (1, "raw1")')
-
-# result = engine.execute('SELECT * FROM '
-#                        '"EX1"')
-# for _r in result:
-#   print(_r)
+if general.check_dict_list_equivalence(tbl_dict):
+    tbl_db = db.get_table(engine, tbl_name)
+    rows = db.dict_to_rows(tbl_dict)
+    db.insert_rows(engine, tbl_db, rows)
+else:
+    print("tbl_dict rows are not equivalent length")
 
 
 print("FINISHED")
 
 #TO-DO:
-# 1. Convert table_dict to pandas DF
 # 3. Write to DB
