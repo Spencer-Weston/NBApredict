@@ -1,8 +1,8 @@
-import sqlite3
 import general
-from sqlalchemy import create_engine
+# from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, Float, String
+from sqlalchemy import MetaData
 
 
 # Type conversion functions
@@ -44,19 +44,43 @@ def py_type_to_sql_type(py_types):
 
 # Database interaction functions
 
-Base = declarative_base()
 
-def create_table(engine, name, cols):
+def create_table(engine, name, cols, overwrite = False):
+    """Creates a table(name) in the engine with the specified cols
+    engine: sql_alchemy create_engine(url) output
+    name: name for the created table
+    cols: """
+
+    Base = declarative_base()
     Base.metadata.reflect(engine)
-    if name in Base.metadata.tables: return
-    table = type(name, (Base,), cols)
+    if name in Base.metadata.tables and not overwrite:
+        print("Table exists and overwrite is False. Returning without making changes")
+        return
+    elif name in Base.metadata.tables and overwrite:
+        print("Table exists and overwrite is True. Overwriting table")
+        drop_table(engine, name)
+    table = type(name, (Base, ), cols)
     table.__table__.create(bind=engine)
 
 
 def create_col_definitions(tbl_name, id_type_dict):
+    """Returns a dictionary that begins with __table__name and an integer id followed by columns as specified
+    in the id_type_dict
+    tbl_name: name of the desired table
+    id_type_dict: dictionary of column id's and associated sql_alchemy sql types"""
+
     col_specs = {'__tablename__': '{}'.format(tbl_name),
                  'id': Column(Integer, primary_key=True)}
     for key in id_type_dict:
         col_specs[key] = Column(id_type_dict[key])
 
     return col_specs
+
+
+def drop_table(engine, drop_tbl):
+    """Function takes an engine, finds table in the engine, drops the drop_tbl from the engine"""
+
+    metadata = MetaData(bind=engine)
+    metadata.reflect(bind=engine)
+    drop_tbl_class = metadata.tables[drop_tbl]
+    drop_tbl_class.drop()

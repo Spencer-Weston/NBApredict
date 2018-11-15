@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import Table
 from sqlalchemy import MetaData
 from sqlalchemy import inspect
-from sqlalchemy import Column, Integer, String
+
 
 
 # USABLE STUFF
@@ -85,6 +85,11 @@ tbl_dict = team_box_scores(year, tbl)
 db_url = "sqlite:///database//nba_db.db"
 engine = create_engine(db_url)
 m = MetaData()
+
+sql_types = db_int.get_sql_type(tbl_dict)
+col_defs = db_int.create_col_definitions(tbl, sql_types)
+db_int.create_table(engine, tbl, col_defs, overwrite=True)
+
 
 # table = Table('EX1', m,
 #              Column('id', Integer, primary_key=True),
