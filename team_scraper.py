@@ -85,10 +85,12 @@ db_url = "sqlite:///database//nba_db.db"
 engine = create_engine(db_url)
 m = MetaData()
 
+# Transform data into sql_alchemy format and write table to DB
 sql_types = db.get_sql_type(tbl_dict)
 col_defs = db.create_col_definitions(tbl_name, sql_types)
 db.create_table(engine, tbl_name, col_defs, overwrite=False)
 
+# Write rows to DB
 if general.check_dict_list_equivalence(tbl_dict):
     tbl_db = db.get_table(engine, tbl_name)
     rows = db.dict_to_rows(tbl_dict)

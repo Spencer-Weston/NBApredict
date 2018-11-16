@@ -1,7 +1,5 @@
 from enum import Enum
 
-# This package contains dictionaries of information we need for
-# next steps in the process
 
 class Location(Enum):
     HOME = "HOME"
@@ -73,9 +71,6 @@ class Position(Enum):
     POWER_FORWARD = "POWER FORWARD"
     CENTER = "CENTER"
 
-class Tables(Enum):
-    misc_stats = "misc_stats"
-
 
 TEAM_ABBREVIATIONS_TO_TEAM = {
     'ATL': Team.ATLANTA_HAWKS,
@@ -126,27 +121,3 @@ POSITION_ABBREVIATIONS_TO_POSITION = {
     "PF": Position.POWER_FORWARD,
     "C": Position.CENTER,
 }
-
-bball_ref_tbl_names = {
-    "misc_stats" : Tables.misc_stats
-}
-
-data_stat_headers = [
-    "team_name", "age", "wins",
-    "losses", "wins_pyth", "losses_pyth",
-    "mov", "sos", "srs", "off_rtg",
-    "def_rtg", "pace", "fta_per_fga_pct",
-    "fg3a_per_fga_pct", "ts_pct",
-    "efg_pct", "tov_pct", "orb_pct",
-    "ft_rate", "opp_efg_pct", "opp_tov_pct",
-    "drb_pct", "opp_ft_rate", "arena_name",
-    "attendance", "attendance_per_g"
-]
-
-four_factors = [
-    "efg_pct", "tov_pct", "orb_pct",
-    "ft_rate", "opp_efg_pct", "opp_tov_pct",
-    "drb_pct", "opp_ft_rate"
-]
-
-BASE_URL = 'https://www.basketball-reference.com'
