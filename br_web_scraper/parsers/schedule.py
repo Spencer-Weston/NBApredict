@@ -41,6 +41,13 @@ def parse_start_time(formatted_date, formatted_time_of_day):
     return localized_start_time.astimezone(pytz.utc)
 
 
+def current_time():
+    now = datetime.datetime.now()
+    est = pytz.timezone("US/Eastern")
+    localized_now_time = est.localize(now)
+    return localized_now_time.astimezone(pytz.utc)
+
+
 def parse_game(row):
     start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
     return {
@@ -57,6 +64,10 @@ def parse_schedule(page):
     rows = tree.xpath('//table[@id="schedule"]//tbody/tr')
     schedule = []
     for row in rows:
+        start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
+        now = current_time()
+        if start_time > now:
+            break
         if row.text_content() != "Playoffs":
             schedule.append(parse_game(row))
     return schedule
