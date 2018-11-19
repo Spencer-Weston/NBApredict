@@ -1,3 +1,5 @@
+import datetime
+
 """General functions for the project"""
 
 
@@ -17,19 +19,31 @@ def set_type(values):
 
 def get_type(values):
     """Returns the type of the values in a list where type is defined as the modal type in the list"""
-    val_types = []
-    for i in values:
-        if isinstance(i, int):
-            val_types.append("integer")
-        elif isinstance(i, float):
-            val_types.append("float")
-        else:
-            val_types.append("string")
-    return max(set(val_types), key=val_types.count)  # The max, set, and key combo returns the modal type
+    if hasattr(values, "__len__"):
+        val_types = []
+        for i in values:
+            val_types.append(_get_type(i))
+        return max(set(val_types), key=val_types.count)  # The max, set, and key combo returns the modal type
+    else:
+        return _get_type(values)
+
+
+def _get_type(val):
+    """Returns the type of the value if it is a int, float, or datetime. Otherwise, returns strings"""
+
+    if isinstance(val, int):
+        return "integer"
+    elif isinstance(val, float):
+        return "float"
+    elif isinstance(val, datetime.datetime):
+        return "datetime"
+    else:
+        return "string"
 
 
 def is_int(x):
     """Returns true if X can be coerced to a integer. Otherwise, returns false."""
+
     try:
         int(x)  # Will raise ValueError if '.2'; will not raise error if .2
         return True

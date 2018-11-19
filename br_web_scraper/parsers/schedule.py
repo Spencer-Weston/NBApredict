@@ -50,6 +50,11 @@ def current_time():
 
 def parse_game(row):
     start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
+    try:
+        test = int(row[3].text_content())
+    except:
+        print("invalid test")
+
     return {
         "start_time": start_time,
         "away_team": TEAM_NAME_TO_TEAM[row[2].text_content().upper()],
@@ -66,7 +71,10 @@ def parse_schedule(page):
     for row in rows:
         start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
         now = current_time()
-        if start_time > now:
+        # Scrape all data up to 'yesterday'; Don't scrape for today as in progress games create errors
+        if (start_time.month == now.month) and (start_time.day > (now.day - 1)):
+            break
+        elif start_time > now:
             break
         if row.text_content() != "Playoffs":
             schedule.append(parse_game(row))
