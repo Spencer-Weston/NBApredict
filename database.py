@@ -1,9 +1,9 @@
 import general
 # from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, Float, String, DateTime
 from sqlalchemy import MetaData
 from sqlalchemy import select
+from sqlalchemy.ext.declarative import declarative_base
 
 
 # Type conversion functions (python types, sql types, sqlalchemy types)
@@ -48,6 +48,7 @@ def py_type_to_sql_type(py_types):
 def create_col_definitions(tbl_name, id_type_dict):
     """Returns a dictionary that begins with __table__name and an integer id followed by columns as specified
     in the id_type_dict
+
     tbl_name: name of the desired table
     id_type_dict: dictionary of column id's and associated sql_alchemy sql types"""
 
@@ -61,7 +62,8 @@ def create_col_definitions(tbl_name, id_type_dict):
 
 # Database table functions (i.e. create, drop, access)
 def create_table(engine, name, cols, overwrite=False):
-    """Creates a table(name) in the engine with the specified cols
+    """Creates a table, named as "name", in the engine with the specified cols
+
     engine: sql_alchemy create_engine(url) output
     name: name for the created table
     cols: dictionary of column names and sql types with a table name specified"""
@@ -91,6 +93,7 @@ def drop_table(engine, drop_tbl):
 
 
 def get_table(engine, tbl):
+    """Finds the specified table in the engine and returns the table"""
     meta = MetaData(bind=engine)
     meta.reflect(bind=engine)
     return meta.tables[tbl]
@@ -108,19 +111,20 @@ def insert_row(engine, table, row):
 
 def insert_rows(engine, table, rows):
     """To Improve: concatenate rows so that only one call to the DB is made when inserting"""
-
+    conn = engine.connect()
     for row in rows:
-        insert_row(engine, table, row)
+        conn.execute(table.insert(), row)
 
 
 def dict_to_rows(tbl):
     """Converts an input dictionary into rows compatible with sqlalchemy's insert function
     Currently presumes each dictionary object is a list of equivalent length"""
-    if tbl is dict:
+    if isinstance(tbl, dict):
         return _dict_to_rows(tbl)
-    elif tbl is list:
+    elif isinstance(tbl, list):
         return _list_to_rows()
-
+    else:
+        raise Exception("tbl is neither a list or dictionary, and cannot be handled")
 
 def _list_to_rows(tbl):
     pass

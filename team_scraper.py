@@ -1,14 +1,14 @@
-from classification_dicts import data_stat_headers as HEADERS
-from classification_dicts import BASE_URL
 from bs4 import BeautifulSoup
+from classification_dicts import BASE_URL
+from classification_dicts import data_stat_headers as HEADERS
+import database as db
+import general
 import re
 import requests
-import general
-import database as db
 from sqlalchemy import create_engine
-from sqlalchemy import Table
-from sqlalchemy import MetaData
-from sqlalchemy import inspect
+# from sqlalchemy import Table
+# from sqlalchemy import MetaData
+# from sqlalchemy import inspect
 
 
 # USABLE STUFF
@@ -54,7 +54,6 @@ def get_data_from_tbl(table, remove_nones=True):
 
 def get_data_dict_from_tbl(table):
     """Returns a dictionary from a BeautifulSoup table with colnames as keys and a list of values"""
-
     rows = table.find_all("tr")
     data_dict = dict()
 
@@ -73,33 +72,34 @@ def get_data_dict_from_tbl(table):
     return data_dict
 
 
-# Pathes and URLs
-year = 2019
-tbl_name = "misc_stats"
+def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db"):
+    # Pathes and URLs
+    #year = year
+    #tbl_name = tbl_name
 
-# Get tbl_dictionary from basketball reference
-tbl_dict = team_box_scores(year, tbl_name)
+    # Get tbl_dictionary from basketball reference
+    tbl_dict = team_box_scores(year, tbl_name)
 
-# Database work set_up
-db_url = "sqlite:///database//nba_db.db"
-engine = create_engine(db_url)
-
-
-# Transform data into sql_alchemy format and write table to DB
-sql_types = db.get_sql_type(tbl_dict)
-col_defs = db.create_col_definitions(tbl_name, sql_types)
-db.create_table(engine, tbl_name, col_defs, overwrite=True)
-
-# Write rows to DB
-if general.check_dict_list_equivalence(tbl_dict):
-    tbl_db = db.get_table(engine, tbl_name)
-    rows = db.dict_to_rows(tbl_dict)
-    db.insert_rows(engine, tbl_db, rows)
-else:
-    print("tbl_dict rows are not equivalent length")
+    # Database work set_up
+    #db_url = db_url
+    engine = create_engine(db_url)
 
 
-print("FINISHED")
+    # Transform data into sql_alchemy format and write table to DB
+    sql_types = db.get_sql_type(tbl_dict)
+    col_defs = db.create_col_definitions(tbl_name, sql_types)
+    db.create_table(engine, tbl_name, col_defs, overwrite=True)
 
-#TO-DO:
-# 3. Write to DB
+    # Write rows to DB
+    if general.check_dict_list_equivalence(tbl_dict):
+        tbl_db = db.get_table(engine, tbl_name)
+        rows = db.dict_to_rows(tbl_dict)
+        db.insert_rows(engine, tbl_db, rows)
+    else:
+        print("tbl_dict rows are not equivalent length")
+
+    print("FINISHED")
+
+
+if __name__ == "__main__":
+    main()
