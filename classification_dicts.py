@@ -3,6 +3,7 @@ from enum import Enum
 # This package contains dictionaries of information we need for
 # next steps in the process
 
+
 class Location(Enum):
     HOME = "HOME"
     AWAY = "AWAY"
@@ -72,6 +73,7 @@ class Position(Enum):
     SMALL_FORWARD = "SMALL FORWARD"
     POWER_FORWARD = "POWER FORWARD"
     CENTER = "CENTER"
+
 
 class Tables(Enum):
     misc_stats = "misc_stats"

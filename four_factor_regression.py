@@ -79,7 +79,6 @@ ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
 sched_df = pd.read_sql_table(sched, conn)
 
 
-
 regression_df = create_ff_regression_df(ff_df, sched_df, cd.four_factors)
 predictors = regression_df.loc[:, regression_df.columns != 'mov']
 target = regression_df["mov"]

@@ -94,7 +94,7 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
     engine = create_engine(db_url)
 
     # Initial tbl_name is for scraping basketball reference; Year is added to disambiguate tables
-    db_tbl_name = tbl_name + '_{}'.format(year)
+    db_tbl_name = '{}_{}'.format(tbl_name, year)
 
     # Transform data into sql_alchemy format and write table to DB
     sql_types = db.get_sql_type(tbl_dict)
