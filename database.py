@@ -126,8 +126,11 @@ def dict_to_rows(tbl):
     else:
         raise Exception("tbl is neither a list or dictionary, and cannot be handled")
 
+
 def _list_to_rows(tbl):
-    pass
+    """"To-do: Implement functionality for transforming lists into database rows"""
+
+    raise Exception("tbl is a list. Function to convert lists into database rows is not implemented")
 
 
 def _dict_to_rows(tbl):

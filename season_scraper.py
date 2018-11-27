@@ -1,3 +1,6 @@
+
+
+
 from br_web_scraper import client
 import database as db
 import datetime

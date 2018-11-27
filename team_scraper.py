@@ -1,3 +1,16 @@
+"""
+Author: Spencer Weston
+
+Purpose: team_scraper is used to scrape team statistics from basketball reference. By default, it scrapes miscellaneous
+statistics in 2019. Alternate years and tables may be scraped though functionality is not yet guaranteed. The scraped
+tables are written to the specified database.
+
+Args (defaults):
+    Year (2019) - Desired year
+    tbl_name ('misc_stats') - Name of the table to be scraped
+    db_url ('sqlite:///database//nba_db.db') - Path to the database the table should be written to
+"""
+
 from bs4 import BeautifulSoup
 from classification_dicts import BASE_URL
 from classification_dicts import data_stat_headers as HEADERS
@@ -6,15 +19,10 @@ import general
 import re
 import requests
 from sqlalchemy import create_engine
-# from sqlalchemy import Table
-# from sqlalchemy import MetaData
-# from sqlalchemy import inspect
 
 
-# USABLE STUFF
-def team_box_scores(year, tbl_name):
-    """Function builds a URL for the specified year and returns team box scores for a specified table on 
-    that page"""
+def team_statistics(year, tbl_name):
+    """Builds a URL for the specified year and returns team box scores for a specified table on that page"""
 
     url = '{BASE_URL}/leagues/NBA_{year}.html'.format(
         BASE_URL=BASE_URL,
@@ -30,8 +38,12 @@ def team_box_scores(year, tbl_name):
 
 
 def parse_table(page, tbl_name):
-    """Takes the content from a URL response as page, uses re.sub to remove comments on the page, and finally
-     returns a dictionary with the data from the specified table"""
+    """Parses the specified table on the specified page and returns the data as a dictionary
+
+     Args:
+         page - The contents from a url response
+         tbl_name - the desired table to be parsed
+         """
 
     cleaned_soup = BeautifulSoup(re.sub('<!--|-->', "", str(page)), features="lxml")
     table = cleaned_soup.find('table', {'id': '{}'.format(tbl_name)})
@@ -53,12 +65,12 @@ def get_data_from_tbl(table, remove_nones=True):
 
 
 def get_data_dict_from_tbl(table):
-    """Returns a dictionary from a BeautifulSoup table with colnames as keys and a list of values"""
+    """Returns a dictionary from a BeautifulSoup table with column names as keys and a list of values"""
     rows = table.find_all("tr")
     data_dict = dict()
 
     for row in rows:
-        if (row.find('th', {"scope": "row"}) != None):
+        if row.find('th', {"scope": "row"}) is not None:
             for head in HEADERS:
                 cell = row.find("td", {"data-stat": head})
                 a = cell.text.strip().encode()
@@ -73,26 +85,25 @@ def get_data_dict_from_tbl(table):
 
 
 def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db"):
-    # Pathes and URLs
-    #year = year
-    #tbl_name = tbl_name
+    """Refer to file docstring"""
 
     # Get tbl_dictionary from basketball reference
-    tbl_dict = team_box_scores(year, tbl_name)
+    tbl_dict = team_statistics(year, tbl_name)
 
     # Database work set_up
-    #db_url = db_url
     engine = create_engine(db_url)
 
+    # Initial tbl_name is for scraping basketball reference; Year is added to disambiguate tables
+    db_tbl_name = tbl_name + '_{}'.format(year)
 
     # Transform data into sql_alchemy format and write table to DB
     sql_types = db.get_sql_type(tbl_dict)
-    col_defs = db.create_col_definitions(tbl_name, sql_types)
-    db.create_table(engine, tbl_name, col_defs, overwrite=True)
+    col_defs = db.create_col_definitions(db_tbl_name, sql_types)
+    db.create_table(engine, db_tbl_name, col_defs, overwrite=True)
 
     # Write rows to DB
     if general.check_dict_list_equivalence(tbl_dict):
-        tbl_db = db.get_table(engine, tbl_name)
+        tbl_db = db.get_table(engine, db_tbl_name)
         rows = db.dict_to_rows(tbl_dict)
         db.insert_rows(engine, tbl_db, rows)
     else:
