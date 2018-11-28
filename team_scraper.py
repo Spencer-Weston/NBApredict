@@ -9,6 +9,10 @@ Args (defaults):
     Year (2019) - Desired year
     tbl_name ('misc_stats') - Name of the table to be scraped
     db_url ('sqlite:///database//nba_db.db') - Path to the database the table should be written to
+
+To-Do:
+    1. Create a method for stripping extraneous characters from team-names. If querying a historical season, the teams
+    that made the playoffs have a '*' appended that we want to strip from the team-name
 """
 
 from bs4 import BeautifulSoup
@@ -34,7 +38,7 @@ def team_statistics(year, tbl_name):
     if 200 <= response.status_code < 300:
         return parse_table(response.content, tbl_name)  # Note that this uses the .content attribute
 
-    print("Could not connect to URL")
+    raise Exception("Could not connect to URL")
 
 
 def parse_table(page, tbl_name):

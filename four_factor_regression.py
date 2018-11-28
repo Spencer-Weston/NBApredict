@@ -49,12 +49,12 @@ def _get_team_ff(ff_df, team, ff_list, home):
 
 
 def append_h(string):
-    string += "_h"
+    string = '{}{}'.format(string, '_h')
     return string
 
 
 def append_a(string):
-    string += "_a"
+    string = '{}{}'.format(string, '_a')
     return string
 
 
@@ -73,7 +73,7 @@ ff_list.append("losses")
 ff_list.append("mov")
 
 # Database table to pandas table
-misc_stats = "misc_stats"
+misc_stats = "misc_stats_2019"
 sched = "sched_2019"
 ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
 sched_df = pd.read_sql_table(sched, conn)
@@ -85,7 +85,20 @@ target = regression_df["mov"]
 
 lm = linear_model.LinearRegression()
 test = lm.fit(predictors, target)
-coefs = pd.DataFrame(zip(predictors.columns, lm.coef_), columns=["features", "estimated_coefs"])
+# coefs = pd.DataFrame(zip(predictors.columns, lm.coef_), columns=["features", "estimated_coefs"])
+predictions = lm.predict(predictors)
+minimum = int(predictions.min()) - 1
+maximum = int(predictions.max()) + 1
+diag_line_x = [i for i in range(minimum, maximum)]
+diag_line_y = [i for i in diag_line_x]
 
+# Scatter plot of actual vs. predicted results
+fig, ax = plt.subplots()
+ax.scatter(predictions, target)
+ax.set_title("Predicted vs. Actual")
+ax.set_xlabel("Predicted")
+ax.set_ylabel("Actual")
+ax.axhline(0)
+ax.plot(diag_line_x, diag_line_y)
 
 print("FINISHED")

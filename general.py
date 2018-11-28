@@ -73,6 +73,8 @@ def _get_type(val):
         return "datetime"
     elif isinstance(val, str):
         return "string"
+    elif val is None:
+        return None
     else:
         raise Exception("Val is not an int, float, datetime, or string")
 
