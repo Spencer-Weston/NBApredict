@@ -130,7 +130,7 @@ POSITION_ABBREVIATIONS_TO_POSITION = {
 }
 
 bball_ref_tbl_names = {
-    "misc_stats" : Tables.misc_stats
+    "misc_stats": Tables.misc_stats
 }
 
 data_stat_headers = [

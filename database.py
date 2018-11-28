@@ -122,7 +122,7 @@ def dict_to_rows(tbl):
     if isinstance(tbl, dict):
         return _dict_to_rows(tbl)
     elif isinstance(tbl, list):
-        return _list_to_rows()
+        return _list_to_rows(tbl)
     else:
         raise Exception("tbl is neither a list or dictionary, and cannot be handled")
 

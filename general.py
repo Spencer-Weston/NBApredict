@@ -1,11 +1,24 @@
-import datetime
+"""
+Author: Spencer Weston
 
-"""General functions for the project"""
+Purpose: Contains general functions. The NBA_bet project uses these functions. However, their utility is not restricted
+to the project. The functions, for the most part, deal with type checks, type conversions, and length comparisons
+"""
+
+import datetime
 
 
 def set_type(values):
     """Converts string values to integers or floats if applicable. Otherwise, returns strings.
-    If the string value has zero length, none is returned """
+
+    If the string value has zero length, none is returned
+
+    Args:
+        values - A list of values
+
+    To-Do:
+        1. Add functionality to coerce elements of lists and not just lists
+    """
 
     test_val = values[0]  # Is there a better method than taking a test val?
     if is_int(test_val):
@@ -15,49 +28,6 @@ def set_type(values):
     else:
         values = [x if len(x) > 0 else None for x in values]  # Set empty strings to None
         return values
-
-
-def get_type(values):
-    """Returns the type of the values in a list where type is defined as the modal type in the list"""
-    if hasattr(values, "__len__"):
-        val_types = []
-        for i in values:
-            val_types.append(_get_type(i))
-        return max(set(val_types), key=val_types.count)  # The max, set, and key combo returns the modal type
-    else:
-        return _get_type(values)
-
-
-def _get_type(val):
-    """Returns the type of the value if it is a int, float, or datetime. Otherwise, returns strings"""
-
-    if isinstance(val, int):
-        return "integer"
-    elif isinstance(val, float):
-        return "float"
-    elif isinstance(val, datetime.datetime):
-        return "datetime"
-    else:
-        return "string"
-
-
-def is_int(x):
-    """Returns true if X can be coerced to a integer. Otherwise, returns false."""
-
-    try:
-        int(x)  # Will raise ValueError if '.2'; will not raise error if .2
-        return True
-    except ValueError:
-        return False
-
-
-def is_float(x):
-    """Returns true if X can be coerced to a float. Otherwise, returns false."""
-    try:
-        float(x)
-        return True
-    except ValueError:
-        return False
 
 
 def _set_type(values, new_type):
@@ -73,9 +43,72 @@ def _set_type(values, new_type):
     return new_vals
 
 
+def get_type(values):
+    """Returns the type of the values where type is defined as the modal type in the list
+
+    Args:
+        values - The element to get the type for. Can be a list or single element.
+
+    To-Do:
+        Modal type isn't a full proof method. Need to determine a better method.
+    """
+
+    if hasattr(values, "__len__"):  # Checks if the object is iterable
+        val_types = []
+        for i in values:
+            val_types.append(_get_type(i))
+        return max(set(val_types), key=val_types.count)  # The max, set, and key combo returns the modal type
+    else:
+        return _get_type(values)
+
+
+def _get_type(val):
+    """Returns the type of the value if it is a int, float, or datetime. Otherwise, returns a string"""
+
+    if isinstance(val, int):
+        return "integer"
+    elif isinstance(val, float):
+        return "float"
+    elif isinstance(val, datetime.datetime):
+        return "datetime"
+    elif isinstance(val, str):
+        return "string"
+    else:
+        raise Exception("Val is not an int, float, datetime, or string")
+
+
+def is_int(x):
+    """Returns true if X can be coerced to a integer. Otherwise, returns false."""
+
+    try:
+        int(x)  # Will raise ValueError if '.2'; will not raise error if .2
+        return True
+    except ValueError:
+        return False
+
+
+def is_float(x):
+    """Returns true if X can be coerced to a float. Otherwise, returns false."""
+
+    try:
+        float(x)
+        return True
+    except ValueError:
+        return False
+
+
 def check_dict_list_equivalence(dict_object):
+    """Given a dictionary where keys references lists, checks that all lists are the same length. Returns True or False
+
+    Args:
+        dict_object - a dictionary where each key references a list
+    Returns:
+         True - if all the lists in the dictionary have the same length
+         False - if the dictionary's lists are of different lengths
+    """
+
     keys = dict_object.keys()
-    lengths=[]
+    lengths = []
     for key in keys:
         lengths.append(len(dict_object[key]))
     length_set = set(lengths)
