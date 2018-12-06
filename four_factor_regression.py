@@ -1,12 +1,62 @@
 import database as db
 import classification_dicts as cd
+import graphing
 from sqlalchemy import create_engine
-from sqlalchemy import select
 import pandas as pd
 from sklearn import linear_model
 import matplotlib.pyplot as plt
 import numpy as np
+import statsmodels.api as sm
+import scipy.stats as stats
 
+
+class LinearRegression:
+
+    def __init__(self, target, predictors):
+        """Performs a linear regression and stores pertinent regression outputs as class variables"""
+        self.target = target
+        self.predictors = predictors
+        self.results = sm.OLS(target, predictors).fit()
+        # coefs = pd.DataFrame(zip(predictors.columns, lm.coef_), columns=["features", "estimated_coefs"])
+        self.predictions = self.results.predict(self.predictors)
+        self.r_squared = self.results.rsquared
+        self.adj_r_squared = self.results.rsquared_adj
+        self.r_squared_rnd = np.around(self.r_squared, 3)
+        self.residuals = self.results.resid
+        self.p_values = self.results.pvalues
+        self.coefs = self.results.params
+        self.output = pd.concat([self.coefs, self.p_values], axis=1)
+        self.output.columns = ["coefficient", "p_value"]
+        pass
+        # coefs= pd.DataFrame(lm.coef_, index=predictors.columns, columns =["estimated_coefs"])
+
+    def predicted_vs_actual(self, out_path=None):
+        graph = graphing.pred_vs_actual(self.predictions, self.target, self.r_squared_rnd, out_path=out_path)
+        return graph
+
+    def residuals_vs_fitted(self, out_path=None):
+        graph = graphing.residuals_vs_fitted(self.predictions, self.residuals, out_path)
+        return graph
+
+    def qqplot(self, out_path=None):
+        fig = sm.qqplot(self.residuals, dist=stats.t, fit=True, line="45")
+        if out_path:
+            fig.savefig(out_path)
+        return fig
+
+    def influence_plot(self, out_path=None):
+        fig, ax = plt.subplots(figsize=(12, 8))
+        fig = sm.graphics.influence_plot(self.results, ax=ax, criterion="cooks")
+        if out_path:
+            fig.savefig(out_path)
+        return fig
+
+    def cooks_distance(self, out_path=None):
+        influence = self.results.get_influence()
+        # c is the distance and p is p-value
+        (c, p) = influence.cooks_distance
+        graph = graphing.cooks_distance(c, out_path)
+        return graph
 
 def create_ff_regression_df(ff_df, sched_df, ff_list):
     """ Pd.concat presents a performance issue
@@ -58,47 +108,41 @@ def append_a(string):
     return string
 
 
-# Variable setup
-db_url = "sqlite:///database//nba_db.db"
-engine = create_engine(db_url)
-conn = engine.connect()
+def main():
+    # Variable setup
+    db_url = "sqlite:///database//nba_db.db"
+    engine = create_engine(db_url)
+    conn = engine.connect()
 
-# Import and specify a list of factors to extract from database
-ff_list = cd.four_factors.copy()
+    # Import and specify a list of factors to extract from database
+    ff_list = cd.four_factors.copy()
 
-target_list = []
-ff_list.insert(0, "team_name")
-ff_list.append("wins")
-ff_list.append("losses")
-ff_list.append("mov")
+    ff_list.insert(0, "team_name")
+    ff_list.append("wins")
+    ff_list.append("losses")
+    ff_list.append("mov")
 
-# Database table to pandas table
-misc_stats = "misc_stats_2019"
-sched = "sched_2019"
-ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
-sched_df = pd.read_sql_table(sched, conn)
+    # Database table to pandas table
+    misc_stats = "misc_stats_2019"
+    sched = "sched_2019"
+    ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
+    sched_df = pd.read_sql_table(sched, conn)
+
+    # Combines four factors and seasons df's and separates them into X and y
+    regression_df = create_ff_regression_df(ff_df, sched_df, cd.four_factors)
+    predictors = regression_df.loc[:, regression_df.columns != 'mov']
+    target = regression_df["mov"]
+
+    ff_reg = LinearRegression(target, predictors)
+
+    # Evaluative graphs
+    ff_reg.predicted_vs_actual(out_path=r"graphs/pred_vs_actual.png")
+    ff_reg.residuals_vs_fitted(out_path=r"graphs/residuals_vs_fitted.png")
+    ff_reg.qqplot(out_path=r"graphs/qqplot.png")
+    ff_reg.influence_plot(out_path=r"graphs/influence.png")
+    ff_reg.cooks_distance(out_path=r"graphs/cooks_distance.png")
+    print("FINISHED")
 
 
-regression_df = create_ff_regression_df(ff_df, sched_df, cd.four_factors)
-predictors = regression_df.loc[:, regression_df.columns != 'mov']
-target = regression_df["mov"]
-
-lm = linear_model.LinearRegression()
-test = lm.fit(predictors, target)
-# coefs = pd.DataFrame(zip(predictors.columns, lm.coef_), columns=["features", "estimated_coefs"])
-predictions = lm.predict(predictors)
-minimum = int(predictions.min()) - 1
-maximum = int(predictions.max()) + 1
-diag_line_x = [i for i in range(minimum, maximum)]
-diag_line_y = [i for i in diag_line_x]
-
-# Scatter plot of actual vs. predicted results
-fig, ax = plt.subplots()
-ax.scatter(predictions, target)
-ax.set_title("Predicted vs. Actual")
-ax.set_xlabel("Predicted")
-ax.set_ylabel("Actual")
-ax.axhline(0)
-ax.plot(diag_line_x, diag_line_y)
-
-print("FINISHED")
+if __name__ == "__main__":
+    main()
