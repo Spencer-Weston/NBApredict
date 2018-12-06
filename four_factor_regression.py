@@ -7,6 +7,7 @@ from sklearn import linear_model
 import matplotlib.pyplot as plt
 import numpy as np
 import statsmodels.api as sm
+from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
 import scipy.stats as stats
 
 
@@ -15,8 +16,8 @@ class LinearRegression:
     def __init__(self, target, predictors):
         """Performs a linear regression and stores pertinent regression outputs as class variables"""
         self.target = target
-        self.predictors = predictors
-        self.results = sm.OLS(target, predictors).fit()
+        self.predictors = sm.add_constant(predictors)
+        self.results = sm.OLS(target, self.predictors).fit()
         # coefs = pd.DataFrame(zip(predictors.columns, lm.coef_), columns=["features", "estimated_coefs"])
         self.predictions = self.results.predict(self.predictors)
         self.r_squared = self.results.rsquared
@@ -57,6 +58,15 @@ class LinearRegression:
         (c, p) = influence.cooks_distance
         graph = graphing.cooks_distance(c, out_path)
         return graph
+
+    def vif(self):
+        """Variance Inflation Factor"""
+        vif_out = pd.DataFrame()
+        predictors = np.array(self.predictors)
+        vif_out["VIF Factor"] = [vif(predictors, i) for i in range(predictors.shape[1])]
+        vif_out["features"] = self.predictors.columns
+        return vif_out
+
 
 def create_ff_regression_df(ff_df, sched_df, ff_list):
     """ Pd.concat presents a performance issue
@@ -141,7 +151,12 @@ def main():
     ff_reg.qqplot(out_path=r"graphs/qqplot.png")
     ff_reg.influence_plot(out_path=r"graphs/influence.png")
     ff_reg.cooks_distance(out_path=r"graphs/cooks_distance.png")
+
+    # Multicollinearity
+    vif_df = ff_reg.vif()
+
     print("FINISHED")
+
 
 
 if __name__ == "__main__":

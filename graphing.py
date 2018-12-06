@@ -47,7 +47,6 @@ def residuals_vs_fitted(predictions, residuals, out_path=None):
     ax[1].hist(residuals, bins=30, orientation="horizontal")
     ax[1].set_xlabel("Frequency")
     ax[1].set_title("Jarque-Bera \n P-Value: {}".format(np.around(p_value, 3)))
-    # ax[1].text(0.5, 0.9, "Jarque-Bera P-Value: {}".format(p_value), transform=ax[1].transAxes, bbox=dict(fill=False))
 
     if out_path:
         fig.savefig(out_path)
