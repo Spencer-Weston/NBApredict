@@ -1,5 +1,5 @@
 import database as db
-import classification_dicts as cd
+import br_references as cd
 import graphing
 from sqlalchemy import create_engine
 import pandas as pd

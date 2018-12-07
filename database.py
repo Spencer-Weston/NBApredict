@@ -40,6 +40,8 @@ def py_type_to_sql_type(py_types):
             sql_types[key] = String
         elif py_types[key] == "datetime":
             sql_types[key] = DateTime
+        elif py_types[key] is None:
+            continue  # We continue here so as to not create a column for null values
         else:
             raise Exception("Error: py_type {} is not an integer, float, or string".format(py_types[key]))
     return sql_types
