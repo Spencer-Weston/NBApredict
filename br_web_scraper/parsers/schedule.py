@@ -69,14 +69,14 @@ def parse_schedule(page):
     rows = tree.xpath('//table[@id="schedule"]//tbody/tr')
     schedule = []
     for row in rows:
-        start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
-        now = current_time()
-        # Scrape all data up to 'yesterday'; Don't scrape for today as in progress games create errors
-        if (start_time.month == now.month) and (start_time.day > (now.day - 1)):
-            break
-        elif start_time > now:
-            break
         if row.text_content() != "Playoffs":
+            start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
+            now = current_time()
+            # Scrape all data up to 'yesterday'; Don't scrape for today as in progress games create errors
+            if (start_time.month == now.month) and (start_time.day > (now.day - 1)):
+                break
+            elif start_time > now:
+                break
             schedule.append(parse_game(row))
     return schedule
 
