@@ -1,9 +1,7 @@
-import database as db
 import br_references as cd
 import graphing
 from sqlalchemy import create_engine
 import pandas as pd
-from sklearn import linear_model
 import matplotlib.pyplot as plt
 import numpy as np
 import statsmodels.api as sm
@@ -18,7 +16,6 @@ class LinearRegression:
         self.target = target
         self.predictors = sm.add_constant(predictors)
         self.results = sm.OLS(target, self.predictors).fit()
-        # coefs = pd.DataFrame(zip(predictors.columns, lm.coef_), columns=["features", "estimated_coefs"])
         self.predictions = self.results.predict(self.predictors)
         self.r_squared = self.results.rsquared
         self.adj_r_squared = self.results.rsquared_adj
@@ -28,8 +25,6 @@ class LinearRegression:
         self.coefs = self.results.params
         self.output = pd.concat([self.coefs, self.p_values], axis=1)
         self.output.columns = ["coefficient", "p_value"]
-        pass
-        # coefs= pd.DataFrame(lm.coef_, index=predictors.columns, columns =["estimated_coefs"])
 
     def predicted_vs_actual(self, out_path=None):
         graph = graphing.pred_vs_actual(self.predictions, self.target, self.r_squared_rnd, out_path=out_path)
@@ -82,10 +77,10 @@ def create_ff_regression_df(ff_df, sched_df, ff_list):
         away_tm = row["away_team"]
         mov = row["home_team_score"] - row["away_team_score"]
 
-        home_tm_ff = _get_team_ff(ff_df, home_tm, ff_list, home=True)
+        home_tm_ff = get_team_ff(ff_df, home_tm, ff_list, home=True)
         home_tm_ff["key"] = 1
         home_tm_ff["mov"] = mov
-        away_tm_ff = _get_team_ff(ff_df, away_tm, ff_list, home=False)
+        away_tm_ff = get_team_ff(ff_df, away_tm, ff_list, home=False)
         away_tm_ff["key"] = 1
 
         merged = pd.merge(home_tm_ff, away_tm_ff, on="key")
@@ -93,13 +88,13 @@ def create_ff_regression_df(ff_df, sched_df, ff_list):
             regression_df = merged
             initialized_df = True
         else:
-            regression_df = pd.concat([regression_df, merged])
+            regression_df = pd.concat([regression_df, merged], sort=True)
     regression_df = regression_df.drop(["key"], axis=1)
 
     return regression_df
 
 
-def _get_team_ff(ff_df, team, ff_list, home):
+def get_team_ff(ff_df, team, ff_list, home):
     team_ff = ff_df[ff_df.team_name.str.lower() == team.lower()][ff_list]
     if home:
         team_ff = team_ff.rename(append_h, axis='columns')
@@ -118,12 +113,7 @@ def append_a(string):
     return string
 
 
-def main():
-    # Variable setup
-    db_url = "sqlite:///database//nba_db.db"
-    engine = create_engine(db_url)
-    conn = engine.connect()
-
+def four_factors_list():
     # Import and specify a list of factors to extract from database
     ff_list = cd.four_factors.copy()
 
@@ -131,9 +121,19 @@ def main():
     ff_list.append("wins")
     ff_list.append("losses")
     ff_list.append("mov")
+    return ff_list
+
+
+def main(year=2019, graph=False):
+    # Variable setup
+    db_url = "sqlite:///database//nba_db.db"
+    engine = create_engine(db_url)
+    conn = engine.connect()
+
+    # Import and specify a list of factors to extract from database
+    ff_list = four_factors_list()
 
     # Database table to pandas table
-    year = 2019
     misc_stats = "misc_stats_{}".format(year)
     sched = "sched_{}".format(year)
     ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
@@ -147,16 +147,18 @@ def main():
     ff_reg = LinearRegression(target, predictors)
 
     # Evaluative graphs
-    ff_reg.predicted_vs_actual(out_path=r"graphs/pred_vs_actual{}.png".format(year))
-    ff_reg.residuals_vs_fitted(out_path=r"graphs/residuals_vs_fitted{}.png".format(year))
-    ff_reg.qqplot(out_path=r"graphs/qqplot{}.png".format(year))
-    ff_reg.influence_plot(out_path=r"graphs/influence{}.png".format(year))
-    ff_reg.cooks_distance(out_path=r"graphs/cooks_distance{}.png".format(year))
+    if graph:
+        ff_reg.predicted_vs_actual(out_path=r"graphs/pred_vs_actual_{}.png".format(year))
+        ff_reg.residuals_vs_fitted(out_path=r"graphs/residuals_vs_fitted_{}.png".format(year))
+        ff_reg.qqplot(out_path=r"graphs/qqplot_{}.png".format(year))
+        ff_reg.influence_plot(out_path=r"graphs/influence_{}.png".format(year))
+        ff_reg.cooks_distance(out_path=r"graphs/cooks_distance_{}.png".format(year))
 
 
     # Multicollinearity
     vif_df = ff_reg.vif()
 
+    return ff_reg
     print("FINISHED")
 
 
