@@ -6,6 +6,7 @@ to the project. The functions, for the most part, deal with type checks, type co
 """
 
 import datetime
+from enum import Enum
 
 
 def set_type(values):
@@ -58,6 +59,10 @@ def get_type(values):
         for i in values:
             val_types.append(_get_type(i))
         return max(set(val_types), key=val_types.count)  # The max, set, and key combo returns the modal type
+
+    elif isinstance(values, Enum):  # For enum objects, pass the value to the get_type function (right choice? IDK)
+        return _get_type(values.value)
+
     else:
         return _get_type(values)
 

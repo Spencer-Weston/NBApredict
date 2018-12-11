@@ -55,7 +55,7 @@ def cd_class_to_string(season):
         A season modified so that any enums in the season are replaced by their values
     """
 
-    new_season =[]
+    new_season = []
     for game in season:
         game_dict = dict()
         keys = game.keys()
@@ -85,8 +85,9 @@ def main(year=2019, db_url="sqlite:///database//nba_db.db"):
     tbl_db = db.get_table(engine, tbl_name)
     db.insert_rows(engine, tbl_db, season)
 
-    print("FINISHED")
+    print("FINISHED\n")
 
 
 if __name__ == "__main__":
     main()
+

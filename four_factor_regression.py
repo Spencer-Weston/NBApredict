@@ -133,8 +133,9 @@ def main():
     ff_list.append("mov")
 
     # Database table to pandas table
-    misc_stats = "misc_stats_2019"
-    sched = "sched_2019"
+    year = 2019
+    misc_stats = "misc_stats_{}".format(year)
+    sched = "sched_{}".format(year)
     ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
     sched_df = pd.read_sql_table(sched, conn)
 
@@ -146,11 +147,12 @@ def main():
     ff_reg = LinearRegression(target, predictors)
 
     # Evaluative graphs
-    ff_reg.predicted_vs_actual(out_path=r"graphs/pred_vs_actual.png")
-    ff_reg.residuals_vs_fitted(out_path=r"graphs/residuals_vs_fitted.png")
-    ff_reg.qqplot(out_path=r"graphs/qqplot.png")
-    ff_reg.influence_plot(out_path=r"graphs/influence.png")
-    ff_reg.cooks_distance(out_path=r"graphs/cooks_distance.png")
+    ff_reg.predicted_vs_actual(out_path=r"graphs/pred_vs_actual{}.png".format(year))
+    ff_reg.residuals_vs_fitted(out_path=r"graphs/residuals_vs_fitted{}.png".format(year))
+    ff_reg.qqplot(out_path=r"graphs/qqplot{}.png".format(year))
+    ff_reg.influence_plot(out_path=r"graphs/influence{}.png".format(year))
+    ff_reg.cooks_distance(out_path=r"graphs/cooks_distance{}.png".format(year))
+
 
     # Multicollinearity
     vif_df = ff_reg.vif()
@@ -158,6 +160,6 @@ def main():
     print("FINISHED")
 
 
-
 if __name__ == "__main__":
     main()
+
