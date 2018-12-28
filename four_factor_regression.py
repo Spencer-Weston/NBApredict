@@ -62,6 +62,14 @@ class LinearRegression:
         vif_out["features"] = self.predictors.columns
         return vif_out
 
+    def residual_distribution(self):
+        """Calculates the normal curve of the residuals"""
+        norm = stats.norm
+        mu, std = norm.fit(self.residuals)
+        mu = 0  # By definition, mu of resids = 0, but the fit provides approximately 0. It's perhaps best to just
+        # set mu=0?
+        return norm(loc=mu, scale=std)
+
 
 def create_ff_regression_df(ff_df, sched_df, ff_list):
     """ Pd.concat presents a performance issue
@@ -156,7 +164,8 @@ def main(year=2019, graph=False):
 
 
     # Multicollinearity
-    vif_df = ff_reg.vif()
+    # vif_df = ff_reg.vif()
+    ff_reg.residual_distribution()
 
     return ff_reg
     print("FINISHED")
