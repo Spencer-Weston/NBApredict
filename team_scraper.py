@@ -128,4 +128,6 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
 
 
 if __name__ == "__main__":
-    main()
+    for i in range(39):
+        year = 1980+i
+        main(year=year)

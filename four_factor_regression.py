@@ -172,5 +172,5 @@ def main(year=2019, graph=False):
 
 
 if __name__ == "__main__":
-    main()
+    main(year=2019, graph=True)
 

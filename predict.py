@@ -53,7 +53,7 @@ def line_probability(prediction, line, std):
         return 0.5  # If the predictions are equal, the cdf automatically equals 0.5
 
 
-def main(home_tm, away_tm, line = None, year=2019, db_url="sqlite:///database//nba_db.db"):
+def main(home_tm, away_tm, line, year=2019, db_url="sqlite:///database//nba_db.db"):
     reg = lm.main()
 
     home_tm = get_team_name(home_tm)
@@ -90,4 +90,4 @@ def main(home_tm, away_tm, line = None, year=2019, db_url="sqlite:///database//n
 
 
 if __name__ == "__main__":
-    main("Phoenix Suns", "Philadelphia 76ers", line=5)
+    main("Boston Celtics", "Los Angeles Lakers", line=0, year=1986)
