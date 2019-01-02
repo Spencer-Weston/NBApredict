@@ -91,10 +91,10 @@ def get_data_dict_from_tbl(table):
 
 def clean_team_name(team_names):
     """Takes a list of team_names and modifies the names to match the format specified in br_references"""
-    clean_team_names = [team.value for team in br.Team]
+    # clean_team_names = [team.value for team in br.Team]
     new_team_names = []
     for team in team_names:
-        new_team_names.append(''.join(a for a in team if a.isalpha() or a.isspace()).upper())
+        new_team_names.append(''.join(a for a in team if a.isalpha() or a.isspace() or a.isdigit()).upper())
     return new_team_names
 
 

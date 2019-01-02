@@ -46,12 +46,11 @@ def line_probability(prediction, line, std):
     line_prediction = -1 * line
 
     if prediction > line_prediction:
-        return dist.sf(line_prediction)
-    elif prediction < line_prediction:
         return dist.cdf(line_prediction)
+    elif prediction < line_prediction:
+        return dist.sf(line_prediction)
     elif prediction == line_prediction:
         return 0.5  # If the predictions are equal, the cdf automatically equals 0.5
-
 
 
 def main(home_tm, away_tm, line = None, year=2019, db_url="sqlite:///database//nba_db.db"):
@@ -70,14 +69,25 @@ def main(home_tm, away_tm, line = None, year=2019, db_url="sqlite:///database//n
 
     prediction = predict_game(reg, pred_df)
 
-    p_val = line_probability(prediction, line, np.std(reg.residuals))
+    p = line_probability(prediction, line, np.std(reg.residuals))
 
     if prediction > 0:
         print("The {} are projected to beat the {} by {} points".format(home_tm, away_tm, prediction))
+        if (-1*line) < prediction:
+            print("If the model were true, the betting line's ({}) CDF, in relation to the prediction, would "
+                  "be realized {}% of the time".format(line, p))
+        else:
+            print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
+                  "be realized {}% of the time".format(line, p))
     if prediction < 0:
         print("The {} are projected to lose to the {} by {} points".format(home_tm, away_tm, prediction))
+        if (-1*line) < prediction:
+            print("If the model were true, the betting line's ({}) CDF, in relation to the prediction, would "
+                  "be realized {}% of the time".format(line, p))
+        else:
+            print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
+                  "be realized {}% of the time".format(line, p))
 
 
 if __name__ == "__main__":
-    main("Charlotte Hornets", "Brooklyn Nets", line=-5)
-    print("SOMEHTHING")
+    main("Phoenix Suns", "Philadelphia 76ers", line=5)
