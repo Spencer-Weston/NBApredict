@@ -139,7 +139,7 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
         rows = db.dict_to_rows(tbl_dict)
         db.insert_rows(engine, tbl_db, rows)
     else:
-        # A possible scenario that we want to break on. 
+        # A possible scenario that we want to break on.
         raise Exception("tbl_dict rows are not equivalent length")
 
     print("FINISHED")
