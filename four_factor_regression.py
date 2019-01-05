@@ -1,18 +1,55 @@
-import br_references as cd
+"""
+Author: Spencer Weston
+
+Purpose: Four Factor Regression performs a regression on the Margin of Victory (mov) between NBA teams with each teams
+four factors(offensive and defensive) as predictors. The regression object is returned from the module.
+
+Args (default):
+    year (2019): The year of the season desired
+    db_url ('sqlite:///database//nba_db.db'): Path to the database where data should be written
+
+Returns:
+    Returns a LinearRegression class
+"""
+
 import graphing
-from sqlalchemy import create_engine
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from sqlalchemy import create_engine
+import scipy.stats as stats
 import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
-import scipy.stats as stats
+
+# Local Packages
+import br_references as br
 
 
 class LinearRegression:
+    """A class that creates and holds linear regression information and functions for regression evaluation.
 
+    LinearRegression is initialized with a target variable and the desired predictors. Then, a regression is run and
+    necessary regression statistics are stored as class parameters. Member functions generate evaluative graphs and/or
+    statistics for the regression.
+
+    Attributes:
+        target: The target variable
+        predictors: The predictive variables
+        results: statsmodels results wrapper
+        predictions: predicted results from the regression
+        r_squared: r_squared of the regression
+        adj_r_squared: adj_r_squared of the regression
+        r_squared_rnd: r_squared rounded to three decimal places
+        residuals: residuals of the gression
+        p_values: p_values of the coefficients
+        coefs: values of the coefficients
+        output: data frame of coefficients with their values and p_values"""
     def __init__(self, target, predictors):
-        """Performs a linear regression and stores pertinent regression outputs as class variables"""
+        """Performs a linear regression and stores pertinent regression outputs as class variables
+
+        Args:
+            target: The target variable
+            predictors: The prediction variables"""
         self.target = target
         self.predictors = sm.add_constant(predictors)
         self.results = sm.OLS(target, self.predictors).fit()
@@ -27,20 +64,24 @@ class LinearRegression:
         self.output.columns = ["coefficient", "p_value"]
 
     def predicted_vs_actual(self, out_path=None):
+        """Generate a predicted vs. actual graph, save to out_path if it exists, and return the graph."""
         graph = graphing.pred_vs_actual(self.predictions, self.target, self.r_squared_rnd, out_path=out_path)
         return graph
 
     def residuals_vs_fitted(self, out_path=None):
+        """Generate a residuals vs. fitted graph, save to out_path if it exists, and return the graph."""
         graph = graphing.residuals_vs_fitted(self.predictions, self.residuals, out_path)
         return graph
 
     def qqplot(self, out_path=None):
+        """Generate a qq plot, save to out_path if it exists, and return the graph."""
         fig = sm.qqplot(self.residuals, dist=stats.t, fit=True, line="45")
         if out_path:
             fig.savefig(out_path)
         return fig
 
     def influence_plot(self, out_path=None):
+        """Generate an influence plot, save to out_path if it exists, and return the graph."""
         fig, ax = plt.subplots(figsize=(12, 8))
         fig = sm.graphics.influence_plot(self.results, ax=ax, criterion="cooks")
         if out_path:
@@ -48,6 +89,7 @@ class LinearRegression:
         return fig
 
     def cooks_distance(self, out_path=None):
+        """Generate a cook's distance graph, save to out_path if it exists, and return the graph."""
         influence = self.results.get_influence()
         # c is the distance and p is p-value
         (c, p) = influence.cooks_distance
@@ -55,7 +97,7 @@ class LinearRegression:
         return graph
 
     def vif(self):
-        """Variance Inflation Factor"""
+        """Determine the Variance Inflation Factor (vif) of the coefficients and return a dataframe of the vif's."""
         vif_out = pd.DataFrame()
         predictors = np.array(self.predictors)
         vif_out["VIF Factor"] = [vif(predictors, i) for i in range(predictors.shape[1])]
@@ -63,7 +105,7 @@ class LinearRegression:
         return vif_out
 
     def residual_distribution(self):
-        """Calculates the normal curve of the residuals"""
+        """Calculate the normal curve of the residuals and return the distribution"""
         norm = stats.norm
         mu, std = norm.fit(self.residuals)
         mu = 0  # By definition, mu of resids = 0, but the fit provides approximately 0. It's perhaps best to just
@@ -72,14 +114,22 @@ class LinearRegression:
 
 
 def create_ff_regression_df(ff_df, sched_df, ff_list):
-    """ Pd.concat presents a performance issue
+    """Create and return a regression data frame of the four factors (ff) for each team in a matchup.
 
-    ff_df: four factors Pandas dataframe
-    sched_df: Schedule dataframe
-    ff_list: List of the four factors variable
-    return: a dataframe with home('_h') and away('_a') statistics and the margin of victory
+    Pd.concat presents a performance issue
+
+    Args:
+        ff_df: four factors Pandas data frame (read from SQL table)
+        sched_df: Schedule data frame (read from SQL table)
+        ff_list: List of the four factors variable
+
+    Returns:
+         A data frame with home('_h') and away('_a') statistics and the margin of victory (mov). The mov is the target
+         for a regression. The '_h' and '_a" stats are the home and away four factors in a specific matchup.
     """
     initialized_df = False
+    indices = []
+    abbreviations = br.team_to_team_abbreviation
     for index, row in sched_df.iterrows():
         home_tm = row["home_team"]
         away_tm = row["away_team"]
@@ -92,10 +142,23 @@ def create_ff_regression_df(ff_df, sched_df, ff_list):
         away_tm_ff["key"] = 1
 
         merged = pd.merge(home_tm_ff, away_tm_ff, on="key")
+
+        # Creates a df index of team abbreviations and the game in series between teams
+        # "BOS_WAS", "BOS_WAS2", "BOS_WAS3", etc.
+        new_index = "{}_{}".format(abbreviations[home_tm], abbreviations[away_tm])
+        new_index = ensure_unique_index(new_index, indices)
+
+        # Sets the df index to the matchup and stores the value in new_indices to avoid duplicates
+        merged["matchup"] = new_index
+        merged.set_index("matchup", inplace=True)
+        indices.append(new_index)
+
+        # merged.reindex
         if not initialized_df:
-            regression_df = merged
+            regression_df = merged.reindex([new_index])
             initialized_df = True
         else:
+
             regression_df = pd.concat([regression_df, merged], sort=True)
     regression_df = regression_df.drop(["key"], axis=1)
 
@@ -103,6 +166,17 @@ def create_ff_regression_df(ff_df, sched_df, ff_list):
 
 
 def get_team_ff(ff_df, team, ff_list, home):
+    """Extract the four factors for a specific team from the ff_df and return the result.
+
+    Further, if home is True, a "_h" is appended to each four factor for the team. And if False, "_a" is appended.
+    This is to specify if the team is home or away.
+
+    Args:
+        ff_df: four factors Pandas data frame (read from SQL table)
+        team: A team name
+        ff_list: List of the four factors variable
+        home: Boolean. True if the team is home; False if the team is away
+    """
     team_ff = ff_df[ff_df.team_name.str.lower() == team.lower()][ff_list]
     if home:
         team_ff = team_ff.rename(append_h, axis='columns')
@@ -112,18 +186,45 @@ def get_team_ff(ff_df, team, ff_list, home):
 
 
 def append_h(string):
+    """Append "_h" to string and return the modified string"""
     string = '{}{}'.format(string, '_h')
     return string
 
 
 def append_a(string):
+    """Append "_a" to string and return the modified string"""
     string = '{}{}'.format(string, '_a')
     return string
 
 
+def ensure_unique_index(index, indices, i=1):  # Indexed to 1 so +1 == 2nd, 3rd, 4th, etc. game
+    """Check if index is in indices, modify index until it's unique, and return the unique index
+
+    If the index is unique, it's returned as is. Otherwise, the function calls itself and increments i. The recursion
+    stops when the index and numerical suffix (i) are not in indices.
+
+    Args:
+        index: A string index to check for in indices
+        indices: A list of indices to check the index against
+        i: A numerical suffix used to modify index until it does not exist in indices
+    Returns:
+        index, or a modified form of index, that does not exist in indices
+    """
+    if index in indices:
+        i = i+1
+        test_index = "{}{}".format(index, i)
+        if test_index in indices:
+            return ensure_unique_index(index, indices, i)
+        else:
+            return test_index
+    else:
+        return index
+
+
 def four_factors_list():
+    """Create a four factor(ff) list that contains the ff's and then return."""
     # Import and specify a list of factors to extract from database
-    ff_list = cd.four_factors.copy()
+    ff_list = br.four_factors.copy()
 
     ff_list.insert(0, "team_name")
     ff_list.append("wins")
@@ -133,6 +234,17 @@ def four_factors_list():
 
 
 def main(year=2019, graph=False):
+    """Create a regression data frame, run a regression with the LinearRegression class, and return the class
+
+    Functions and class docstrings contain specific behaviors for the module.
+
+    Args:
+        year: The year to run the regression for
+        graph: A boolean that creates graphs if true
+
+    Returns:
+        A LinearRegression class
+    """
     # Variable setup
     db_url = "sqlite:///database//nba_db.db"
     engine = create_engine(db_url)
@@ -147,8 +259,8 @@ def main(year=2019, graph=False):
     ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
     sched_df = pd.read_sql_table(sched, conn)
 
-    # Combines four factors and seasons df's and separates them into X and y
-    regression_df = create_ff_regression_df(ff_df, sched_df, cd.four_factors)
+    # Combines four factors and seasons df's and separates them into X (predictors) and y (target)
+    regression_df = create_ff_regression_df(ff_df, sched_df, br.four_factors)
     predictors = regression_df.loc[:, regression_df.columns != 'mov']
     target = regression_df["mov"]
 
@@ -162,7 +274,6 @@ def main(year=2019, graph=False):
         ff_reg.influence_plot(out_path=r"graphs/influence_{}.png".format(year))
         ff_reg.cooks_distance(out_path=r"graphs/cooks_distance_{}.png".format(year))
 
-
     # Multicollinearity
     # vif_df = ff_reg.vif()
     ff_reg.residual_distribution()
@@ -173,4 +284,3 @@ def main(year=2019, graph=False):
 
 if __name__ == "__main__":
     main(year=2019, graph=True)
-
