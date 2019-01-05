@@ -16,21 +16,32 @@ To-Do:
 """
 
 from bs4 import BeautifulSoup
-from br_references import BASE_URL
-from br_references import data_stat_headers as HEADERS
-import br_references as br
-import database as db
-import general
 import re
 import requests
 from sqlalchemy import create_engine
 
+# Local imports
+from br_references import BASE_URL
+from br_references import data_stat_headers as HEADERS
+import database as db
+import general
+
 
 def team_statistics(year, tbl_name):
-    """Builds a URL for the specified year and returns team box scores for a specified table on that page"""
+    """Build a URL for the specified year and return team box scores for a specified table on that page.
+
+    Performance not guaranteed for tables that are not "misc_stats"
+
+    Args:
+        year: The year of the statistics to be returned
+        tbl_name: The name of the table to be returned
+
+    Returns:
+        A dictionary version of the specified table. Keys are column titles that return lists ordered by team.
+    """
 
     url = '{BASE_URL}/leagues/NBA_{year}.html'.format(
-        BASE_URL=BASE_URL,
+        BASE_URL=BASE_URL,  # imported from br_references.py
         year=year
     )
 
@@ -43,14 +54,17 @@ def team_statistics(year, tbl_name):
 
 
 def parse_table(page, tbl_name):
-    """Parses the specified table on the specified page and returns the data as a dictionary
+    """Parse the specified table on the specified page and return the data as a dictionary
 
      Args:
-         page - The contents from a url response
-         tbl_name - the desired table to be parsed
-         """
+         page: The contents from a url response
+         tbl_name: the desired table to be parsed
 
-    cleaned_soup = BeautifulSoup(re.sub('<!--|-->', "", str(page)), features="lxml")
+     Returns:
+         A dictionary version of the specified table. Keys are column titles that return lists ordered by team.
+     """
+
+    cleaned_soup = BeautifulSoup(re.sub('<!--|-->', "", str(page)), features="lxml")  # Strips comments from page
     table = cleaned_soup.find('table', {'id': '{}'.format(tbl_name)})
     data_dict = get_data_dict_from_tbl(table)
     keys = data_dict.keys()
@@ -60,17 +74,12 @@ def parse_table(page, tbl_name):
     return data_dict
 
 
-# def get_data_from_tbl(table, remove_nones=True):
-#    """(ARCHIVE?) Returns only the data from a table"""
-#    rows = table.find_all("tr")
-#    data = [[td.findChildren(text=True) for td in tr.findAll("td")] for tr in rows]
-#    if remove_nones:
-#        data = [x for x in data if x]
-#    return data
-
-
 def get_data_dict_from_tbl(table):
-    """Returns a dictionary from a BeautifulSoup table with column names as keys and a list of values"""
+    """Return a dictionary from a BeautifulSoup table with column names as keys and a list of values
+
+    Args:
+        table: a table as returned by the find method on a BeautifulSoup object
+    """
     rows = table.find_all("tr")
     data_dict = dict()
 
@@ -90,8 +99,11 @@ def get_data_dict_from_tbl(table):
 
 
 def clean_team_name(team_names):
-    """Takes a list of team_names and modifies the names to match the format specified in br_references"""
-    # clean_team_names = [team.value for team in br.Team]
+    """Take a list of team_names, modify the names to match the format specified in br_references, and return a new list
+
+    Args:
+        team_names: a list of team_names to be checked for validity, and if needed, modified
+    """
     new_team_names = []
     for team in team_names:
         new_team_names.append(''.join(a for a in team if a.isalpha() or a.isspace() or a.isdigit()).upper())
@@ -99,8 +111,13 @@ def clean_team_name(team_names):
 
 
 def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db"):
-    """Refer to file docstring"""
+    """Scrape a basketball_reference table of team stats, parse the table, and write it to a database
 
+    Args:
+        year: Desired year
+        tbl_name: Name of the table to be scraped
+        db_url: Path to the database the table should be written to
+    """
     # Get tbl_dictionary from basketball reference
     tbl_dict = team_statistics(year, tbl_name)
     tbl_dict["team_name"] = clean_team_name(tbl_dict["team_name"])
@@ -122,12 +139,11 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
         rows = db.dict_to_rows(tbl_dict)
         db.insert_rows(engine, tbl_db, rows)
     else:
-        print("tbl_dict rows are not equivalent length")
+        # A possible scenario that we want to break on. 
+        raise Exception("tbl_dict rows are not equivalent length")
 
     print("FINISHED")
 
 
 if __name__ == "__main__":
-    for i in range(39):
-        year = 1980+i
-        main(year=year)
+    main(year=2019)
