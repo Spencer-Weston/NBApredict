@@ -1,12 +1,28 @@
+"""
+Author: Spencer Weston
+
+Purpose: Contains functions for creating evaluative graphs for regressions
+"""
+
 import matplotlib.pyplot as plt
-from yellowbrick.regressor import ResidualsPlot
-from sklearn.linear_model import LinearRegression
 import numpy as np
+from sklearn.linear_model import LinearRegression
 import statsmodels.api as sm
 from statsmodels.compat import lzip
+from yellowbrick.regressor import ResidualsPlot
+
 
 def pred_vs_actual(predictions, target, r_squared, out_path=None):
-    """Creates and returns a scatter plot of a model's predictions versus target variables"""
+    """Create and returnsa scatter plot of a model's predictions versus target variables
+
+    Args:
+        predictions: The predictions from a regression
+        target: The target variable of a regression
+        r_squared: The r_squared of a regression
+        out_path: An optional path to save the graph to
+    Returns:
+        The predicted vs. actual graph
+        """
 
     # Generate coordinates for a 1:1 line
     minimum = int(predictions.min()) - 1
@@ -30,7 +46,16 @@ def pred_vs_actual(predictions, target, r_squared, out_path=None):
 
 
 def residuals_vs_fitted(predictions, residuals, out_path=None):
-    """Creates and returns a scatter plot of a model's fitted values (predictions) versus the residuals"""
+    """Create and return a scatter plot of a model's fitted values (predictions) versus the residuals
+
+    Args:
+        predictions: The predictions from a regression
+        residuals: The residuals from a regression
+        out_path: An optional path to save the graph to
+
+    Returns:
+        The residuals vs. fitted graph
+    """
     # Get Jarque-bera test of normality
     name = ['Jarque-Bera', 'Chi^2 two-tail prob.', 'Skew', 'Kurtosis']
     test = sm.stats.jarque_bera(residuals)
@@ -54,6 +79,14 @@ def residuals_vs_fitted(predictions, residuals, out_path=None):
 
 
 def cooks_distance(cooks_d, out_path):
+    """Create and return a cook's distance graph
+
+    Args:
+        cooks_d: Cook's distance from a regression
+
+    Returns:
+        The cook's distance graph
+    """
     fig, ax = plt.subplots()
     ax.stem(np.arange(len(cooks_d)), cooks_d)
     ax.set_title("Cook's Distance")
@@ -65,7 +98,7 @@ def cooks_distance(cooks_d, out_path):
 
 
 def residuals_yellowbrick(predictors, target):
-    """Residuals vs. Fitted w/ Histogram
+    """Returns a residuals vs. fitted graph with a histogram. Not currently functional.
 
     For future development. uses yellowbrick, which makes good graphs, but experiencing an unexplained missing
     argument TypeError
