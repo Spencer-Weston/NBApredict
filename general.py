@@ -10,17 +10,20 @@ from enum import Enum
 
 
 def set_type(values):
-    """Converts string values to integers or floats if applicable. Otherwise, returns strings.
+    """Convert string values to integers or floats if applicable. Otherwise, return strings.
 
     If the string value has zero length, none is returned
 
     Args:
-        values - A list of values
+        values: A list of values
+
+    Returns:
+        The input list of values modified to match their type. String is the default return value. If the values are
+        ints or floats, returns the list formatted as a list of ints or floats. Empty values will be replaced with none.
 
     To-Do:
         1. Add functionality to coerce elements of lists and not just lists
     """
-
     test_val = values[0]  # Is there a better method than taking a test val?
     if is_int(test_val):
         return _set_type(values, int)
@@ -32,11 +35,18 @@ def set_type(values):
 
 
 def _set_type(values, new_type):
-    """Transforms a list of values into the specified new type. If the value has zero length, returns none"""
+    """Transforms a list of values into the specified new type. If the value has zero length, returns none
+
+    Args:
+        values: A list of values
+        new_type: A type class to modify the list to
+
+    Returns:
+        The values list modified to the new_type. If an element is empty, the element is set to None.
+        """
 
     new_vals = []
     for i in values:
-        # print("value({}) is being set to type({})".format(i, new_type))
         if len(i) > 0:  # Some values may have len(0); we convert them to None to put into sql db
             new_vals.append(new_type(i))
         else:
@@ -45,30 +55,37 @@ def _set_type(values, new_type):
 
 
 def get_type(values):
-    """Returns the type of the values where type is defined as the modal type in the list
+    """Return the type of the values where type is defined as the modal type in the list.
 
     Args:
-        values - The element to get the type for. Can be a list or single element.
+        values: A list or value to get the type for.
+
+    Returns:
+        The modal type of a list or the type of the element
 
     To-Do:
         Modal type isn't a full proof method. Need to determine a better method.
     """
-
     if hasattr(values, "__len__"):  # Checks if the object is iterable
         val_types = []
         for i in values:
             val_types.append(_get_type(i))
         return max(set(val_types), key=val_types.count)  # The max, set, and key combo returns the modal type
-
     elif isinstance(values, Enum):  # For enum objects, pass the value to the get_type function (right choice? IDK)
         return _get_type(values.value)
-
     else:
         return _get_type(values)
 
 
 def _get_type(val):
-    """Returns the type of the value if it is a int, float, or datetime. Otherwise, returns a string"""
+    """Return the type of the value if it is a int, float, or datetime. Otherwise, return a string.
+
+    Args:
+        val: A value to get the type of
+    Returns:
+        The type of the value passed into the function if it is an int, float, datetime, or string
+    Raise:
+        Exception: An exception raised if the val is not int, float, datetime, or string."""
 
     if isinstance(val, int):
         return "integer"
@@ -85,8 +102,7 @@ def _get_type(val):
 
 
 def is_int(x):
-    """Returns true if X can be coerced to a integer. Otherwise, returns false."""
-
+    """Return true if X can be coerced to a integer. Otherwise, return false."""
     try:
         int(x)  # Will raise ValueError if '.2'; will not raise error if .2
         return True
@@ -95,8 +111,7 @@ def is_int(x):
 
 
 def is_float(x):
-    """Returns true if X can be coerced to a float. Otherwise, returns false."""
-
+    """Return true if X can be coerced to a float. Otherwise, return false."""
     try:
         float(x)
         return True
@@ -105,15 +120,15 @@ def is_float(x):
 
 
 def check_dict_list_equivalence(dict_object):
-    """Given a dictionary where keys references lists, checks that all lists are the same length. Returns True or False
+    """Given a dictionary where keys references lists, check that all lists are the same length, and return True or False
 
     Args:
-        dict_object - a dictionary where each key references a list
-    Returns:
-         True - if all the lists in the dictionary have the same length
-         False - if the dictionary's lists are of different lengths
-    """
+        dict_object: a dictionary where each key references a list
 
+    Returns:
+         True: if all the lists in the dictionary have the same length
+         False: if the dictionary's lists are of different lengths
+    """
     keys = dict_object.keys()
     lengths = []
     for key in keys:
