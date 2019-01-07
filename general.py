@@ -61,7 +61,7 @@ def get_type(values):
         values: A list or value to get the type for.
 
     Returns:
-        The modal type of a list or the type of the element
+        The modal type of a list or the type of the element. Can be integer, float, string, datetime, or none
 
     To-Do:
         Modal type isn't a full proof method. Need to determine a better method.
@@ -85,8 +85,8 @@ def _get_type(val):
     Returns:
         The type of the value passed into the function if it is an int, float, datetime, or string
     Raise:
-        Exception: An exception raised if the val is not int, float, datetime, or string."""
-
+        Exception: An exception raised if the val is not int, float, datetime, or string.
+    """
     if isinstance(val, int):
         return "integer"
     elif isinstance(val, float):

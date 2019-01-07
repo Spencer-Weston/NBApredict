@@ -157,4 +157,4 @@ def main(home_tm, away_tm, line, year=2019, db_url="sqlite:///database//nba_db.d
 
 
 if __name__ == "__main__":
-    main("Portland trail Blazers", "Houston Rockets", line=1, year=2019)
+    main("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
