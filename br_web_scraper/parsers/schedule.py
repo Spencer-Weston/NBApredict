@@ -38,7 +38,12 @@ def parse_start_time(formatted_date, formatted_time_of_day):
     # All basketball reference times seem to be in Eastern
     est = pytz.timezone("US/Eastern")
     localized_start_time = est.localize(start_time)
-    return localized_start_time.astimezone(pytz.utc)
+
+    # When localized_start_time calls and returns astimezone(pytz.utc), the values are converted to UTC.
+    # In this call, the day of the game can be changed. For example, an 10pm game on October 16th may be converted to a
+    # 2am game in on October 17th in UTC. To avoid this effect, return localized_start_time
+    return localized_start_time
+    # return localized_start_time.astimezone(pytz.utc)
 
 
 def current_time():
@@ -50,17 +55,25 @@ def current_time():
 
 def parse_game(row):
     start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
-    try:
-        test = int(row[3].text_content())
-    except:
-        print("invalid test")
 
+    # Test existed to check for games that haven't been played. Replaced to default unplayed games to 0-0 score
+    #try:
+    #    test = int(row[3].text_content())
+    #except:
+    #    print("invalid test")
+
+    try:
+        away_team_score = int(row[3].text_content())
+        home_team_score = int(row[5].text_content())
+    except:
+        away_team_score = 0
+        home_team_score = 0
     return {
         "start_time": start_time,
         "away_team": TEAM_NAME_TO_TEAM[row[2].text_content().upper()],
-        "away_team_score": int(row[3].text_content()),
+        "away_team_score": away_team_score,
         "home_team": TEAM_NAME_TO_TEAM[row[4].text_content().upper()],
-        "home_team_score": int(row[5].text_content()),
+        "home_team_score": home_team_score,
     }
 
 
@@ -71,12 +84,12 @@ def parse_schedule(page):
     for row in rows:
         if row.text_content() != "Playoffs":
             start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
-            now = current_time()
+            # now = current_time()
             # Scrape all data up to 'yesterday'; Don't scrape for today as in progress games create errors
-            if (start_time.month == now.month) and (start_time.day > (now.day - 1)):
-                break
-            elif start_time > now:
-                break
+            # if (start_time.month == now.month) and (start_time.day > (now.day - 1)):
+            #    break
+            # elif start_time > now:
+            #    break
             schedule.append(parse_game(row))
     return schedule
 

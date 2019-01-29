@@ -52,8 +52,8 @@ def create_prediction_df(home_tm, away_tm, ff_df):
     Returns:
         A single row four factors data frame of the home and away team's four factors
     """
-    home_ff = get_team_ff(home_tm, ff_df, True)
-    away_ff = get_team_ff(away_tm, ff_df, False)
+    home_ff = get_team_ff(home_tm, ff_df, home=True)
+    away_ff = get_team_ff(away_tm, ff_df, home=False)
     home_ff["key"] = 1
     home_ff["const"] = 1.0  # sm.add_const does not add a constant for whatever reason
     away_ff["key"] = 1
@@ -107,7 +107,35 @@ def line_probability(prediction, line, std):
         return 0.5  # If the predictions are equal, the cdf automatically equals 0.5
 
 
-def main(home_tm, away_tm, line, year=2019, db_url="sqlite:///database//nba_db.db"):
+def prediction_result_console_output(home_tm, away_tm, line, prediction, probability):
+    """Human readable printout comparing the model's predictions, the line, and the p_value of the line
+
+    Args:
+        home_tm: The home team
+        away_tm: The away team
+        line: The betting line
+        prediction: A prediction of the home team's margin of victory
+        probability: The probability of the betting line as determined by a CDF or SF
+    """
+    if prediction > 0:
+        print("The {} are projected to beat the {} by {} points".format(home_tm, away_tm, prediction))
+        if (-1*line) < prediction:
+            print("If the model were true, the betting line's ({}) CDF, in relation to the prediction, would "
+                  "be realized {}% of the time".format(line, probability))
+        else:
+            print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
+                  "be realized {}% of the time".format(line, probability))
+    if prediction < 0:
+        print("The {} are projected to lose to the {} by {} points".format(home_tm, away_tm, prediction))
+        if (-1*line) < prediction:
+            print("If the model were true, the betting line's ({}) CDF, in relation to the prediction, would "
+                  "be realized {}% of the time".format(line, probability))
+        else:
+            print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
+                  "be realized {}% of the time".format(line, probability))
+
+
+def main(home_tm, away_tm, line, console_out=False, year=2019, db_url="sqlite:///database//nba_db.db"):
     """Generates print statements that predict a game's score and present the CDF or SF or the betting line
 
     Cdf is a cumulative density function. SF is a survival function. CDF is calculated when the betting line's
@@ -118,6 +146,7 @@ def main(home_tm, away_tm, line, year=2019, db_url="sqlite:///database//nba_db.d
         home_tm: The home team
         away_tm: The away team
         line: The betting line
+        console_out: If true, print the prediction results. Ignore otherwise
         year: The year to use statistics from in predicting the game
         db_url: Path to the database holding data for predictions
     """
@@ -136,24 +165,10 @@ def main(home_tm, away_tm, line, year=2019, db_url="sqlite:///database//nba_db.d
 
     prediction = predict_game(reg, pred_df)
 
-    p = line_probability(prediction, line, np.std(reg.residuals))
+    probability = line_probability(prediction, line, np.std(reg.residuals))
 
-    if prediction > 0:
-        print("The {} are projected to beat the {} by {} points".format(home_tm, away_tm, prediction))
-        if (-1*line) < prediction:
-            print("If the model were true, the betting line's ({}) CDF, in relation to the prediction, would "
-                  "be realized {}% of the time".format(line, p))
-        else:
-            print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
-                  "be realized {}% of the time".format(line, p))
-    if prediction < 0:
-        print("The {} are projected to lose to the {} by {} points".format(home_tm, away_tm, prediction))
-        if (-1*line) < prediction:
-            print("If the model were true, the betting line's ({}) CDF, in relation to the prediction, would "
-                  "be realized {}% of the time".format(line, p))
-        else:
-            print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
-                  "be realized {}% of the time".format(line, p))
+    if console_out:
+        prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
 
 
 if __name__ == "__main__":
