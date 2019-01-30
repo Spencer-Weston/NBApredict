@@ -13,6 +13,7 @@ Args (default):
     db_url ('sqlite:///database//nba_db.db'): Path to the database holding data for predictions
 """
 
+import datetime
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
@@ -23,7 +24,7 @@ import br_references
 import four_factor_regression as lm
 
 
-def predict_game(reg, pred_df):
+def get_prediction(reg, pred_df):
     """Generate and return a prediction for the values in the pred_df.
 
     Args:
@@ -135,7 +136,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
 
 
-def main(home_tm, away_tm, line, console_out=False, year=2019, db_url="sqlite:///database//nba_db.db"):
+def predict_game(home_tm, away_tm, line, console_out=False, year=2019, db_url="sqlite:///database//nba_db.db"):
     """Generates print statements that predict a game's score and present the CDF or SF or the betting line
 
     Cdf is a cumulative density function. SF is a survival function. CDF is calculated when the betting line's
@@ -154,8 +155,9 @@ def main(home_tm, away_tm, line, console_out=False, year=2019, db_url="sqlite://
 
     home_tm = get_team_name(home_tm)
     away_tm = get_team_name(away_tm)
-    ff_list = lm.four_factors_list()
 
+    # Get Misc stats for year
+    ff_list = lm.four_factors_list()
     misc_stats = "misc_stats_{}".format(year)
     engine = create_engine(db_url)
     conn = engine.connect()
@@ -163,7 +165,7 @@ def main(home_tm, away_tm, line, console_out=False, year=2019, db_url="sqlite://
 
     pred_df = create_prediction_df(home_tm, away_tm, ff_df)
 
-    prediction = predict_game(reg, pred_df)
+    prediction = get_prediction(reg, pred_df)
 
     probability = line_probability(prediction, line, np.std(reg.residuals))
 
@@ -171,5 +173,28 @@ def main(home_tm, away_tm, line, console_out=False, year=2019, db_url="sqlite://
         prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
 
 
+def predict_games_on_day(day, month, year, sched_df, lines=False):
+    """The function takes a date, finds the games on that date, and """
+
+    # Create a date mask and extract it from the schedule
+    date = datetime.datetime(year=year, month=month, day=day)
+    next_day = date + datetime.timedelta(days=1)
+    date_df = pd.to_datetime(sched_df['start_time'])
+    date_mask = (sched_df['start_time'] >= date) & (sched_df['start_time'] < next_day)
+    games_on_date = sched_df.loc[date_mask]
+
+    # Create lists compatible with the predict_game function
+    for index, row in games_on_date.iterrows():
+        predict_game(home_tm=row["home_team"], away_tm=row["away_team"], line=0, console_out=True)
+
+
 if __name__ == "__main__":
-    main("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
+    # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
+
+    db_url = "sqlite:///database//nba_db.db"
+    engine = create_engine(db_url)
+    conn = engine.connect()
+    sched = "sched_{}".format(2019)
+    sched_df = pd.read_sql_table(sched, conn)
+    predict_games_on_day(day=29, month=1, year=2019, sched_df=sched_df)
+
