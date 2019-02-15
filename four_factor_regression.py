@@ -16,6 +16,7 @@ import graphing
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import os
 from sqlalchemy import create_engine
 import scipy.stats as stats
 import statsmodels.api as sm
@@ -245,6 +246,8 @@ def main(year=2019, graph=False):
     Returns:
         A LinearRegression class
     """
+    if not os.path.isdir("graphs"):
+        os.mkdir("graphs")
     # Variable setup
     db_url = "sqlite:///database//nba_db.db"
     engine = create_engine(db_url)
