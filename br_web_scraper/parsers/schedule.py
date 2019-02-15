@@ -38,7 +38,7 @@ def parse_start_time(formatted_date, formatted_time_of_day):
     # All basketball reference times seem to be in Eastern
     est = pytz.timezone("US/Eastern")
     localized_start_time = est.localize(start_time)
-    return localized_start_time.astimezone(pytz.utc)
+    #return localized_start_time.astimezone(pytz.utc)
 
 
 def current_time():
