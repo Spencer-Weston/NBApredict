@@ -255,9 +255,9 @@ def main(year=2019, graph=False):
 
     # Database table to pandas table
     misc_stats = "misc_stats_{}".format(year)
-    sched = "sched_{}".format(year)
     ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
-    sched_df = pd.read_sql_table(sched, conn)
+    sched = "sched_{}".format(year)
+    sched_df = pd.read_sql_table(sched, conn)[lambda df: df.away_team_score > 0]
 
     # Combines four factors and seasons df's and separates them into X (predictors) and y (target)
     regression_df = create_ff_regression_df(ff_df, sched_df, br.four_factors)
@@ -279,7 +279,6 @@ def main(year=2019, graph=False):
     ff_reg.residual_distribution()
 
     return ff_reg
-    print("FINISHED")
 
 
 if __name__ == "__main__":

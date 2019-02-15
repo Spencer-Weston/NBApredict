@@ -45,7 +45,7 @@ def season_to_dict_list(season):
     return dict_list
 
 
-def cd_class_to_string(season):
+def br_enum_to_string(season):
     """Substitute the value of each enum into the enum's position in season and return a modified season
 
     Args:
@@ -90,7 +90,7 @@ def main(year=2019, db_url="sqlite:///database//nba_db.db"):
     db.create_table(engine, tbl_name, col_defs, overwrite=True)
 
     # Insert rows
-    season = cd_class_to_string(season)
+    season = br_enum_to_string(season)
     tbl_db = db.get_table(engine, tbl_name)
     db.insert_rows(engine, tbl_db, season)
 
