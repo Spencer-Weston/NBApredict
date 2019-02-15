@@ -15,10 +15,13 @@ To-Do:
     that made the playoffs have a '*' appended that we want to strip from the team-name
 """
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # Requires lxml to be installed as well
 import re
 import requests
+import sqlite3
 from sqlalchemy import create_engine
+from sqlalchemy import exc
+import os
 
 # Local imports
 from br_references import BASE_URL
@@ -118,6 +121,9 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
         tbl_name: Name of the table to be scraped
         db_url: Path to the database the table should be written to
     """
+    if not os.path.isdir("database"):
+        os.mkdir("database")
+
     # Get tbl_dictionary from basketball reference
     tbl_dict = team_statistics(year, tbl_name)
     tbl_dict["team_name"] = clean_team_name(tbl_dict["team_name"])
@@ -131,6 +137,10 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
     # Transform data into sql_alchemy format and write table to DB
     sql_types = db.get_sql_type(tbl_dict)
     col_defs = db.create_col_definitions(db_tbl_name, sql_types)
+
+    # Initial thought was to create the database if we cannot create the table; However, it appears the create_table
+    # function also creates the database if it doesn't exist. This relies on the folder being created beforehand as
+    # handled at the start of main()
     db.create_table(engine, db_tbl_name, col_defs, overwrite=True)
 
     # Write rows to DB
@@ -146,4 +156,4 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
 
 
 if __name__ == "__main__":
-    main(year=2019)
+    main(year=2018)

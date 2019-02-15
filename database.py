@@ -14,6 +14,8 @@ from sqlalchemy import Column, Integer, Float, String, DateTime
 from sqlalchemy import MetaData
 from sqlalchemy import select
 from sqlalchemy.ext.declarative import declarative_base
+import sqlite3
+from sqlite3 import Error as sqlite_Error
 
 # local imports
 import general
@@ -97,6 +99,18 @@ def create_col_definitions(tbl_name, id_type_dict):
 
 
 # Database table functions (i.e. create, drop, access)
+def create_database(db_url, overwrite=False):
+    """Create a SQLite database at the specified URL"""
+    test_url = 'database/nba_db.db'
+    try:
+        conn = sqlite3.connect(test_url)
+        print(sqlite3.version)
+    except sqlite_Error as e:
+        print(e)
+    finally:
+        conn.close()
+
+
 def create_table(engine, name, cols, overwrite=False):
     """Creates a table, named as "name", in the engine with the specified cols.
 
@@ -207,7 +221,7 @@ def _dict_to_rows(tbl):
 
 
 def select_rows(conn, table):
-    """Not yet functional."""
+    """Not yet functional. Likely want to use engine.connect() w/ a statement rather than a function """
     select_st = select([table]).where(
         table.c.l_name == 'efg_pct')
     res = conn.execute(select_st)
