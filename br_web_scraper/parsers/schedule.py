@@ -2,7 +2,7 @@ from lxml import html
 import datetime
 import pytz
 
-from basketball_reference_web_scraper.data import Team
+from br_references import Team
 
 TEAM_NAME_TO_TEAM = {
     member.value: member

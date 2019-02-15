@@ -1,7 +1,7 @@
 import csv
 import json
 
-from basketball_reference_web_scraper.data import OutputType, OutputWriteOption
+from br_references import OutputType, OutputWriteOption
 
 box_score_fieldname = [
     "name",

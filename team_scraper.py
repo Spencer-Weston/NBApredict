@@ -156,4 +156,4 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
 
 
 if __name__ == "__main__":
-    main(year=2018)
+    main(year=2019)

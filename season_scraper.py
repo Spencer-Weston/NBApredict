@@ -14,6 +14,7 @@ Args (default):
 from br_web_scraper import client
 import database as db
 import datetime
+import os
 from sqlalchemy import create_engine
 
 
@@ -24,7 +25,7 @@ def season_to_dict_list(season):
         season: A season formatted as if returned by basketball_reference_web_scraper
 
     Returns:
-        A dictionary formattted as dict[key] = [] where the list contains all values in the season found for that key.
+        A dictionary formatted as dict[key] = [] where the list contains all values in the season found for that key.
         Each list is ordered so that all information from game 1 will be in index 0, game 2 in index 1, and so on.
         For example,
 
@@ -76,6 +77,9 @@ def main(year=2019, db_url="sqlite:///database//nba_db.db"):
     year (2019): The year of the season desired
     db_url ('sqlite:///database//nba_db.db'): Path to the database where data should be written
     """
+    if not os.path.isdir("database"):
+        os.mkdir("database")
+
     engine = create_engine(db_url)
     tbl_name = "sched_{}".format(year)
 
