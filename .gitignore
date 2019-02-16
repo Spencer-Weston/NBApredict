@@ -8,5 +8,6 @@
 *.csv
 *.db
 *.sqlite
+*xlsx
 database
 graphs
