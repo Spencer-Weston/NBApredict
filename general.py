@@ -7,6 +7,8 @@ to the project. The functions, for the most part, deal with type checks, type co
 
 import datetime
 from enum import Enum
+import json
+import os
 
 
 def set_type(values):
@@ -66,7 +68,7 @@ def get_type(values):
     To-Do:
         Modal type isn't a full proof method. Need to determine a better method.
     """
-    if hasattr(values, "__len__"):  # Checks if the object is iterable
+    if hasattr(values, "__len__") and (type(values) != type):  # Checks if the object is iterable
         val_types = []
         for i in values:
             val_types.append(_get_type(i))
@@ -95,10 +97,14 @@ def _get_type(val):
         return "datetime"
     elif isinstance(val, str):
         return "string"
+    elif isinstance(val, bool):
+        return "bool"
     elif val is None:
         return None
+    elif val in [int, float, datetime.datetime, str, bool, None]:  # Handles types that are passed explicitly
+        return val
     else:
-        raise Exception("Val is not an int, float, datetime, or string")
+        raise Exception("Val is not an int, float, datetime, string, or None")
 
 
 def is_int(x):
@@ -138,3 +144,40 @@ def check_dict_list_equivalence(dict_object):
         return True
     else:
         return False
+
+
+def add_object_to_json(objects_dict, json_file):
+    """Adds a new object or objects to an existing json file
+
+    To-do:
+        Currently rewrites the entire file which could be a performance issue. To change, make so that the json file
+        endings are removed, a comma inserted, and then re-insert the ending (or something like that)"""
+
+    with open(json_file, encoding='utf-8') as data_file:
+        data = json.loads(data_file.read())
+
+    for key, value in objects_dict.items():
+        data[key] = value
+
+    create_json(data, json_file)
+
+
+def remove_objects_from_json(keys, json_file):
+    """Removes the specified objects or object from the json_file as specified by keys"""
+    with open(json_file, encoding='utf-8') as data_file:
+        data = json.loads(data_file.read())
+
+    changed_data = data
+    if isinstance(keys, str):
+        del changed_data[keys]
+    else:
+        for key in keys:
+            del changed_data[key]
+    create_json(data, json_file)
+
+
+def create_json(object_dict, json_file):
+    """Creates a json to store the specified objects"""
+
+    with open(json_file, 'w') as fp:
+        json.dump(object_dict, fp, sort_keys=True, indent=4)
