@@ -155,11 +155,13 @@ def add_object_to_json(objects_dict, json_file):
 
     with open(json_file, encoding='utf-8') as data_file:
         data = json.loads(data_file.read())
-
-    for key, value in objects_dict.items():
-        data[key] = value
-
-    create_json(data, json_file)
+    modified_data = data
+    try:
+        for key, value in objects_dict.items():
+            modified_data[key] = value
+        create_json(modified_data, json_file)
+    except TypeError:  # If an error is encountered, rewrite the JSON with the original data
+        create_json(data, json_file)
 
 
 def remove_objects_from_json(keys, json_file):
@@ -181,3 +183,22 @@ def create_json(object_dict, json_file):
 
     with open(json_file, 'w') as fp:
         json.dump(object_dict, fp, sort_keys=True, indent=4)
+
+
+def check_for_object_in_json(object_key, json_file):
+    json_keys = load_json(json_file).keys()
+    if object_key in json_keys:
+        return True
+    else:
+        return False
+
+
+def load_json(json_file):
+    with open(json_file, "r") as file:
+        python_object = json.load(file)
+    return python_object
+
+
+def return_project_directory():
+    """Returns the project directory so long as general.py is in the top-level of the project"""
+    return os.path.abspath(os.path.dirname(__file__))

@@ -10,7 +10,8 @@ To-do:
     it. Those tables should likely be classes themselves with associated functions.
 """
 
-from sqlalchemy import Column, Integer, Float, String, DateTime
+import datetime
+from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean
 from sqlalchemy import MetaData
 from sqlalchemy import select
 from sqlalchemy.ext.declarative import declarative_base
@@ -56,20 +57,26 @@ def py_type_to_sql_type(py_types):
     """Convert and return a dictionary of python types to a dictionary of sql types.
 
     Raises:
-        An exception if a py_type is not an integer, float, string, datetime, or none
+        An exception if a py_type is not an integer, float, string, datetime, bool, or none
+
+    To-do:
+        Change the logic into a switch statement
     """
 
     sql_types = dict()
     for key in py_types:
-        if py_types[key] == "integer":
+        py_type = py_types[key]
+        if py_type == "integer" or py_type is int:
             sql_types[key] = Integer
-        elif py_types[key] == "float":
+        elif py_type == "float" or py_type is float:
             sql_types[key] = Float
-        elif py_types[key] == "string":
+        elif py_type == "string" or py_type is str:
             sql_types[key] = String
-        elif py_types[key] == "datetime":
+        elif py_type == "datetime" or py_type is datetime.datetime:
             sql_types[key] = DateTime
-        elif py_types[key] is None:
+        elif py_type == "bool" or py_type is bool:
+            sql_types[key] = Boolean
+        elif py_type is None:
             continue  # We continue here so as to not create a column for null values
         else:
             raise Exception("Error: py_type {} is not an integer, float, datetime,"
@@ -99,16 +106,17 @@ def create_col_definitions(tbl_name, id_type_dict):
 
 
 # Database table functions (i.e. create, drop, access)
-def create_database(db_url, overwrite=False):
-    """Create a SQLite database at the specified URL"""
-    test_url = 'database/nba_db.db'
-    try:
-        conn = sqlite3.connect(test_url)
-        print(sqlite3.version)
-    except sqlite_Error as e:
-        print(e)
-    finally:
-        conn.close()
+
+# def create_database(db_url, overwrite=False):
+#    """Create a SQLite database at the specified URL"""
+#    test_url = 'database/nba_db.db'
+#    try:
+#        conn = sqlite3.connect(test_url)
+#        print(sqlite3.version)
+#    except sqlite_Error as e:
+#        print(e)
+#    finally:
+#        conn.close()
 
 
 def create_table(engine, name, cols, overwrite=False):
@@ -146,6 +154,15 @@ def drop_table(engine, drop_tbl):
     meta.reflect(bind=engine)
     drop_tbl_class = meta.tables[drop_tbl]
     drop_tbl_class.drop()
+
+
+def table_exists(engine, tbl):
+    meta = MetaData(bind=engine)
+    meta.reflect(bind=engine)
+    if tbl in meta.tables:
+        return True
+    else:
+        return False
 
 
 def get_table(engine, tbl):
@@ -197,15 +214,6 @@ def dict_to_rows(tbl):
         raise Exception("tbl is neither a list or dictionary, and cannot be handled")
 
 
-def _list_to_rows(tbl):
-    """Not yet functional
-
-    To-do:
-        Implement functionality for transforming lists into database rows"""
-
-    raise Exception("tbl is a list. Function to convert lists into database rows is not implemented")
-
-
 def _dict_to_rows(tbl):
     """Convert and return an input dictionary into rows compatible with sqlalchemy's insert function"""
 
@@ -218,6 +226,15 @@ def _dict_to_rows(tbl):
             row_dict[key] = tbl[key][i]
         rows.append(row_dict)
     return rows
+
+
+def _list_to_rows(tbl):
+    """Not yet functional
+
+    To-do:
+        Implement functionality for transforming lists into database rows"""
+
+    raise Exception("tbl is a list. Function to convert lists into database rows is not implemented")
 
 
 def select_rows(conn, table):

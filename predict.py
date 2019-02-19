@@ -21,7 +21,9 @@ from sqlalchemy import create_engine
 
 # Local imports
 import br_references
+import database as db
 import four_factor_regression as lm
+import general
 
 
 def get_prediction(reg, pred_df):
@@ -136,7 +138,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
 
 
-def predict_game(home_tm, away_tm, line, console_out=False, year=2019, db_url="sqlite:///database//nba_db.db"):
+def predict_game(home_tm, away_tm, line, db_conn, year=2019, console_out=False,  write_to_db=False):
     """Generates print statements that predict a game's score and present the CDF or SF or the betting line
 
     Cdf is a cumulative density function. SF is a survival function. CDF is calculated when the betting line's
@@ -147,9 +149,10 @@ def predict_game(home_tm, away_tm, line, console_out=False, year=2019, db_url="s
         home_tm: The home team
         away_tm: The away team
         line: The betting line
-        console_out: If true, print the prediction results. Ignore otherwise
+        db_conn: Connection to the database with the four factors and to optionally write prediction results to
         year: The year to use statistics from in predicting the game
-        db_url: Path to the database holding data for predictions
+        console_out: If true, print the prediction results. Ignore otherwise
+        write_to_db: Writes results to a table in db_conn if True; Ignore otherwise
     """
     reg = lm.main(year=year)
 
@@ -159,9 +162,7 @@ def predict_game(home_tm, away_tm, line, console_out=False, year=2019, db_url="s
     # Get Misc stats for year
     ff_list = lm.four_factors_list()
     misc_stats = "misc_stats_{}".format(year)
-    engine = create_engine(db_url)
-    conn = engine.connect()
-    ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]
+    ff_df = pd.read_sql_table(misc_stats, db_conn)[ff_list]
 
     pred_df = create_prediction_df(home_tm, away_tm, ff_df)
 
@@ -171,30 +172,63 @@ def predict_game(home_tm, away_tm, line, console_out=False, year=2019, db_url="s
 
     if console_out:
         prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
+    if write_to_db:
+        pass
+        # Send results to the DB
 
 
-def predict_games_on_day(day, month, year, sched_df, lines=False):
-    """The function takes a date, finds the games on that date, and """
+def predict_games_on_day(day, month, year, sched_df, lines=False, db_conn=None, console_out=False, write_to_db=False):
+    """The function takes a date, finds the games on that date, and generates a prediction for each game"""
 
     # Create a date mask and extract it from the schedule
     date = datetime.datetime(year=year, month=month, day=day)
     next_day = date + datetime.timedelta(days=1)
-    date_df = pd.to_datetime(sched_df['start_time'])
     date_mask = (sched_df['start_time'] >= date) & (sched_df['start_time'] < next_day)
     games_on_date = sched_df.loc[date_mask]
 
-    # Create lists compatible with the predict_game function
-    for index, row in games_on_date.iterrows():
-        predict_game(home_tm=row["home_team"], away_tm=row["away_team"], line=0, console_out=True)
+    if len(games_on_date) < 1:
+        raise Exception("No games on {}/{}/{}".format(month, day, year))
+
+    if lines:
+        # Some call to get betting lines for today's game
+        game_lines = [4, -4]  # Sample until line_scraper is running
+        for index, row in games_on_date.iterrows():
+            predict_game(home_tm=row["home_team"], away_tm=row["away_team"], line=game_lines[index],
+                         db_conn=db_conn, console_out=console_out, write_to_db=write_to_db)
+    else:
+        # Generates predictions versus a generic line of 0
+        for index, row in games_on_date.iterrows():
+            predict_game(home_tm=row["home_team"], away_tm=row["away_team"], line=0,
+                         db_conn=db_conn, console_out=console_out, write_to_db=write_to_db)
+
+
+def main(db_url, league_year, day, month, year, lines, console_out, write_to_db):
+
+    engine = create_engine(db_url)
+    conn = engine.connect()
+
+    json_file = br_references.JSON_REFERENCE_PATH
+    prediction_tbl = "predictions_{}".format(league_year)
+    if not db.table_exists(engine, prediction_tbl):
+        tbl_definition = {"home_team": str, "away_team": str, "home_line": float, "projection": float,
+                          "line_probability": float, "SF/CDF": str, "final_score": int, "correct": bool}
+        sql_types = db.get_sql_type(tbl_definition)
+        column_definitions = db.create_col_definitions(prediction_tbl, sql_types)
+        db.create_table(engine, prediction_tbl, column_definitions)
+        prediction_tbl_definition = {prediction_tbl.split("_")[0][:-1] + "_col_definitions": tbl_definition}
+
+        if list(prediction_tbl_definition.keys())[0] not in general.load_json(json_file).keys():
+            general.add_object_to_json(prediction_tbl_definition, json_file)
+
+
+    sched = "sched_{}".format(2019)
+    sched_df = pd.read_sql_table(sched, conn)
+    predict_games_on_day(day=day, month=month, year=year, sched_df=sched_df, lines=lines,
+                         console_out=console_out, db_conn=conn, write_to_db=write_to_db)
+    conn.close()
 
 
 if __name__ == "__main__":
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
-
-    db_url = "sqlite:///database//nba_db.db"
-    engine = create_engine(db_url)
-    conn = engine.connect()
-    sched = "sched_{}".format(2019)
-    sched_df = pd.read_sql_table(sched, conn)
-    predict_games_on_day(day=29, month=1, year=2019, sched_df=sched_df)
-
+    main(db_url="sqlite:///database//nba_db.db", league_year=2019, day=16, month=10, year=2018, lines=True,
+         console_out=True, write_to_db=True)

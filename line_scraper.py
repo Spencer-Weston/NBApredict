@@ -58,6 +58,7 @@ def parse_odds(page):
     table = cleaned_soup.find('span', {'class': 'market-line bet-handicap'})
     test=0
 
+
 if __name__ == "__main__":
     odds_for_today()
 
