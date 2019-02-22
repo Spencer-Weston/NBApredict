@@ -5,10 +5,12 @@ Purpose: Contains general functions. The NBA_bet project uses these functions. H
 to the project. The functions, for the most part, deal with type checks, type conversions, and length comparisons
 """
 
+import copy
 import datetime
 from enum import Enum
 import json
 import os
+import yaml
 
 
 def set_type(values):
@@ -101,10 +103,10 @@ def _get_type(val):
         return "bool"
     elif val is None:
         return None
-    elif val in [int, float, datetime.datetime, str, bool, None]:  # Handles types that are passed explicitly
+    elif is_python_type(val):  # Handles types that are passed explicitly
         return val
     else:
-        raise Exception("Val is not an int, float, datetime, string, or None")
+        raise Exception("Val is not an int, float, datetime, string, Bool, or None")
 
 
 def is_int(x):
@@ -125,8 +127,15 @@ def is_float(x):
         return False
 
 
+def is_python_type(x):
+    if x in [int, float, datetime.datetime, str, bool, None]:
+        return True
+    else:
+        return False
+
+
 def check_dict_list_equivalence(dict_object):
-    """Given a dictionary where keys references lists, check that all lists are the same length, and return True or False
+    """Given a dictionary where keys references lists, check that all lists are the same length, and return T or F
 
     Args:
         dict_object: a dictionary where each key references a list
@@ -146,57 +155,70 @@ def check_dict_list_equivalence(dict_object):
         return False
 
 
-def add_object_to_json(objects_dict, json_file):
-    """Adds a new object or objects to an existing json file
+class JsonFile:
+    """A class to handle JSON functionality such as load, create, add, and drop"""
+    def __init__(self, json_file):
+        self.path = json_file
+        if os.path.isfile(self.path):
+            return
+        else:  # Create a blank JSON if the file does not already exist
+            self.create_json()
 
-    To-do:
-        Currently rewrites the entire file which could be a performance issue. To change, make so that the json file
-        endings are removed, a comma inserted, and then re-insert the ending (or something like that)"""
+    def add_objects(self, objects_dict):
+        """Adds a new object or objects to an existing json file
 
-    with open(json_file, encoding='utf-8') as data_file:
-        data = json.loads(data_file.read())
-    modified_data = data
-    try:
-        for key, value in objects_dict.items():
-            modified_data[key] = value
-        create_json(modified_data, json_file)
-    except TypeError:  # If an error is encountered, rewrite the JSON with the original data
-        create_json(data, json_file)
+        To-do:
+            Currently rewrites the entire file which could be a performance issue. To change, make so that the json file
+            endings are removed, a comma inserted, and then re-insert the ending (or something like that)"""
 
+        data = self.load_json()
+        modified_data = copy.deepcopy(data)
+        try:
+            for key, value in objects_dict.items():
+                if is_python_type(value):  # Creates a yaml representation of python types
+                    value = yaml.dump(value)
+                modified_data[key] = value
+            self.create_json(modified_data)
+        except (TypeError, json.decoder.JSONDecodeError):  # Rewrite the initial JSON if an error is encountered
+            self.create_json(data)
+            raise Exception("Could not add object to JSON. Json restored to previous format")
 
-def remove_objects_from_json(keys, json_file):
-    """Removes the specified objects or object from the json_file as specified by keys"""
-    with open(json_file, encoding='utf-8') as data_file:
-        data = json.loads(data_file.read())
+    def remove_objects(self, keys):
+        """Removes the specified object or objects from the json_file as specified by keys"""
+        with open(self.path, encoding='utf-8') as data_file:
+            data = json.loads(data_file.read())
 
-    changed_data = data
-    if isinstance(keys, str):
-        del changed_data[keys]
-    else:
-        for key in keys:
-            del changed_data[key]
-    create_json(data, json_file)
+        changed_data = data
+        if isinstance(keys, str):
+            del changed_data[keys]
+        else:
+            for key in keys:
+                del changed_data[key]
+        try:
+            self.create_json(changed_data)
+        except TypeError:
+            self.create_json(data)
 
+    def create_json(self, object_dict=None):
+        """Creates a json to store the specified objects"""
+        if object_dict:
+            with open(self.path, 'w') as fp:
+                json.dump(object_dict, fp, sort_keys=True, indent=4)
+        else:
+            with open(self.path, 'w') as fp:
+                json.dump({}, fp, sort_keys=True, indent=4)
 
-def create_json(object_dict, json_file):
-    """Creates a json to store the specified objects"""
+    def check_for_object(self, object_key):
+        json_keys = self.load_json().keys()
+        if object_key in json_keys:
+            return True
+        else:
+            return False
 
-    with open(json_file, 'w') as fp:
-        json.dump(object_dict, fp, sort_keys=True, indent=4)
-
-
-def check_for_object_in_json(object_key, json_file):
-    json_keys = load_json(json_file).keys()
-    if object_key in json_keys:
-        return True
-    else:
-        return False
-
-
-def load_json(json_file):
-    with open(json_file, "r") as file:
-        python_object = json.load(file)
-    return python_object
+    def load_json(self):
+        with open(self.path, "r") as file:
+            python_object = json.load(file)
+        return python_object
 
 
 def return_project_directory():

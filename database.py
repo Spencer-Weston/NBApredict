@@ -11,7 +11,7 @@ To-do:
 """
 
 import datetime
-from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean
+from sqlalchemy import Column, ForeignKey,Integer, Float, String, DateTime, Boolean
 from sqlalchemy import MetaData
 from sqlalchemy import select
 from sqlalchemy.ext.declarative import declarative_base
@@ -84,7 +84,7 @@ def py_type_to_sql_type(py_types):
     return sql_types
 
 
-def create_col_definitions(tbl_name, id_type_dict):
+def create_col_definitions(tbl_name, id_type_dict, foreign_key=False):
     """Create and return a dictionary of column specifications for a sql_alchemy table.
 
     Returns a dictionary that begins with __table__name and an integer id followed by columns as specified
@@ -99,6 +99,8 @@ def create_col_definitions(tbl_name, id_type_dict):
     """
     col_specs = {'__tablename__': '{}'.format(tbl_name),
                  'id': Column(Integer, primary_key=True)}
+    if foreign_key:
+        col_specs[foreign_key] = Column(foreign_key, Integer, ForeignKey(foreign_key), nullable=False, unique=True)
     for key in id_type_dict:
         col_specs[key] = Column(id_type_dict[key])
 
