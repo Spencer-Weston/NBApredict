@@ -11,12 +11,10 @@ To-do:
 """
 
 import datetime
-from sqlalchemy import Column, ForeignKey,Integer, Float, String, DateTime, Boolean
+from sqlalchemy import Column, ForeignKey, Integer, Float, String, DateTime, Boolean
 from sqlalchemy import MetaData
 from sqlalchemy import select
 from sqlalchemy.ext.declarative import declarative_base
-import sqlite3
-from sqlite3 import Error as sqlite_Error
 
 # local imports
 import general
@@ -105,20 +103,6 @@ def create_col_definitions(tbl_name, id_type_dict, foreign_key=False):
         col_specs[key] = Column(id_type_dict[key])
 
     return col_specs
-
-
-# Database table functions (i.e. create, drop, access)
-
-# def create_database(db_url, overwrite=False):
-#    """Create a SQLite database at the specified URL"""
-#    test_url = 'database/nba_db.db'
-#    try:
-#        conn = sqlite3.connect(test_url)
-#        print(sqlite3.version)
-#    except sqlite_Error as e:
-#        print(e)
-#    finally:
-#        conn.close()
 
 
 def create_table(engine, name, cols, overwrite=False):

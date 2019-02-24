@@ -139,8 +139,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
 
 
-def predict_game(start_time, home_tm, away_tm, line, db_conn, year=2019, console_out=False,
-                 write_to_db=False, foreign_key=False):
+def predict_game(start_time, home_tm, away_tm, line, db_conn, year=2019, console_out=False):
     """Generates print statements that predict a game's score and present the CDF or SF or the betting line
 
     Cdf is a cumulative density function. SF is a survival function. CDF is calculated when the betting line's
@@ -176,21 +175,18 @@ def predict_game(start_time, home_tm, away_tm, line, db_conn, year=2019, console
 
     if console_out:
         prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
-    if write_to_db:
-        engine = db_conn.engine
-        table = db.get_table(engine, "predictions_2019")
-        column_keys = table._columns.keys()
-        del column_keys[0]  # Remove the ID column
 
-        # Final 2 zeroes are for "final_score" and correct which will be evaluated later
-        row_values = [foreign_key, start_time, home_tm, away_tm, line, prediction, probability, function, 0, 0]
-
-        row = dict(zip(column_keys, row_values))
-        db.insert_row(engine, table, row)
+    return {"start_time": start_time, "home_team": home_tm, "away_team": away_tm, "line": line,
+            "prediction": prediction, "probability": probability, "function": function}
 
 
 def predict_games_on_day(day, month, year, sched_df, lines=False, db_conn=None, console_out=False, write_to_db=False):
-    """The function takes a date, finds the games on that date, and generates a prediction for each game"""
+    """The function takes a date, finds the games on that date, and generates a prediction for each game
+
+    To-Do:
+        Extricate the write to database. Instead, return the prediction values (Make each function do one thing!)
+        This is awful design :(
+    """
 
     # Create a date mask and extract it from the schedule
     date = datetime.datetime(year=year, month=month, day=day)
@@ -201,6 +197,7 @@ def predict_games_on_day(day, month, year, sched_df, lines=False, db_conn=None, 
     if len(games_on_date) < 1:
         raise Exception("No games on {}/{}/{}".format(month, day, year))
 
+    results = dict()
     if lines:
         # Some call to get betting lines for today's game
         game_lines = [4, -4]  # Sample until line_scraper is running
@@ -208,15 +205,14 @@ def predict_games_on_day(day, month, year, sched_df, lines=False, db_conn=None, 
             start_time = games_on_date["start_time"][index]
             foreign_key = games_on_date["id"][index]
             predict_game(start_time=start_time, home_tm=row["home_team"], away_tm=row["away_team"],
-                         line=game_lines[0], db_conn=db_conn, console_out=console_out,
-                         write_to_db=write_to_db, foreign_key=foreign_key)
+                         line=game_lines[0], db_conn=db_conn, console_out=console_out)
     else:
         # Generates predictions versus a generic line of 0
         for index, row in games_on_date.iterrows():
             start_time = games_on_date["start_time"][index]
             foreign_key = games_on_date["id"][index]
             predict_game(start_time=start_time, home_tm=["home_team"], away_tm=row["away_team"], line=0,
-                         db_conn=db_conn, console_out=console_out, write_to_db=write_to_db, foreign_key=foreign_key)
+                         db_conn=db_conn, console_out=console_out)
 
 
 def main(db_url, league_year, day, month, year, lines, console_out, write_to_db):
@@ -224,25 +220,33 @@ def main(db_url, league_year, day, month, year, lines, console_out, write_to_db)
     engine = create_engine(db_url)
     conn = engine.connect()
 
-#    json_file = general.JsonFile(br_references.JSON_REFERENCE_PATH)
     prediction_tbl = "predictions_{}".format(league_year)
     if not db.table_exists(engine, prediction_tbl):
-        tbl_definition = OrderedDict({"start_time": datetime.datetime, "home_team": str, "away_team": str, "home_line": float, "projection": float,
-                                      "line_probability": float, "SF/CDF": str, "final_score": int, "correct": bool})
+        tbl_definition = OrderedDict({"start_time": datetime.datetime, "home_team": str, "away_team": str,
+                                      "home_line": float, "projection": float, "line_probability": float,
+                                      "SF/CDF": str, "final_score": int, "correct": bool})
         sql_types = db.get_sql_type(tbl_definition)
         column_definitions = db.create_col_definitions(prediction_tbl, sql_types,
                                                        foreign_key="sched_{}.id".format(league_year))
-#        prediction_tbl_definition = {prediction_tbl.split("_")[0][:-1] + "_col_definitions": tbl_definition}
-#        if list(prediction_tbl_definition.keys())[0] not in json_file.load_json().keys():
-#            json_file.add_objects(prediction_tbl_definition)
 
         db.create_table(engine, prediction_tbl, column_definitions)
 
     sched = "sched_{}".format(2019)
     sched_df = pd.read_sql_table(sched, conn)
-    predict_games_on_day(day=day, month=month, year=year, sched_df=sched_df, lines=lines,
-                         console_out=console_out, db_conn=conn, write_to_db=write_to_db)
+    results = predict_games_on_day(day=day, month=month, year=year, sched_df=sched_df, lines=lines,
+                                   console_out=console_out, db_conn=conn, write_to_db=write_to_db)
     conn.close()
+
+    #    if write_to_db:
+    #        engine = db_conn.engine
+    #        table = db.get_table(engine, "predictions_2019")
+    #        column_keys = table._columns.keys()
+    #        del column_keys[0]  # Remove the ID column
+    #
+    #        # Final 2 zeroes are for "final_score" and correct which will be evaluated later
+    #        row_values = [foreign_key, start_time, home_tm, away_tm, line, prediction, probability, function, 0, 0]
+    #        row = dict(zip(column_keys, row_values))
+    #        db.insert_row(engine, table, row)
 
 
 if __name__ == "__main__":
