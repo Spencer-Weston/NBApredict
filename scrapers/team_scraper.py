@@ -119,7 +119,7 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
         tbl_name: Name of the table to be scraped
         db_url: Path to the database the table should be written to
     """
-    if not os.path.isdir("database"):
+    if not os.path.isdir("../database"):
         os.mkdir("database")
 
     # Get tbl_dictionary from basketball reference
