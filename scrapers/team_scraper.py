@@ -22,8 +22,8 @@ from sqlalchemy import create_engine
 import os
 
 # Local imports
-from br_references import BASE_URL
-from br_references import data_stat_headers as HEADERS
+from references.br_references import BASE_URL
+from references.br_references import data_stat_headers as HEADERS
 import database as db
 import general
 

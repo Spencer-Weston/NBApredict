@@ -1,7 +1,7 @@
 import csv
 import json
 
-from br_references import OutputType, OutputWriteOption
+from references.br_references import OutputType, OutputWriteOption
 
 box_score_fieldname = [
     "name",
