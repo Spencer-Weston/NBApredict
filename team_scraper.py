@@ -18,9 +18,7 @@ To-Do:
 from bs4 import BeautifulSoup  # Requires lxml to be installed as well
 import re
 import requests
-import sqlite3
 from sqlalchemy import create_engine
-from sqlalchemy import exc
 import os
 
 # Local imports
@@ -129,7 +127,7 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
     tbl_dict["team_name"] = clean_team_name(tbl_dict["team_name"])
 
     # Database work set_up
-    engine = create_engine(db_url)
+    # engine = create_engine(db_url)
 
     # Initial tbl_name is for scraping basketball reference; Year is added to disambiguate tables
     db_tbl_name = '{}_{}'.format(tbl_name, year)
@@ -141,7 +139,10 @@ def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db
     # Initial thought was to create the database if we cannot create the table; However, it appears the create_table
     # function also creates the database if it doesn't exist. This relies on the folder being created beforehand as
     # handled at the start of main()
-    db.create_table(engine, db_tbl_name, col_defs, overwrite=True)
+    table = db.Table(db_tbl_name, db_url)
+    #engine = db.Engine(db_url)
+    engine = None  # DELETE
+    # create_table(engine, db_tbl_name, col_defs, overwrite=True)
 
     # Write rows to DB
     if general.check_dict_list_equivalence(tbl_dict):
