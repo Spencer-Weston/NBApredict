@@ -16,6 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import MetaData
 from sqlalchemy import select
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 # local imports
 import general
@@ -108,9 +109,12 @@ def create_col_definitions(tbl_name, id_type_dict, foreign_key=False):
 
 class Engine:
     def __init__(self, url):
+        """Creates an engine on the specified path, generates a declarative Base class which reflects the engine
+        The base is passed to subclasses in order to generate tables. The session allows interaction with the DB."""
         self.path = url
         self.engine = create_engine(self.path)
-        #self.tables = self.get_tables()
+        self.Base = declarative_base()
+        self.Base.metadata.reflect(self.engine)
 
     def get_tables(self, table_names=False):
         """Find and returns the specified tables or returns all tables """
@@ -122,7 +126,7 @@ class Engine:
             return meta.tables
 
     def create_table(self, table_name):
-        pass
+        self.Base.metadata.create_all(self.engine)
 
 
 class Test(Engine, declarative_base()):
@@ -154,8 +158,7 @@ class Table(Engine):
         """
         name = None  # DELETE
         engine = None  # DELETE
-        base = declarative_base()
-        base.metadata.reflect(self.engine)
+
 
         if name in base.metadata.tables and not overwrite:
             print("Table exists and overwrite is False. Returning without making changes")
