@@ -134,25 +134,7 @@ def is_python_type(x):
         return False
 
 
-def check_dict_list_equivalence(dict_object):
-    """Given a dictionary where keys references lists, check that all lists are the same length, and return T or F
 
-    Args:
-        dict_object: a dictionary where each key references a list
-
-    Returns:
-         True: if all the lists in the dictionary have the same length
-         False: if the dictionary's lists are of different lengths
-    """
-    keys = dict_object.keys()
-    lengths = []
-    for key in keys:
-        lengths.append(len(dict_object[key]))
-    length_set = set(lengths)
-    if len(length_set) == 1:
-        return True
-    else:
-        return False
 
 
 class JsonFile:

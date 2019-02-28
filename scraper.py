@@ -16,7 +16,7 @@ Session = sessionmaker(bind=db.engine)
 session = Session()
 year = 2019
 
-team_scrape = team_scraper.scrape(session=Session(), database=db, year=year)
+team_scrape = team_scraper.scrape(database=db, year=year)
 season_scrape = season_scraper.main(session=Session(), database=db, year=year)
 
 test=2

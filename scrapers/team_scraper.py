@@ -21,9 +21,9 @@ import requests
 import os
 
 # Local imports
+from database import DataManipulator
 from references.br_references import BASE_URL
 from references.br_references import data_stat_headers as HEADERS
-import database as db
 import general
 
 
@@ -110,7 +110,7 @@ def clean_team_name(team_names):
     return new_team_names
 
 
-def scrape(database, year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db"):
+def scrape(database, year=2019, tbl_name="misc_stats"):
     """Scrape a basketball_reference table of team stats, parse the table, and write it to a database
 
     Args:
@@ -127,18 +127,20 @@ def scrape(database, year=2019, tbl_name="misc_stats", db_url="sqlite:///databas
     tbl_dict = team_statistics(year, tbl_name)
     tbl_dict["team_name"] = clean_team_name(tbl_dict["team_name"])
 
+    data = DataManipulator(tbl_dict)
+    rows = data.dict_to_rows()
+    sql_types = data.get_sql_type()
+
     # Initial tbl_name is for scraping basketball reference; Year is added to disambiguate tables
     tbl_name = '{}_{}'.format(tbl_name, year)
 
-    # At this point, all data has been gathered, and we begin transforming and putting data into the DB
+    if database.table_exists(tbl_name):  # Table needs to be completely reset each run
+        database.drop_table(tbl_name)
 
-    sql_types = db.get_sql_type(tbl_dict)  ### DB USE NEED TO EXTRICATE ###
     database.map_table(tbl_name, sql_types)
-    table = database.Template()
-    database.create_table()
+    database.create_tables()
 
-    rows = db.dict_to_rows(tbl_dict)   ### DB USE NEED TO EXTRICATE ###
-    if general.check_dict_list_equivalence(tbl_dict):
+    if data.validate_data_length():
         database.insert_rows(tbl_name, rows)
     else:
         # A possible scenario that we want to break on.
