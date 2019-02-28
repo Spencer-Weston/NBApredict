@@ -18,7 +18,6 @@ To-Do:
 from bs4 import BeautifulSoup  # Requires lxml to be installed as well
 import re
 import requests
-from sqlalchemy import create_engine
 import os
 
 # Local imports
@@ -111,50 +110,43 @@ def clean_team_name(team_names):
     return new_team_names
 
 
-def main(year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db"):
+def scrape(database, year=2019, tbl_name="misc_stats", db_url="sqlite:///database//nba_db.db"):
     """Scrape a basketball_reference table of team stats, parse the table, and write it to a database
 
     Args:
+        database: A Database class from database.py which dictates table interactions
         year: Desired year
         tbl_name: Name of the table to be scraped
         db_url: Path to the database the table should be written to
+
     """
-    if not os.path.isdir("../database"):
+    if not os.path.isdir("./database"):
         os.mkdir("database")
 
     # Get tbl_dictionary from basketball reference
     tbl_dict = team_statistics(year, tbl_name)
     tbl_dict["team_name"] = clean_team_name(tbl_dict["team_name"])
 
-    # Database work set_up
-    # engine = create_engine(db_url)
-
     # Initial tbl_name is for scraping basketball reference; Year is added to disambiguate tables
-    db_tbl_name = '{}_{}'.format(tbl_name, year)
+    tbl_name = '{}_{}'.format(tbl_name, year)
 
-    # Transform data into sql_alchemy format and write table to DB
-    sql_types = db.get_sql_type(tbl_dict)
-    col_defs = db.create_col_definitions(db_tbl_name, sql_types)
+    # At this point, all data has been gathered, and we begin transforming and putting data into the DB
 
-    # Initial thought was to create the database if we cannot create the table; However, it appears the create_table
-    # function also creates the database if it doesn't exist. This relies on the folder being created beforehand as
-    # handled at the start of main()
-    table = db.Table(db_tbl_name, db_url)
-    #engine = db.Engine(db_url)
-    engine = None  # DELETE
-    # create_table(engine, db_tbl_name, col_defs, overwrite=True)
+    sql_types = db.get_sql_type(tbl_dict)  ### DB USE NEED TO EXTRICATE ###
+    database.map_table(tbl_name, sql_types)
+    table = database.Template()
+    database.create_table()
 
-    # Write rows to DB
+    rows = db.dict_to_rows(tbl_dict)   ### DB USE NEED TO EXTRICATE ###
     if general.check_dict_list_equivalence(tbl_dict):
-        tbl_db = db.get_table(engine, db_tbl_name)
-        rows = db.dict_to_rows(tbl_dict)
-        db.insert_rows(engine, tbl_db, rows)
+        database.insert_rows(tbl_name, rows)
     else:
         # A possible scenario that we want to break on.
         raise Exception("tbl_dict rows are not equivalent length")
 
-    print("FINISHED")
+    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
+    return True
 
 
 if __name__ == "__main__":
-    main(year=2019)
+    scrape(year=2019)

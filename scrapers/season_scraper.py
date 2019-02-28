@@ -67,7 +67,7 @@ def br_enum_to_string(season):
     return new_season
 
 
-def main(year=2019, db_url="sqlite:///database//nba_db.db"):
+def main(session, database, year=2019, db_url="sqlite:///database//nba_db.db"):
     """Scrape basketball reference for games in a season, parse the output, and write the output to a database.
 
     If the specified year has been completed, it will return every game in the season. If the season is ongoing, it will
@@ -77,17 +77,21 @@ def main(year=2019, db_url="sqlite:///database//nba_db.db"):
     year (2019): The year of the season desired
     db_url ('sqlite:///database//nba_db.db'): Path to the database where data should be written
     """
-    if not os.path.isdir("database"):
-        os.mkdir("database")
 
     engine = create_engine(db_url)
     tbl_name = "sched_{}".format(year)
 
     # Create table
     season = client.season_schedule(year)
-    sql_types = db.get_sql_type(season[0])  # Send first element of season list to get tbl formatting for a row
-    col_defs = db.create_col_definitions(tbl_name, sql_types)
-    db.create_table(engine, tbl_name, col_defs, overwrite=True)
+    sql_types = db.get_sql_type(season[0])
+    database.map_table(tbl_name, sql_types)
+    database.create_table()
+    db.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
+    session.close()
+    return True
+    # Send first element of season list to get tbl formatting for a row
+    #col_defs = db.create_col_definitions(tbl_name, sql_types)
+    #db.create_table(engine, tbl_name, col_defs, overwrite=True)
 
     # Insert rows
     season = br_enum_to_string(season)

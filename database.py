@@ -11,12 +11,12 @@ To-do:
 """
 
 import datetime
-from sqlalchemy import Column, ForeignKey, Integer, Float, String, DateTime, Boolean
+from sqlalchemy import Column, ForeignKey, Integer, Float, String, DateTime, Boolean, Table
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData
 from sqlalchemy import select
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, mapper, clear_mappers
 
 # local imports
 import general
@@ -107,14 +107,28 @@ def create_col_definitions(tbl_name, id_type_dict, foreign_key=False):
     return col_specs
 
 
-class Engine:
+class Database:
+    """Database is the highest level in a hierarchy of classes which deal with database interactions with sqlalchemy
+
+    Database serves as the hub for high level attributes such as the Base and engine which apply to all tables in the
+    database. """
+    class Template(object):
+        """Blank template to map tables to with the sqlalchemy mapper function"""
+        pass
+
     def __init__(self, url):
         """Creates an engine on the specified path, generates a declarative Base class which reflects the engine
         The base is passed to subclasses in order to generate tables. The session allows interaction with the DB."""
         self.path = url
         self.engine = create_engine(self.path)
+        self.conn = self.engine.connect()
+        self.metadata = MetaData(self.engine)
         self.Base = declarative_base()
-        self.Base.metadata.reflect(self.engine)
+        self.table_names = list(self.get_tables())
+        #self.table_interfaces = {table: self.get_interface(table) for table in self.table_names}
+
+    def get_interface(self, name):
+        return TableInterface(name, self.path)
 
     def get_tables(self, table_names=False):
         """Find and returns the specified tables or returns all tables """
@@ -125,76 +139,21 @@ class Engine:
         else:
             return meta.tables
 
-    def create_table(self, table_name):
-        self.Base.metadata.create_all(self.engine)
+    def create_table(self):
+        """Creates all tables which have been made with the Base class of the Database"""
+        self.metadata.create_all(self.engine)
 
+    def map_table(self, tbl_name, column_types):
+        """Maps a dictionary keyed on column names with Type values to the TableInterface Template"""
+        t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
+                  *(Column(key, value) for key, value in column_types.items()))
 
-class Test(Engine, declarative_base()):
-    __tablename__ = "test"
-    id = Column("some_table_id", Integer, primary_key=True)
+        mapper(self.Template, t)
 
+    def clear_mappers(self):
+        clear_mappers()
 
-class Table(Engine):
-    """Defines a SQLite table and holds associated functions"""
-    __tablename__ = "test"
-
-    def __init__(self, table_name, url):
-        super().__init__(url)
-        self.name = table_name
-        if self.table_exists():
-            pass
-
-    def create(self, cols, overwrite=False):
-        """Creates a table, named as "name", in the engine with the specified cols.
-
-        Args:
-            engine: sql_alchemy create_engine(url) output
-            name: name for the created table
-            cols: dictionary of column names and sql types with a table name specified
-            overwrite: Option to overwrite the table
-
-        Returns:
-            None if the table exists and overwrite is false. Otherwise, creates the table.
-        """
-        name = None  # DELETE
-        engine = None  # DELETE
-
-
-        if name in base.metadata.tables and not overwrite:
-            print("Table exists and overwrite is False. Returning without making changes")
-            return
-        elif name in base.metadata.tables and overwrite:
-            print("Table exists and overwrite is True. Overwriting table")
-            self.drop_table(engine, name)
-            base.metadata.remove(base.metadata.tables[name])  # Remove tbl from metadata to allow overwrite
-
-        table = type(name, (base, ), cols)
-        table.__table__.create(bind=engine)
-
-    def drop_table(self, engine, drop_tbl):
-        """Input an engine, find the drop_tbl in the engine metadata, and drop the drop_tbl from the engine"""
-
-        meta = MetaData(bind=engine)
-        meta.reflect(bind=engine)
-        drop_tbl_class = meta.tables[drop_tbl]
-        drop_tbl_class.drop()
-
-    def table_exists(self):
-        meta = MetaData(bind=self.engine)
-        meta.reflect(bind=self.engine)
-        if self.name in meta.tables:
-            return True
-        else:
-            return False
-
-    def get_table(self, engine, tbl):
-        """Find the specified table in the engine and returns the table"""
-        meta = MetaData(bind=engine)
-        meta.reflect(bind=engine)
-        return meta.tables[tbl]
-
-    # Table modification functions
-    def insert_row(self,engine, table, row):
+    def insert_row(self, engine, table, row):
         """Insert a single row into the specified table in the engine"""
         conn = engine.connect()
         conn.execute(table.insert(), row)
@@ -202,18 +161,68 @@ class Table(Engine):
         #   [{'l_name': 'Jones', 'f_name': 'bob'},
         #   {'l_name': 'Welker', 'f_name': 'alice'}])
 
-    def insert_rows(self, engine, table, rows):
+    def insert_rows(self, table, rows):
         """Inserts the rows into the specified table in the engine
 
         To-do:
             Concatenate rows so that only one call to the DB is made when inserting. (I don't remember exactly what I meant
             by this.
         """
-        conn = engine.connect()
+        table = self.get_tables(table)
         for row in rows:
-            conn.execute(table.insert(), row)
+            self.conn.execute(table.insert(), row)
+
+# class Table(declarative_base()):
+#     __tablename__ = "test"
+#     id = Column("some_table_id", Integer, primary_key=True)
 
 
+class TableInterface(Database):
+    """TableInterface operates with individual Table classes with attributes inherited from Database"""
+
+
+    def __init__(self, table_name, url):
+        super().__init__(url)
+        self.name = table_name
+        self.table_names.append(self.name)
+        # if self.table_exists():
+        #    pass
+
+    def map_table(self, column_types):
+        """Maps a dictionary keyed on column names with Type values to the TableInterface Template"""
+        t = Table(self.name, self.metadata, Column('id', Integer, primary_key=True),
+                  *(Column(key, value) for key, value in column_types.items()))
+
+        mapper(self.Template, t)
+
+    def return_table(self):
+        return self.Template
+
+
+def drop_table(self, engine, drop_tbl):
+    """Input an engine, find the drop_tbl in the engine metadata, and drop the drop_tbl from the engine"""
+
+    meta = MetaData(bind=engine)
+    meta.reflect(bind=engine)
+    drop_tbl_class = meta.tables[drop_tbl]
+    drop_tbl_class.drop()
+
+def table_exists(self):
+    meta = MetaData(bind=self.engine)
+    meta.reflect(bind=self.engine)
+    if self.name in meta.tables:
+        return True
+    else:
+        return False
+
+def get_table(self, engine, tbl):
+    """Find the specified table in the engine and returns the table"""
+    meta = MetaData(bind=engine)
+    meta.reflect(bind=engine)
+    return meta.tables[tbl]
+
+
+# Table modification functions
 def dict_to_rows(tbl):
     """Convert and return an input dictionary into rows compatible with sqlalchemy's insert function
 
@@ -256,11 +265,3 @@ def _list_to_rows(tbl):
 
     raise Exception("tbl is a list. Function to convert lists into database rows is not implemented")
 
-
-def select_rows(conn, table):
-    """Not yet functional. Likely want to use engine.connect() w/ a statement rather than a function """
-    select_st = select([table]).where(
-        table.c.l_name == 'efg_pct')
-    res = conn.execute(select_st)
-    for _row in res:
-        print(_row)
