@@ -21,68 +21,6 @@ from sqlalchemy.orm import mapper, clear_mappers
 import general
 
 
-# Type conversion functions (python types, sql types, sqlalchemy types)
-def get_py_type(tbl_dict):
-    """Take a table dictionary with data values and return a dictionary that holds the python type for the dict values.
-
-    Args:
-        tbl_dict: a table dictionary formatted as key:[list] where the list holds data values
-
-    Returns:
-        A dictionary formatted as key:py_type where the type can be integer, float, string, datetime, or none
-    """
-    tbl_keys = list(tbl_dict.keys())
-    py_types = [general.get_type(tbl_dict[key]) for key in tbl_keys]
-    py_types_dict = dict(zip(tbl_keys, py_types))
-    return py_types_dict
-
-
-def get_sql_type(tbl_dict):
-    """Take a table dictionary with data values and return a dictionary that holds the sql type for the dict values.
-
-    Args:
-        tbl_dict: a table dictionary formatted as key:[list] where the list holds data values
-
-    Returns:
-        A dictionary with the same keys as tbl_dict. The dictionary's values are the sql_types of each key:value pair in
-        tbl_dict. The sql_types are defined to function with sqlalchemy.
-    """
-    py_types = get_py_type(tbl_dict)  # py_types is a dict
-    sql_types = py_type_to_sql_type(py_types)
-    return sql_types
-
-
-def py_type_to_sql_type(py_types):
-    """Convert and return a dictionary of python types to a dictionary of sql types.
-
-    Raises:
-        An exception if a py_type is not an integer, float, string, datetime, bool, or none
-
-    To-do:
-        Change the logic into a switch statement
-    """
-
-    sql_types = dict()
-    for key in py_types:
-        py_type = py_types[key]
-        if py_type == "integer" or py_type is int:
-            sql_types[key] = Integer
-        elif py_type == "float" or py_type is float:
-            sql_types[key] = Float
-        elif py_type == "string" or py_type is str:
-            sql_types[key] = String
-        elif py_type == "datetime" or py_type is datetime.datetime:
-            sql_types[key] = DateTime
-        elif py_type == "bool" or py_type is bool:
-            sql_types[key] = Boolean
-        elif py_type is None:
-            continue  # We continue here so as to not create a column for null values
-        else:
-            raise Exception("Error: py_type {} is not an integer, float, datetime,"
-                            " none, or string".format(py_types[key]))
-    return sql_types
-
-
 def create_col_definitions(tbl_name, id_type_dict, foreign_key=False):
     """Create and return a dictionary of column specifications for a sql_alchemy table.
 
@@ -121,7 +59,7 @@ class Database:
         The base is passed to subclasses in order to generate tables. The session allows interaction with the DB."""
         self.path = url
         self.engine = create_engine(self.path)
-        self.conn = self.engine.connect()
+        # self.conn = self.engine.connect()
         self.metadata = MetaData(self.engine)
         self.Base = declarative_base()
         self.table_names = list(self.get_tables())
@@ -159,8 +97,10 @@ class Database:
 
     def insert_row(self, table, row):
         """Insert a single row into the specified table in the engine"""
+        conn = self.engine.connect()
         table = self.get_tables(table)
-        self.conn.execute(table.insert(), row)
+        conn.execute(table.insert(), row)
+        conn.close()
         # Rows formatted as
         #   [{'l_name': 'Jones', 'f_name': 'bob'},
         #   {'l_name': 'Welker', 'f_name': 'alice'}])
@@ -173,8 +113,10 @@ class Database:
             meant by this.)
         """
         table = self.get_tables(table)
+        conn = self.engine.connect()
         for row in rows:
-            self.conn.execute(table.insert(), row)
+            conn.execute(table.insert(), row)
+        conn.close()
 
     def drop_table(self, drop_tbl):
         """Drops the specified table from the database"""
@@ -182,6 +124,7 @@ class Database:
         self.metadata.reflect(bind=self.engine)
         drop_tbls = self.metadata.tables[drop_tbl]
         drop_tbls.drop()
+        self.metadata = MetaData(bind=self.engine)
 
 
 class DataManipulator:
@@ -202,24 +145,34 @@ class DataManipulator:
             A dictionary with the same keys as tbl_dict. The dictionary's values are the sql_types of each key:value
             pair in tbl_dict. The sql_types are defined to function with sqlalchemy.
         """
-        py_types = get_py_type(self.data)  # py_types is a dict
-        sql_types = py_type_to_sql_type(py_types)
+        py_types = self._get_py_type()  # py_types is a dict
+        sql_types = self._py_type_to_sql_type(py_types)
         return sql_types
 
     # Type conversion functions (python types, sql types, sqlalchemy types)
-    def get_py_type(self):
-        """Take the classes data values and return a dictionary that holds the python type for the dict values.
+    def _get_py_type(self):
+        """Take the classes data values and return a dictionary that holds the python type for the values.
 
         Returns:
             A dictionary formatted as key:py_type where the type can be integer, float, string, datetime, or none
         """
-        tbl_keys = list(self.data.keys())
-        py_types = [general.get_type(self.data[key]) for key in tbl_keys]
-        py_types_dict = dict(zip(tbl_keys, py_types))
+        py_types_dict = {}
+        if isinstance(self.data, dict):
+            tbl_keys = list(self.data.keys())
+            py_types = [general.get_type(self.data[key]) for key in tbl_keys]
+            py_types_dict = dict(zip(tbl_keys, py_types))
+        elif isinstance(self.data, list):
+            if isinstance(self.data[0], dict):
+                data = self.data[0]
+                tbl_keys = list(data.keys())
+                py_types = [general.get_type(data[key]) for key in tbl_keys]
+                py_types_dict = dict(zip(tbl_keys, py_types))
+            else:
+                raise Exception("The data structure ({}) is by _get_py_type".format(type(self.data)))
         return py_types_dict
 
     @staticmethod
-    def py_type_to_sql_type(py_types):
+    def _py_type_to_sql_type(py_types):
         """Convert and return a dictionary of python types to a dictionary of sql types.
 
         Raises:

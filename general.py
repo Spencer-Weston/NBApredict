@@ -134,9 +134,6 @@ def is_python_type(x):
         return False
 
 
-
-
-
 class JsonFile:
     """A class to handle JSON functionality such as load, create, add, and drop"""
     def __init__(self, json_file):

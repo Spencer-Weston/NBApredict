@@ -11,6 +11,7 @@ from enum import Enum
 import os
 import general
 
+
 class Location(Enum):
     HOME = "HOME"
     AWAY = "AWAY"

@@ -23,7 +23,7 @@ import os
 # Local imports
 from database import DataManipulator
 from references.br_references import BASE_URL
-from references.br_references import data_stat_headers as HEADERS
+from references.br_references import data_stat_headers as headers
 import general
 
 
@@ -85,7 +85,7 @@ def get_data_dict_from_tbl(table):
 
     for row in rows:
         if row.find('th', {"scope": "row"}) is not None:
-            for head in HEADERS:
+            for head in headers:
                 cell = row.find("td", {"data-stat": head})
                 a = cell.text.strip().encode()
                 cell_data = a.decode("utf-8")
@@ -115,10 +115,8 @@ def scrape(database, year=2019, tbl_name="misc_stats"):
 
     Args:
         database: A Database class from database.py which dictates table interactions
-        year: Desired year
+        year: The league year of the desired season
         tbl_name: Name of the table to be scraped
-        db_url: Path to the database the table should be written to
-
     """
     if not os.path.isdir("./database"):
         os.mkdir("database")
@@ -150,5 +148,5 @@ def scrape(database, year=2019, tbl_name="misc_stats"):
     return True
 
 
-if __name__ == "__main__":
-    scrape(year=2019)
+# if __name__ == "__main__":
+#     scrape(year=2019)

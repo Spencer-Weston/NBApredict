@@ -10,16 +10,15 @@ Args (default):
     db_url ('sqlite:///database//nba_db.db'): Path to the database where data should be written
 """
 
-
 from br_web_scraper import client
-import database as db
+from database import DataManipulator
 import datetime
-import os
-from sqlalchemy import create_engine
 
 
 def season_to_dict_list(season):
-    """Take a season, parse it into a dictionary of lists, and return the dictionary
+    """ DELETE???
+
+    Take a season, parse it into a dictionary of lists, and return the dictionary
 
     Args:
         season: A season formatted as if returned by basketball_reference_web_scraper
@@ -67,40 +66,38 @@ def br_enum_to_string(season):
     return new_season
 
 
-def main(session, database, year=2019, db_url="sqlite:///database//nba_db.db"):
+def scrape(database, year=2019):
     """Scrape basketball reference for games in a season, parse the output, and write the output to a database.
 
     If the specified year has been completed, it will return every game in the season. If the season is ongoing, it will
     return every game up to the day before the module is run. This ensures only completed games are returned.
 
     Args:
-    year (2019): The year of the season desired
-    db_url ('sqlite:///database//nba_db.db'): Path to the database where data should be written
+        database: A Database class from database.py which dictates table interactions
+        year (2019): The league year of the desired season
+
+    To-do:
+        Add
     """
 
-    engine = create_engine(db_url)
     tbl_name = "sched_{}".format(year)
 
     # Create table
     season = client.season_schedule(year)
-    sql_types = db.get_sql_type(season[0])
-    database.map_table(tbl_name, sql_types)
-    database.create_table()
-    db.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
-    session.close()
-    return True
-    # Send first element of season list to get tbl formatting for a row
-    #col_defs = db.create_col_definitions(tbl_name, sql_types)
-    #db.create_table(engine, tbl_name, col_defs, overwrite=True)
-
-    # Insert rows
     season = br_enum_to_string(season)
-    tbl_db = db.get_table(engine, tbl_name)
-    db.insert_rows(engine, tbl_db, season)
+    data = DataManipulator(season)
+    sql_types = data.get_sql_type()
 
-    print("FINISHED\n")
+    database.map_table(tbl_name, sql_types)
+    database.create_tables()
+
+    # client.season_schedule() returns data in row form. The necessary formatting is done by br_enum_to_string().
+    # data.data is passed, rather than season, just to be explicit and consistent with other scrapers
+    database.insert_rows(tbl_name, data.data)
+
+    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
+    return True
 
 
-if __name__ == "__main__":
-    main()
-
+# if __name__ == "__main__":
+#    scrape()
