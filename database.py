@@ -16,6 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import mapper, clear_mappers
+from sqlalchemy.ext.automap import automap_base
 
 # local imports
 import general
@@ -65,13 +66,23 @@ class Database:
         self.table_names = list(self.get_tables())
 
     def get_tables(self, table_names=False):
-        """Find and returns the specified tables or returns all tables """
+        """Find and return the specified tables or return all tables """
         meta = MetaData(bind=self.engine)
         meta.reflect(bind=self.engine)
         if table_names:
             return meta.tables[table_names]
         else:
             return meta.tables
+
+    def get_table_mappings(self, table_names=False):
+        """Find and return the specified table mappings or return all table mappings
+
+        Args:
+            table_names: The list of table names for which mappings are desired"""
+        Base = automap_base()
+        self.metadata.reflect(self.engine, only=table_names)
+        Base = automap_base(metadata=self.metadata)
+        test=2
 
     def table_exists(self, tbl_name):
         self.metadata.reflect(bind=self.engine)
@@ -124,7 +135,7 @@ class Database:
         self.metadata.reflect(bind=self.engine)
         drop_tbls = self.metadata.tables[drop_tbl]
         drop_tbls.drop()
-        self.metadata = MetaData(bind=self.engine)
+        self.metadata = MetaData(bind=self.engine)  # Updates the metadata to reflect changes
 
 
 class DataManipulator:

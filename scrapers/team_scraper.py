@@ -144,7 +144,7 @@ def scrape(database, year=2019, tbl_name="misc_stats"):
         # A possible scenario that we want to break on.
         raise Exception("tbl_dict rows are not equivalent length")
 
-    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
+    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use Template
     return True
 
 
