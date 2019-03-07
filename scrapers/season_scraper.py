@@ -10,9 +10,14 @@ Args (default):
     db_url ('sqlite:///database//nba_db.db'): Path to the database where data should be written
 """
 
+from datetime import datetime
+import pandas
+from sqlalchemy import UniqueConstraint
+from sqlalchemy.sql import func
+
+
 from br_web_scraper import client
 from database import DataManipulator
-import datetime
 
 
 def season_to_dict_list(season):
@@ -58,7 +63,7 @@ def br_enum_to_string(season):
         game_dict = dict()
         keys = game.keys()
         for key in keys:
-            if type(game[key]) not in [str, int, float, datetime.datetime]:
+            if type(game[key]) not in [str, int, float, datetime]:
                 game_dict[key] = game[key].value  # Extract value from enum here
             else:
                 game_dict[key] = game[key]
@@ -66,7 +71,7 @@ def br_enum_to_string(season):
     return new_season
 
 
-def scrape(database, year=2019):
+def scrape(database, session, year=2019):
     """Scrape basketball reference for games in a season, parse the output, and write the output to a database.
 
     If the specified year has been completed, it will return every game in the season. If the season is ongoing, it will
@@ -74,6 +79,7 @@ def scrape(database, year=2019):
 
     Args:
         database: A Database class from database.py which dictates table interactions
+        session: An instantiated session object from sqlalchemy
         year (2019): The league year of the desired season
 
     To-do:
@@ -86,16 +92,38 @@ def scrape(database, year=2019):
     season = client.season_schedule(year)
     season = br_enum_to_string(season)
     data = DataManipulator(season)
-    sql_types = data.get_sql_type()
 
-    database.map_table(tbl_name, sql_types)
-    database.create_tables()
+    if not database.table_exists(tbl_name):
+        sql_types = data.get_sql_type()
+        constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
+        database.map_table(tbl_name, sql_types, constraint)
+        database.create_tables()
+        # client.season_schedule() returns data in row form. The necessary formatting is done by br_enum_to_string().
+        # data.data is passed, rather than season, just to be explicit and consistent with other scrapers
+        database.insert_rows(tbl_name, data.data)
+        database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
 
-    # client.season_schedule() returns data in row form. The necessary formatting is done by br_enum_to_string().
-    # data.data is passed, rather than season, just to be explicit and consistent with other scrapers
-    database.insert_rows(tbl_name, data.data)
+    else:
+        # Commented code below is a template. Will need to wait for season schedule to not be updated to ensure
+        # updates work correctly
+        schedule_tbl = database.get_tables(tbl_name)
+        date = datetime.date(datetime.now())
+        update_rows = session.query(schedule_tbl).filter(schedule_tbl.c["start_time"] < date,
+                                                         schedule_tbl.c["home_team_score"] == 0)
+        update_df = pandas.DataFrame(update_rows.all())
+        first_game_time = update_df["start_time"].min()
+        last_game_time = update_df["start_time"].min()
+        season_df = pandas.DataFrame(season)
 
-    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
+        # foobar = session.query(FoobarModel).get(foobar_id)
+        #
+        # props = {'name': 'my new name'}
+        #
+        # for key, value in props.items():
+        #     setattr(foobar, key, value)
+        #
+        # session.commit()
+        # session.flush()
     return True
 
 

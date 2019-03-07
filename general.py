@@ -6,7 +6,7 @@ to the project. The functions, for the most part, deal with type checks, type co
 """
 
 import copy
-import datetime
+from datetime import datetime
 from enum import Enum
 import json
 import os
@@ -203,3 +203,5 @@ class JsonFile:
 def return_project_directory():
     """Returns the project directory so long as general.py is in the top-level of the project"""
     return os.path.abspath(os.path.dirname(__file__))
+
+

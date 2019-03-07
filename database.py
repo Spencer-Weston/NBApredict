@@ -11,7 +11,7 @@ To-do:
 """
 
 import datetime
-from sqlalchemy import Column, ForeignKey, Integer, Float, String, DateTime, Boolean, Table
+from sqlalchemy import Column, ForeignKey, Integer, Float, String, DateTime, Boolean, Table, UniqueConstraint
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
@@ -74,15 +74,17 @@ class Database:
         else:
             return meta.tables
 
-    def get_table_mappings(self, table_names=False):
-        """Find and return the specified table mappings or return all table mappings
-
-        Args:
-            table_names: The list of table names for which mappings are desired"""
-        Base = automap_base()
-        self.metadata.reflect(self.engine, only=table_names)
-        Base = automap_base(metadata=self.metadata)
-        test=2
+    # def get_table_mappings(self, table_names=False):
+    #     """Find and return the specified table mappings or return all table mappings
+    #
+    #     Args:
+    #         table_names: The list of table names for which mappings are desired"""
+    #     Base = automap_base()
+    #     self.metadata.reflect(self.engine, only=table_names)
+    #     Base = automap_base(metadata=self.metadata)
+    #     Base.prepare()
+    #     mapped_tables = [Base.classes[name] for name in table_names]
+    #     return mapped_tables
 
     def table_exists(self, tbl_name):
         self.metadata.reflect(bind=self.engine)
@@ -95,10 +97,25 @@ class Database:
         """Creates all tables which have been made with the Base class of the Database"""
         self.metadata.create_all(self.engine)
 
-    def map_table(self, tbl_name, column_types):
-        """Maps a dictionary keyed on column names with Type values to the TableInterface Template"""
-        t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
-                  *(Column(key, value) for key, value in column_types.items()))
+    def map_table(self, tbl_name, column_types, constraints=False):
+        """Maps a dictionary keyed on column names with Type values and, optionally, constraints
+
+        Args:
+            tbl_name: The name of the table to be mapped
+            column_types: A dictionary with column names as keys and sql types as values
+            constraints: A dictionary of desired constraints where the constraints (Such as UniqueConstraint) are keys
+            and the columns to be constrained is a list of string column names
+        """
+        if constraints:
+
+            t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
+                      *(Column(key, value) for key, value in column_types.items()),
+                      *(constraint(*columns) for constraint, columns in constraints.items())
+                      )
+
+        else:
+            t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
+                      *(Column(key, value) for key, value in column_types.items()))
 
         mapper(self.Template, t)
 
