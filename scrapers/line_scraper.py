@@ -11,10 +11,10 @@ To-Do:
 from datetime import datetime, timedelta
 import requests
 import pandas
-
+from sqlalchemy import UniqueConstraint
 
 # Local Imports
-
+from database import DataManipulator
 
 def odds_for_today(games_df):
     """Build a URL for the specified year and return team box scores for a specified table on that page.
@@ -29,31 +29,100 @@ def odds_for_today(games_df):
     url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba"
 
     response = requests.get(url=url, allow_redirects=False).json()
+    scrape_time = datetime.now()
 
     # Move down tree towards games
-    level_1 = response[0]
-    level_2 = level_1["events"]
+    events = response[0]["events"]
 
-    # game_descriptions = ["{} @ {}".format(home_tm, away_tm) for ]
-    bovada_games = [game_dict for game_dict in level_2 if "@" in game_dict["description"]]
+    # Get the game dictionaries (which hold a bunch of random data) stripped from the events object
+    game_descriptions = []
+    for game in games_df.itertuples():
+        game_descriptions.append("{} @ {}".format(game.away_team, game.home_team).lower())
+    bovada_games = [game_dict for game_dict in events if game_dict["description"].lower() in game_descriptions]
 
-    # events hold matchups
-    level_3 = level_2[0]  # This is an individual game
-    competitors = level_3["competitors"]
-    level_4 = level_3["displayGroups"]  # All Displayed betting information (Full game + other bets)
-    level_5 = level_4[0]  # Betting information specific to the full game
-    level_6 = level_5["markets"]  # Container that holds betting info but also a lot of random stuff
-    level_7 = level_6[0]  # Further specifies full match lines
-    level_8 = level_7["outcomes"]  # A list containing dictionaries with the spread for each team
+    lines = {"home_team": [], "away_team": [], "start_time": [], "spread": [], "home_spread_price": [],
+             "away_spread_price": [], "home_moneyline": [], "away_moneyline": [], "scrape_time": []}
 
-    team_1 = level_8[0]
-    team_2 = level_8[1]
+    for game in bovada_games:
+        home_team, away_team = parse_teams(game["competitors"])
 
-    # Example run through of team_1
-    team_name = team_1["description"]
-    home_or_away = team_1["type"]  # Type 'A' is away; Type 'H' is home
-    team_price = team_1["price"]  # Dictionary that holds the team handicap and odds (in many forms)
-    team_spread = float(team_price["handicap"])
+        betting_info = game["displayGroups"][0]["markets"]
+        full_match_bets = [bet for bet in betting_info if bet["period"]["description"] == "Match"]
+
+        game_df = games_df.loc[(games_df.home_team == home_team.upper()) & (games_df.away_team == away_team.upper())]
+        start_timestamp_df = game_df.start_time
+        start_timestamp = start_timestamp_df.items().__next__()[1]
+        start_datetime = start_timestamp.to_pydatetime()
+
+        for bet in full_match_bets:
+            if bet["description"] == "Moneyline":
+                home_moneyline, away_moneyline = parse_moneyline(bet)
+            elif bet["description"] == "Point Spread":
+                spread, home_spread_price, away_spread_price = parse_spread(bet)
+        game_lines = [home_team, away_team, start_datetime, spread, home_spread_price, away_spread_price,
+                      home_moneyline, away_moneyline, scrape_time]
+
+        # This section depends on python 3.7+ to preserve the order of dict keys in lines
+        i = 0
+        for key in lines:
+            lines[key].append(game_lines[i])
+            i += 1
+    return lines
+
+
+def parse_teams(competitors):
+    """Parse a competitors object from Bovada and return the home and away teams, respectively"""
+    if len(competitors) > 2:
+        raise Exception("Unexpected objects in competitors")
+    home_team = ""
+    away_team = ""
+    for team in competitors:
+        if team["home"]:
+            home_team = team["name"]
+        else:
+            away_team = team["name"]
+    if not home_team == "" or away_team == "":
+        return home_team, away_team
+    else:
+        raise Exception("Competitors was not properly parsed. Missing data.")
+
+
+def parse_moneyline(moneyline_bet):
+    """Parse a moneyline bet object from Bovada and return, in order, the home and away moneyline"""
+    outcomes = moneyline_bet["outcomes"]
+    home_moneyline = ""
+    away_moneyline = ""
+    if len(outcomes) > 2:
+        raise Exception("Unexpected objects in moneyline bet")
+    for o in outcomes:
+        if o["type"] == "H":
+            home_moneyline = int(o["price"]["american"])
+        elif o["type"] == "A":
+            away_moneyline = int(o["price"]["american"])
+    if not home_moneyline == "" or away_moneyline == "":
+        return home_moneyline, away_moneyline
+    else:
+        raise Exception("Moneyline was not properly parsed. Missing data.")
+
+
+def parse_spread(spread_bet):
+    """Parse a spread bet object from Bovada and return, in order, the spread and the home and away spread prices"""
+    outcomes = spread_bet["outcomes"]
+    spread = ""
+    home_spread_price = ""
+    away_spread_price = ""
+    if len(outcomes) > 2:
+        raise Exception("Unexpected objects in spread bet")
+    for o in outcomes:
+        if o["type"] == "H":
+            spread = float(o["price"]["handicap"])
+            home_spread_price = int(o["price"]["american"])
+        elif o["type"] == "A":
+            away_spread_price = int(o["price"]["american"])
+    if not spread == "" or home_spread_price == "" or away_spread_price == "":
+        return spread, home_spread_price, away_spread_price
+    else:
+        raise Exception("Spread was not properly parsed. Missing data.")
 
 
 def get_games_on_day(schedule, session, date):
@@ -63,10 +132,25 @@ def get_games_on_day(schedule, session, date):
         schedule: A mapped table object containing a schedule of games
         session: An instantiated session object
         date: The date to check for games
+    To-Do:
+        Rewrite in ORM format (See season_scraper)
     """
     next_day = date + timedelta(days=1)
     return session.query(schedule).filter(schedule.c["start_time"] > date, schedule.c["start_time"] < next_day).\
         order_by(schedule.c["start_time"])
+
+
+def create_odds_table(database, data, tbl_name):
+    if not data.validate_data_length():
+        raise Exception("Lengths in the data are not equal")
+    sql_types = data.get_sql_type()
+    constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"]}
+    database.map_table(tbl_name, sql_types, constraint)
+    database.create_tables()
+
+    rows = data.dict_to_rows()
+    database.insert_rows(tbl_name, rows)
+    database.clear_mappers()
 
 
 def scrape(database, session, year=2019):
@@ -84,8 +168,22 @@ def scrape(database, session, year=2019):
     games = get_games_on_day(schedule, session, date)
     games_df = pandas.DataFrame(games)
 
-    odds_for_today(games_df)
-    print("something")
+    lines = odds_for_today(games_df)
+    line_data = DataManipulator(lines)
+
+    tbl_name = "odds_{}".format(year)
+    tbl_exists = database.table_exists(tbl_name)
+    if not tbl_exists:
+        create_odds_table(database, line_data, tbl_name)
+
+    elif line_data.validate_data_length() and tbl_exists:
+        # All values from line_data should be unique from values in the database. Therefore, we just insert rather
+        # than update. Plausible place for errors to appear 
+        database.insert_rows(tbl_name, line_data.dict_to_rows())
+    else:
+        raise Exception("Somethings wrong here (Not descriptive, but this point shouldn't be hit.)")
+
+    return True
 
 
 # if __name__ == "__main__":

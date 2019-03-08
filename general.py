@@ -95,7 +95,7 @@ def _get_type(val):
         return "integer"
     elif isinstance(val, float):
         return "float"
-    elif isinstance(val, datetime.datetime):
+    elif isinstance(val, datetime):
         return "datetime"
     elif isinstance(val, str):
         return "string"
@@ -128,7 +128,7 @@ def is_float(x):
 
 
 def is_python_type(x):
-    if x in [int, float, datetime.datetime, str, bool, None]:
+    if x in [int, float, datetime, str, bool, None]:
         return True
     else:
         return False

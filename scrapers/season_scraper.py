@@ -97,14 +97,10 @@ def update_season_table(session, schedule, season_df):
     season_df["start_time"] = season_df["start_time"].dt.tz_localize(None)
     season_df = season_df.loc[(season_df.start_time >= first_game_time) & (season_df.start_time <= last_game_time)]
 
-    updated_rows = []
     for row in update_rows.all():
         game = season_df.loc[(season_df.home_team == row.home_team) & (season_df.away_team == row.away_team)]
         row.home_team_score = int(game.home_team_score)
         row.away_team_score = int(game.away_team_score)
-        row_update = schedule(id=row.id, start_time=row.start_time, away_team=row.away_team,
-                              away_team_score=row.away_team_score, home_team=row.home_team,
-                              home_team_score=row.home_team_score)
         session.add(row)
 
 
@@ -136,23 +132,6 @@ def scrape(database, session, year=2019):
     else:  # Updates database
         schedule = database.get_table_mappings([tbl_name])
         update_season_table(session, schedule, pandas.DataFrame(season_data))
-        # Commented code below is a template.
 
-
-
-
-
-        # foobar = session.query(FoobarModel).get(foobar_id)
-        #
-        # props = {'name': 'my new name'}
-        #
-        # for key, value in props.items():
-        #     setattr(foobar, key, value)
-        #
-        # session.commit()
-        # session.flush()
     return True
 
-
-# if __name__ == "__main__":
-#    scrape()

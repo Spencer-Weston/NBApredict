@@ -166,6 +166,7 @@ class DataManipulator:
         Args:
             data_dict: A dictionary of data which will, usually, reflect data scraped from a website"""
         self.data = data_dict
+        self.rows = None
 
     def get_sql_type(self):
         """Take the object's dictionary {key: [values]} and return a dictionary formatted as {key: SQLtype}
@@ -246,9 +247,11 @@ class DataManipulator:
             Exception: If the input is neither a list nor dictionary, an exception is raised
         """
         if isinstance(self.data, dict):
-            return self._dict_to_rows()
+            self.rows = self._list_to_rows()
+            return self.rows
         elif isinstance(self.data, list):
-            return self._list_to_rows()
+            self.rows = self._list_to_rows()
+            return self.rows
         else:
             raise Exception("tbl is neither a list or dictionary, and cannot be handled")
 
