@@ -34,7 +34,7 @@ def odds_for_today(games_df):
     level_1 = response[0]
     level_2 = level_1["events"]
 
-    game_descriptions = ["{} @ {}".format(home_tm, away_tm) for ]
+    # game_descriptions = ["{} @ {}".format(home_tm, away_tm) for ]
     bovada_games = [game_dict for game_dict in level_2 if "@" in game_dict["description"]]
 
     # events hold matchups

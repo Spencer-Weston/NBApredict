@@ -14,6 +14,7 @@ from datetime import datetime
 import pandas
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.sql import func
+from sqlalchemy.orm import aliased
 
 
 from br_web_scraper import client
@@ -71,6 +72,42 @@ def br_enum_to_string(season):
     return new_season
 
 
+def create_season_table(database, data, tbl_name):
+    """Creates the season table in the specified database, inserts the data, and clears mappers"""
+    sql_types = data.get_sql_type()
+    constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
+    database.map_table(tbl_name, sql_types, constraint)
+    database.create_tables()
+    # client.season_schedule() returns data in row form. The necessary formatting is done by br_enum_to_string().
+    # data.data is passed, rather than season, just to be explicit and consistent with other scrapers
+    database.insert_rows(tbl_name, data.data)
+    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
+
+
+def update_season_table(session, schedule, season_df):
+    """Updates the schedule table in the database with new data stored in the season_df"""
+    date = datetime.date(datetime.now())
+    update_rows = session.query(schedule).filter(schedule.start_time < date,
+                                                 schedule.home_team_score == 0).order_by(schedule.start_time)
+
+    first_game_time = update_rows.all()[0].start_time
+    last_game_time = update_rows.all()[len(update_rows.all()) - 1].start_time
+
+    # Reduce season to games between first and last game time
+    season_df["start_time"] = season_df["start_time"].dt.tz_localize(None)
+    season_df = season_df.loc[(season_df.start_time >= first_game_time) & (season_df.start_time <= last_game_time)]
+
+    updated_rows = []
+    for row in update_rows.all():
+        game = season_df.loc[(season_df.home_team == row.home_team) & (season_df.away_team == row.away_team)]
+        row.home_team_score = int(game.home_team_score)
+        row.away_team_score = int(game.away_team_score)
+        row_update = schedule(id=row.id, start_time=row.start_time, away_team=row.away_team,
+                              away_team_score=row.away_team_score, home_team=row.home_team,
+                              home_team_score=row.home_team_score)
+        session.add(row)
+
+
 def scrape(database, session, year=2019):
     """Scrape basketball reference for games in a season, parse the output, and write the output to a database.
 
@@ -89,31 +126,21 @@ def scrape(database, session, year=2019):
     tbl_name = "sched_{}".format(year)
 
     # Create table
-    season = client.season_schedule(year)
-    season = br_enum_to_string(season)
-    data = DataManipulator(season)
+    season_data = client.season_schedule(year)
+    season_data = br_enum_to_string(season_data)
+    data = DataManipulator(season_data)
 
-    if not database.table_exists(tbl_name):
-        sql_types = data.get_sql_type()
-        constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
-        database.map_table(tbl_name, sql_types, constraint)
-        database.create_tables()
-        # client.season_schedule() returns data in row form. The necessary formatting is done by br_enum_to_string().
-        # data.data is passed, rather than season, just to be explicit and consistent with other scrapers
-        database.insert_rows(tbl_name, data.data)
-        database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
+    if not database.table_exists(tbl_name):  # Creates database
+        create_season_table(database, data, tbl_name)
 
-    else:
-        # Commented code below is a template. Will need to wait for season schedule to not be updated to ensure
-        # updates work correctly
-        schedule_tbl = database.get_tables(tbl_name)
-        date = datetime.date(datetime.now())
-        update_rows = session.query(schedule_tbl).filter(schedule_tbl.c["start_time"] < date,
-                                                         schedule_tbl.c["home_team_score"] == 0)
-        update_df = pandas.DataFrame(update_rows.all())
-        first_game_time = update_df["start_time"].min()
-        last_game_time = update_df["start_time"].min()
-        season_df = pandas.DataFrame(season)
+    else:  # Updates database
+        schedule = database.get_table_mappings([tbl_name])
+        update_season_table(session, schedule, pandas.DataFrame(season_data))
+        # Commented code below is a template.
+
+
+
+
 
         # foobar = session.query(FoobarModel).get(foobar_id)
         #

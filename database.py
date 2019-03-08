@@ -74,17 +74,19 @@ class Database:
         else:
             return meta.tables
 
-    # def get_table_mappings(self, table_names=False):
-    #     """Find and return the specified table mappings or return all table mappings
-    #
-    #     Args:
-    #         table_names: The list of table names for which mappings are desired"""
-    #     Base = automap_base()
-    #     self.metadata.reflect(self.engine, only=table_names)
-    #     Base = automap_base(metadata=self.metadata)
-    #     Base.prepare()
-    #     mapped_tables = [Base.classes[name] for name in table_names]
-    #     return mapped_tables
+    def get_table_mappings(self, table_names=False):
+        """Find and return the specified table mappings or return all table mappings
+
+        Args:
+         table_names: The list of table names for which mappings are desired"""
+        self.metadata.reflect(self.engine, only=table_names)
+        Base = automap_base(metadata=self.metadata)
+        Base.prepare()
+        mapped_tables = [Base.classes[name] for name in table_names]
+        if len(mapped_tables) == 1:
+            return mapped_tables[0]
+        else:
+            return mapped_tables
 
     def table_exists(self, tbl_name):
         self.metadata.reflect(bind=self.engine)
