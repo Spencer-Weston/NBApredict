@@ -74,7 +74,7 @@ class Database:
         else:
             return meta.tables
 
-    def get_table_mappings(self, table_names=False):
+    def get_table_mappings(self, table_names: list):
         """Find and return the specified table mappings or return all table mappings
 
         Args:
@@ -136,11 +136,9 @@ class Database:
         #   {'l_name': 'Welker', 'f_name': 'alice'}])
 
     def insert_rows(self, table, rows):
-        """Inserts the rows into the specified table in the engine
+        """Insert rows into the specified table.
 
-        To-do:
-            Concatenate rows so that only one call to the DB is made when inserting. (I don't remember exactly what I
-            meant by this.)
+        Uses sqlalchemy's "Classic" method. Could also be done with a session.
         """
         table = self.get_tables(table)
         conn = self.engine.connect()
@@ -247,7 +245,7 @@ class DataManipulator:
             Exception: If the input is neither a list nor dictionary, an exception is raised
         """
         if isinstance(self.data, dict):
-            self.rows = self._list_to_rows()
+            self.rows = self._dict_to_rows()
             return self.rows
         elif isinstance(self.data, list):
             self.rows = self._list_to_rows()

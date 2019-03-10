@@ -89,7 +89,9 @@ def update_season_table(session, schedule, season_df):
     date = datetime.date(datetime.now())
     update_rows = session.query(schedule).filter(schedule.start_time < date,
                                                  schedule.home_team_score == 0).order_by(schedule.start_time)
-
+    if update_rows.count() == 0:
+        print("Season is up to date; Returning without performing an update.")
+        return
     first_game_time = update_rows.all()[0].start_time
     last_game_time = update_rows.all()[len(update_rows.all()) - 1].start_time
 

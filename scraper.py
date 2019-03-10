@@ -14,8 +14,8 @@ db = database.Database(r"sqlite:///database//nba_db.db")
 year = 2019
 session = Session(bind=db.engine)
 
-# team_scrape = team_scraper.scrape(database=db, year=year)
-# season_scrape = season_scraper.scrape(database=db, session=session, year=year)
+team_scrape = team_scraper.scrape(database=db, year=year)
+season_scrape = season_scraper.scrape(database=db, session=session, year=year)
 line_scrape = line_scraper.scrape(database=db, session=session)
 
 session.commit()

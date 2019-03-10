@@ -95,10 +95,15 @@ def parse_moneyline(moneyline_bet):
     if len(outcomes) > 2:
         raise Exception("Unexpected objects in moneyline bet")
     for o in outcomes:
+        price = o["price"]["american"]
+        if price == "EVEN":
+            price = 100
+        else:
+            price = int(price)
         if o["type"] == "H":
-            home_moneyline = int(o["price"]["american"])
+            home_moneyline = price
         elif o["type"] == "A":
-            away_moneyline = int(o["price"]["american"])
+            away_moneyline = price
     if not home_moneyline == "" or away_moneyline == "":
         return home_moneyline, away_moneyline
     else:
@@ -153,6 +158,14 @@ def create_odds_table(database, data, tbl_name):
     database.clear_mappers()
 
 
+def update_odds_table(odds_table, rows, session):
+    row_objects = []
+    for row in rows:
+        row_object = odds_table(**row)
+        row_objects.append(row_object)
+    session.add_all(row_objects)
+
+
 def scrape(database, session, year=2019):
     """Macro level function to scrape betting lines from Bovada.
 
@@ -177,9 +190,10 @@ def scrape(database, session, year=2019):
         create_odds_table(database, line_data, tbl_name)
 
     elif line_data.validate_data_length() and tbl_exists:
-        # All values from line_data should be unique from values in the database. Therefore, we just insert rather
-        # than update. Plausible place for errors to appear 
-        database.insert_rows(tbl_name, line_data.dict_to_rows())
+        # All values in line_data are expected to be be unique from values in the database. A possible place for errors
+        # to occur
+        odds_table = database.get_table_mappings([tbl_name])
+        update_odds_table(odds_table, line_data.dict_to_rows(), session)
     else:
         raise Exception("Somethings wrong here (Not descriptive, but this point shouldn't be hit.)")
 
