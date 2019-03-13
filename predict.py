@@ -13,17 +13,17 @@ Args (default):
     db_url ('sqlite:///database//nba_db.db'): Path to the database holding data for predictions
 """
 
-from collections import OrderedDict
-import datetime
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 # Local imports
-import br_references
-import database as db
-import four_factor_regression as lm
+from references import br_references
+from database import DataManipulator, Database
+from scrapers import helpers
+from stats import four_factor_regression as lm
 import general
 
 
@@ -73,7 +73,7 @@ def get_team_ff(team, ff_df, home):
     Args:
         team: The team to extract the four factors for
         ff_df: A dataframe of the four factors
-        home: Boolean which dictates if an '_h or '_a' should be appended to the team's statistics
+        home: Boolean which dictates if an '_h or '_a' should be appended to the team's stats
 
     Returns:
         The four factors, with a home or away suffix, for a team are returned as a data frame
@@ -112,7 +112,7 @@ def line_probability(prediction, line, std):
 
 
 def prediction_result_console_output(home_tm, away_tm, line, prediction, probability):
-    """Human readable printout comparing the model's predictions, the line, and the p_value of the line
+    """Generate human readable printout comparing the model's predictions, the line, and the p_value of the line
 
     Args:
         home_tm: The home team
@@ -152,10 +152,8 @@ def predict_game(start_time, home_tm, away_tm, line, db_conn, year=2019, console
         away_tm: The away team
         line: The betting line
         db_conn: Connection to the database with the four factors and to optionally write prediction results to
-        year: The year to use statistics from in predicting the game
+        year: The year to use stats from in predicting the game
         console_out: If true, print the prediction results. Ignore otherwise
-        write_to_db: Writes results to a table in db_conn if True; Ignore otherwise
-        foreign_key: Foreign key references the index of the game in the schedule table
     """
     reg = lm.main(year=year)
 
@@ -180,7 +178,7 @@ def predict_game(start_time, home_tm, away_tm, line, db_conn, year=2019, console
             "prediction": prediction, "probability": probability, "function": function}
 
 
-def predict_games_on_day(day, month, year, sched_df, lines=False, db_conn=None, console_out=False, write_to_db=False):
+def predict_games_on_day(games, lines=False, console_out=False):
     """The function takes a date, finds the games on that date, and generates a prediction for each game
 
     To-Do:
@@ -188,68 +186,59 @@ def predict_games_on_day(day, month, year, sched_df, lines=False, db_conn=None, 
         This is awful design :(
     """
 
-    # Create a date mask and extract it from the schedule
-    date = datetime.datetime(year=year, month=month, day=day)
-    next_day = date + datetime.timedelta(days=1)
-    date_mask = (sched_df['start_time'] >= date) & (sched_df['start_time'] < next_day)
-    games_on_date = sched_df.loc[date_mask]
-
-    if len(games_on_date) < 1:
-        raise Exception("No games on {}/{}/{}".format(month, day, year))
-
     results = dict()
     if lines:
         # Some call to get betting lines for today's game
         game_lines = [4, -4]  # Sample until line_scraper is running
-        for index, row in games_on_date.iterrows():
-            start_time = games_on_date["start_time"][index]
-            foreign_key = games_on_date["id"][index]
+        for index, row in games.iterrows():
+            start_time = games["start_time"][index]
+            foreign_key = games["id"][index]
             predict_game(start_time=start_time, home_tm=row["home_team"], away_tm=row["away_team"],
-                         line=game_lines[0], db_conn=db_conn, console_out=console_out)
+                         line=game_lines[0], console_out=console_out)
     else:
         # Generates predictions versus a generic line of 0
-        for index, row in games_on_date.iterrows():
-            start_time = games_on_date["start_time"][index]
-            foreign_key = games_on_date["id"][index]
+        for index, row in games.iterrows():
+            start_time = games["start_time"][index]
+            foreign_key = games["id"][index]
             predict_game(start_time=start_time, home_tm=["home_team"], away_tm=row["away_team"], line=0,
-                         db_conn=db_conn, console_out=console_out)
+                         console_out=console_out)
+    return 2
 
 
-def main(db_url, league_year, day, month, year, lines, console_out, write_to_db):
+def create_prediction_table(database, data, tbl_name):
+    sql_types = data.get_sql_type()
+    database.map_table(tbl_name, sql_types, "CONSTRAINTS")
+    database.create_tables()
+    database.insert_rows(tbl_name, data.dict_to_rows())
+    database.clear_mappers()
 
-    engine = create_engine(db_url)
-    conn = engine.connect()
+
+def main(database, session, league_year, day, month, year, lines, console_out):
+    """Predict games on the specified date"""
+
+    # Get games on the specified day
+    schedule = database.get_tables("sched_{}".format(league_year))
+    date = datetime(year, month, day)
+    games = helpers.get_games_on_day(schedule, session, date)
+    games_df = pd.DataFrame(games)
+
+    # Get lines for the games
+    odds_tbl = database.get_tables("odds_{}".format(league_year))
+    odds = helpers.get_spread_for_games(odds_tbl, session, games_df)
+
+    results = predict_games_on_day(games_df, lines=lines,
+                                   console_out=console_out)
 
     prediction_tbl = "predictions_{}".format(league_year)
-    if not db.table_exists(engine, prediction_tbl):
-        tbl_definition = OrderedDict({"start_time": datetime.datetime, "home_team": str, "away_team": str,
-                                      "home_line": float, "projection": float, "line_probability": float,
-                                      "SF/CDF": str, "final_score": int, "correct": bool})
-        sql_types = db.get_sql_type(tbl_definition)
-        column_definitions = db.create_col_definitions(prediction_tbl, sql_types,
-                                                       foreign_key="sched_{}.id".format(league_year))
-
-        db.create_table(engine, prediction_tbl, column_definitions)
-
-    sched = "sched_{}".format(2019)
-    sched_df = pd.read_sql_table(sched, conn)
-    results = predict_games_on_day(day=day, month=month, year=year, sched_df=sched_df, lines=lines,
-                                   console_out=console_out, db_conn=conn, write_to_db=write_to_db)
-    conn.close()
-
-    #    if write_to_db:
-    #        engine = db_conn.engine
-    #        table = db.get_table(engine, "predictions_2019")
-    #        column_keys = table._columns.keys()
-    #        del column_keys[0]  # Remove the ID column
-    #
-    #        # Final 2 zeroes are for "final_score" and correct which will be evaluated later
-    #        row_values = [foreign_key, start_time, home_tm, away_tm, line, prediction, probability, function, 0, 0]
-    #        row = dict(zip(column_keys, row_values))
-    #        db.insert_row(engine, table, row)
+    data = DataManipulator(results)
+    if not database.table_exists(prediction_tbl):
+        create_prediction_table()
 
 
 if __name__ == "__main__":
+    database = Database(r"sqlite:///database//nba_db.db")
+    year = 2019
+    session = Session(bind=database.engine)
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
-    main(db_url="sqlite:///database//nba_db.db", league_year=2019, day=17, month=10, year=2018, lines=True,
-         console_out=True, write_to_db=True)
+    main(database, session, league_year=2019, day=12, month=3, year=2019, lines=True,
+         console_out=True)

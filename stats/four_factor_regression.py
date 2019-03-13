@@ -12,7 +12,7 @@ Returns:
     Returns a LinearRegression class
 """
 
-import graphing
+from stats import graphing
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -23,15 +23,15 @@ import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
 
 # Local Packages
-import br_references as br
+from references import br_references as br
 
 
 class LinearRegression:
     """A class that creates and holds linear regression information and functions for regression evaluation.
 
     LinearRegression is initialized with a target variable and the desired predictors. Then, a regression is run and
-    necessary regression statistics are stored as class parameters. Member functions generate evaluative graphs and/or
-    statistics for the regression.
+    necessary regression stats are stored as class parameters. Member functions generate evaluative graphs and/or
+    stats for the regression.
 
     Attributes:
         target: The target variable
@@ -125,7 +125,7 @@ def create_ff_regression_df(ff_df, sched_df, ff_list):
         ff_list: List of the four factors variable
 
     Returns:
-         A data frame with home('_h') and away('_a') statistics and the margin of victory (mov). The mov is the target
+         A data frame with home('_h') and away('_a') stats and the margin of victory (mov). The mov is the target
          for a regression. The '_h' and '_a" stats are the home and away four factors in a specific matchup.
     """
     initialized_df = False
@@ -234,7 +234,7 @@ def four_factors_list():
     return ff_list
 
 
-def main(year=2019, graph=False):
+def main(database, year=2019, graph=False):
     """Create a regression data frame, run a regression with the LinearRegression class, and return the class
 
     Functions and class docstrings contain specific behaviors for the module.

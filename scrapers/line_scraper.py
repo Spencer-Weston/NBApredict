@@ -15,6 +15,8 @@ from sqlalchemy import UniqueConstraint
 
 # Local Imports
 from database import DataManipulator
+from scrapers import helpers
+
 
 def odds_for_today(games_df):
     """Build a URL for the specified year and return team box scores for a specified table on that page.
@@ -82,7 +84,7 @@ def parse_teams(competitors):
         else:
             away_team = team["name"]
     if not home_team == "" or away_team == "":
-        return home_team, away_team
+        return home_team.upper(), away_team.upper()
     else:
         raise Exception("Competitors was not properly parsed. Missing data.")
 
@@ -130,21 +132,6 @@ def parse_spread(spread_bet):
         raise Exception("Spread was not properly parsed. Missing data.")
 
 
-def get_games_on_day(schedule, session, date):
-    """Return the games from schedule on the specified date
-
-    Args:
-        schedule: A mapped table object containing a schedule of games
-        session: An instantiated session object
-        date: The date to check for games
-    To-Do:
-        Rewrite in ORM format (See season_scraper)
-    """
-    next_day = date + timedelta(days=1)
-    return session.query(schedule).filter(schedule.c["start_time"] > date, schedule.c["start_time"] < next_day).\
-        order_by(schedule.c["start_time"])
-
-
 def create_odds_table(database, data, tbl_name):
     if not data.validate_data_length():
         raise Exception("Lengths in the data are not equal")
@@ -178,7 +165,7 @@ def scrape(database, session, year=2019):
 
     schedule = database.get_tables("sched_{}".format(year))
     date = datetime.date(datetime.now())
-    games = get_games_on_day(schedule, session, date)
+    games = helpers.get_games_on_day(schedule, session, date)
     games_df = pandas.DataFrame(games)
 
     lines = odds_for_today(games_df)

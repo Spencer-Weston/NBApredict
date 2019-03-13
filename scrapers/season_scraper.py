@@ -13,8 +13,6 @@ Args (default):
 from datetime import datetime
 import pandas
 from sqlalchemy import UniqueConstraint
-from sqlalchemy.sql import func
-from sqlalchemy.orm import aliased
 
 
 from br_web_scraper import client

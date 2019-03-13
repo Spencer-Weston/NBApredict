@@ -1,8 +1,8 @@
 """
 Author: Spencer Weston
 
-Purpose: team_scraper is used to scrape team statistics from basketball reference. By default, it scrapes miscellaneous
-statistics in 2019. Alternate years and tables may be scraped though functionality is not yet guaranteed. The scraped
+Purpose: team_scraper is used to scrape team stats from basketball reference. By default, it scrapes miscellaneous
+stats in 2019. Alternate years and tables may be scraped though functionality is not yet guaranteed. The scraped
 tables are written to the specified database.
 
 Args (defaults):
@@ -33,7 +33,7 @@ def team_statistics(year, tbl_name):
     Performance not guaranteed for tables that are not "misc_stats"
 
     Args:
-        year: The year of the statistics to be returned
+        year: The year of the stats to be returned
         tbl_name: The name of the table to be returned
 
     Returns:

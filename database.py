@@ -11,7 +11,7 @@ To-do:
 """
 
 import datetime
-from sqlalchemy import Column, ForeignKey, Integer, Float, String, DateTime, Boolean, Table, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, Float, String, DateTime, Boolean, Table
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base

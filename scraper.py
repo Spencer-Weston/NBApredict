@@ -19,4 +19,3 @@ season_scrape = season_scraper.scrape(database=db, session=session, year=year)
 line_scrape = line_scraper.scrape(database=db, session=session)
 
 session.commit()
-test = 2
