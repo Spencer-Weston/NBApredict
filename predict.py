@@ -224,7 +224,8 @@ def main(database, session, league_year, day, month, year, lines, console_out):
 
     # Get lines for the games
     odds_tbl = database.get_tables("odds_{}".format(league_year))
-    odds = helpers.get_spread_for_games(odds_tbl, session, games_df)
+    odds_map = database.get_table_mappings(["odds_{}".format(league_year)])
+    odds = helpers.get_spread_for_games(odds_map, session, games_df)
 
     results = predict_games_on_day(games_df, lines=lines,
                                    console_out=console_out)
@@ -240,5 +241,5 @@ if __name__ == "__main__":
     year = 2019
     session = Session(bind=database.engine)
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
-    main(database, session, league_year=2019, day=12, month=3, year=2019, lines=True,
+    main(database, session, league_year=2019, day=14, month=3, year=2019, lines=True,
          console_out=True)
