@@ -217,7 +217,8 @@ def main(database, session, league_year, day, month, year, lines, console_out):
     """Predict games on the specified date"""
 
     # Get games on the specified day
-    schedule = database.get_tables("sched_{}".format(league_year))
+    # schedule = database.get_tables("sched_{}".format(league_year))
+    schedule = database.get_table_mappings(["sched_{}".format(league_year)])
     date = datetime(year, month, day)
     games = getters.get_games_on_day(schedule, session, date)
     games_df = pd.DataFrame(games)
@@ -225,7 +226,7 @@ def main(database, session, league_year, day, month, year, lines, console_out):
     # Get lines for the games
     odds_tbl = database.get_tables("odds_{}".format(league_year))
     odds_map = database.get_table_mappings(["odds_{}".format(league_year)])
-    odds = getters.get_spread_for_games(odds_map, session, games_df)
+    odds = getters.get_spread_for_games(odds_map, session, games)
 
     results = predict_games_on_day(games_df, lines=lines,
                                    console_out=console_out)

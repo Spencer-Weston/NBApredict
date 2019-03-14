@@ -10,20 +10,21 @@ To-Do:
 
 from datetime import datetime, timedelta
 import requests
-import pandas
+import pandas as pd
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.exc import IntegrityError
 
 # Local Imports
 from database import DataManipulator
 from scrapers import getters
 
 
-def odds_for_today(games_df):
+def odds_for_today(games_query, session):
     """Build a URL for the specified year and return team box scores for a specified table on that page.
 
     Args:
-        games_df: A pandas dataframe of games which holds games on a certain date (Should be the current date to reflect
-        the current games on Bovada
+        games_query: A games query object typically returned from getters.get_games_on_day(); Should be the current
+        date to reflect the current games on Bovada)
 
     Returns:
     """
@@ -38,7 +39,7 @@ def odds_for_today(games_df):
 
     # Get the game dictionaries (which hold a bunch of random data) stripped from the events object
     game_descriptions = []
-    for game in games_df.itertuples():
+    for game in games_query:
         game_descriptions.append("{} @ {}".format(game.away_team, game.home_team).lower())
     bovada_games = [game_dict for game_dict in events if game_dict["description"].lower() in game_descriptions]
 
@@ -51,10 +52,11 @@ def odds_for_today(games_df):
         betting_info = game["displayGroups"][0]["markets"]
         full_match_bets = [bet for bet in betting_info if bet["period"]["description"] == "Match"]
 
-        game_df = games_df.loc[(games_df.home_team == home_team.upper()) & (games_df.away_team == away_team.upper())]
-        start_timestamp_df = game_df.start_time
-        start_timestamp = start_timestamp_df.items().__next__()[1]
-        start_datetime = start_timestamp.to_pydatetime()
+        game_tbl = [game for game in games_query if
+                    game.home_team == home_team.upper() and game.away_team == away_team.upper()]
+        if len(game_tbl) > 1:
+            raise Exception("Multiple games returned. Unexpected query result")
+        start_datetime = game_tbl[0].start_time
 
         for bet in full_match_bets:
             if bet["description"] == "Moneyline":
@@ -150,7 +152,14 @@ def update_odds_table(odds_table, rows, session):
     for row in rows:
         row_object = odds_table(**row)
         row_objects.append(row_object)
-    session.add_all(row_objects)
+    try:
+        session.add_all(row_objects)
+    except IntegrityError:  # If all objects cannot be added, try to add each one individually
+        for row in row_objects:
+            try:
+                session.add(row)
+            except IntegrityError:
+                continue
 
 
 def scrape(database, session, year=2019):
@@ -163,12 +172,12 @@ def scrape(database, session, year=2019):
         Bovada, the scraped site, displays only day-of our future date betting lines.
     """
 
-    schedule = database.get_tables("sched_{}".format(year))
+    # schedule = database.get_tables("sched_{}".format(year))
+    schedule = database.get_table_mappings("sched_{}".format(year))
     date = datetime.date(datetime.now())
     games = getters.get_games_on_day(schedule, session, date)
-    games_df = pandas.DataFrame(games)
 
-    lines = odds_for_today(games_df)
+    lines = odds_for_today(games, session)
     line_data = DataManipulator(lines)
 
     tbl_name = "odds_{}".format(year)
