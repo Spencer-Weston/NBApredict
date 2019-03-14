@@ -15,7 +15,7 @@ from sqlalchemy import UniqueConstraint
 
 # Local Imports
 from database import DataManipulator
-from scrapers import helpers
+from scrapers import getters
 
 
 def odds_for_today(games_df):
@@ -165,7 +165,7 @@ def scrape(database, session, year=2019):
 
     schedule = database.get_tables("sched_{}".format(year))
     date = datetime.date(datetime.now())
-    games = helpers.get_games_on_day(schedule, session, date)
+    games = getters.get_games_on_day(schedule, session, date)
     games_df = pandas.DataFrame(games)
 
     lines = odds_for_today(games_df)
