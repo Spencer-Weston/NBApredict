@@ -8,10 +8,9 @@ Args (defaults):
 To-Do:
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
-import pandas as pd
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, ForeignKeyConstraint
 from sqlalchemy.exc import IntegrityError
 
 # Local Imports
@@ -19,7 +18,7 @@ from database import DataManipulator
 from scrapers import getters
 
 
-def odds_for_today(games_query, session):
+def odds_for_today(games_query):
     """Build a URL for the specified year and return team box scores for a specified table on that page.
 
     Args:
@@ -138,7 +137,8 @@ def create_odds_table(database, data, tbl_name):
     if not data.validate_data_length():
         raise Exception("Lengths in the data are not equal")
     sql_types = data.get_sql_type()
-    constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"]}
+    constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"],
+                  ForeignKeyConstraint: ["home_team"]}
     database.map_table(tbl_name, sql_types, constraint)
     database.create_tables()
 
@@ -177,7 +177,7 @@ def scrape(database, session, year=2019):
     date = datetime.date(datetime.now())
     games = getters.get_games_on_day(schedule, session, date)
 
-    lines = odds_for_today(games, session)
+    lines = odds_for_today(games)
     line_data = DataManipulator(lines)
 
     tbl_name = "odds_{}".format(year)
@@ -200,6 +200,3 @@ def scrape(database, session, year=2019):
     # db = database.Database(r"sqlite:///../database//nba_db.db")
     # year = 2019
     # scrape(db, year)
-
-
-

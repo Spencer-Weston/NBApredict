@@ -21,6 +21,7 @@ def get_spread_for_games(odds_table, session, games):
         session: Sqlalchemy session object
         games: Pandas dataframe of the games to extract spreads for
     """
+    games = games.subquery()
     for game, odds in session.query(games, odds_table).filter(odds_table.away_team == games.away_team).all():
         print(game)
         print(odds)

@@ -12,8 +12,8 @@ To-do:
 
 import datetime
 from sqlalchemy import Column, ForeignKey, Integer, Float, String, DateTime, Boolean, Table
-from sqlalchemy import create_engine
-from sqlalchemy import MetaData
+from sqlalchemy import create_engine, MetaData, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import mapper, clear_mappers
 from sqlalchemy.ext.automap import automap_base
@@ -114,7 +114,6 @@ class Database:
             and the columns to be constrained is a list of string column names
         """
         if constraints:
-
             t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
                       *(Column(key, value) for key, value in column_types.items()),
                       *(constraint(*columns) for constraint, columns in constraints.items())
@@ -296,3 +295,10 @@ class DataManipulator:
             return True
         else:
             return False
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
