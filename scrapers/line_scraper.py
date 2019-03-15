@@ -134,11 +134,12 @@ def parse_spread(spread_bet):
 
 
 def create_odds_table(database, data, tbl_name):
+    raise Exception("This has NOT been updated to establish the correct foreign keys")
     if not data.validate_data_length():
         raise Exception("Lengths in the data are not equal")
     sql_types = data.get_sql_type()
     constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"],
-                  ForeignKeyConstraint: ["home_team"]}
+                  ForeignKeyConstraint: ForeignKeyConstraint(["game_id"], ["sched_2019.id"])}
     database.map_table(tbl_name, sql_types, constraint)
     database.create_tables()
 
@@ -147,10 +148,21 @@ def create_odds_table(database, data, tbl_name):
     database.clear_mappers()
 
 
-def update_odds_table(odds_table, rows, session):
+def update_odds_table(odds_table, sched_tbl, rows, session):
     row_objects = []
     for row in rows:
+        # Adds all of the normal betting data
         row_object = odds_table(**row)
+
+        # Finds and adds the foreign key from the schedule
+        game = session.query(sched_tbl).filter(sched_tbl.home_team == row_object.home_team,
+                                               sched_tbl.away_team == row_object.away_team,
+                                               sched_tbl.start_time == row_object.start_time).all()
+        if len(game) > 1:
+            raise Exception("More than one game matches the row")
+        game = game[0]
+        row_object.game_id = game.id
+
         row_objects.append(row_object)
     try:
         session.add_all(row_objects)
@@ -189,7 +201,7 @@ def scrape(database, session, year=2019):
         # All values in line_data are expected to be be unique from values in the database. A possible place for errors
         # to occur
         odds_table = database.get_table_mappings([tbl_name])
-        update_odds_table(odds_table, line_data.dict_to_rows(), session)
+        update_odds_table(odds_table, schedule, line_data.dict_to_rows(), session)
     else:
         raise Exception("Somethings wrong here (Not descriptive, but this point shouldn't be hit.)")
 
