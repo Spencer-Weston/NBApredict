@@ -139,7 +139,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
 
 
-def predict_game(start_time, home_tm, away_tm, line, db_conn, year=2019, console_out=False):
+def predict_game(database, home_tm, away_tm, start_time, line, year=2019, console_out=False):
     """Generates print statements that predict a game's score and present the CDF or SF or the betting line
 
     Cdf is a cumulative density function. SF is a survival function. CDF is calculated when the betting line's
@@ -163,7 +163,7 @@ def predict_game(start_time, home_tm, away_tm, line, db_conn, year=2019, console
     # Get Misc stats for year
     ff_list = lm.four_factors_list()
     misc_stats = "misc_stats_{}".format(year)
-    ff_df = pd.read_sql_table(misc_stats, db_conn)[ff_list]
+    ff_df = pd.read_sql_table(misc_stats)[ff_list]
 
     pred_df = create_prediction_df(home_tm, away_tm, ff_df)
 
@@ -178,58 +178,59 @@ def predict_game(start_time, home_tm, away_tm, line, db_conn, year=2019, console
             "prediction": prediction, "probability": probability, "function": function}
 
 
-def predict_games_on_day(games, lines=False, console_out=False):
-    """The function takes a date, finds the games on that date, and generates a prediction for each game
+def predict_games_on_day(database, games, console_out=False):
+    """Take a sqlalchemy query object of games, and return a prediction for each game.
 
-    To-Do:
-        Extricate the write to database. Instead, return the prediction values (Make each function do one thing!)
-        This is awful design :(
     """
-
     results = dict()
-    if lines:
-        # Some call to get betting lines for today's game
-        game_lines = [4, -4]  # Sample until line_scraper is running
-        for index, row in games.iterrows():
-            start_time = games["start_time"][index]
-            foreign_key = games["id"][index]
-            predict_game(start_time=start_time, home_tm=row["home_team"], away_tm=row["away_team"],
-                         line=game_lines[0], console_out=console_out)
-    else:
-        # Generates predictions versus a generic line of 0
-        for index, row in games.iterrows():
-            start_time = games["start_time"][index]
-            foreign_key = games["id"][index]
-            predict_game(start_time=start_time, home_tm=["home_team"], away_tm=row["away_team"], line=0,
-                         console_out=console_out)
+    try:
+        for game in games:
+            predict_game(database, home_tm=game.home_team, away_tm=game.away_team, start_time=game.start_time,
+                         line=game.spread, console_out=console_out)
+    except AttributeError:
+        # If games doesn't contain spreads, catch the attribute error and pass a 0 line.
+        # If games is missing other data, function will break.
+        for game in games:
+            predict_game(home_tm=game.home_team, away_tm=game.away_team, start_time=game.start_time,
+                         line=0, console_out=console_out)
     return 2
 
 
 def create_prediction_table(database, data, tbl_name):
     sql_types = data.get_sql_type()
-    database.map_table(tbl_name, sql_types, "CONSTRAINTS")
+    database.map_table(tbl_name, sql_types, "CONSTRAINTS", "RELATIONSHIPS")
     database.create_tables()
     database.insert_rows(tbl_name, data.dict_to_rows())
     database.clear_mappers()
 
 
-def main(database, session, league_year, day, month, year, lines, console_out):
-    """Predict games on the specified date"""
+def main(database, session, league_year, day, month, year, console_out):
+    """Predict games on the specified date and write the results to the database
 
-    # Get games on the specified day
-    # schedule = database.get_tables("sched_{}".format(league_year))
-    schedule = database.get_table_mappings(["sched_{}".format(league_year)])
-    date = datetime(year, month, day)
-    games = getters.get_games_on_day(schedule, session, date)
-    games_df = pd.DataFrame(games)
+    Args:
+        database: An instantiated Database class from database.py
+        session: A sqlalchemy session object for queries and writes
+        league_year: The league year to work with. For example, the league year of the 2018-19 season is 2019
+        day: Create a date for day, month, and year to query against
+        month: Create a date for day, month, and year to query against
+        year: Create a date for day, month, and year to query against
+        console_out: If true, prints prediction results to the console
+    """
+
+    # # Get games on the specified day
+    # # schedule = database.get_tables("sched_{}".format(league_year))
+    # schedule = database.get_table_mappings(["sched_{}".format(league_year)])
+
+    # games = getters.get_games_on_day(schedule, session, date)
+    # games_df = pd.DataFrame(games)
 
     # Get lines for the games
-    odds_tbl = database.get_tables("odds_{}".format(league_year))
+    date = datetime(year, month, day)
     odds_map = database.get_table_mappings(["odds_{}".format(league_year)])
-    odds = getters.get_spread_for_games(odds_map, session, games)
+    games_query = getters.get_spreads_for_date(odds_map, session, date)
+    game_spreads = [game for game in games_query]
 
-    results = predict_games_on_day(games_df, lines=lines,
-                                   console_out=console_out)
+    results = predict_games_on_day(database, game_spreads, console_out=console_out)
 
     prediction_tbl = "predictions_{}".format(league_year)
     data = DataManipulator(results)
@@ -242,5 +243,4 @@ if __name__ == "__main__":
     year = 2019
     session = Session(bind=database.engine)
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
-    main(database, session, league_year=2019, day=14, month=3, year=2019, lines=True,
-         console_out=True)
+    main(database, session, league_year=2019, day=14, month=3, year=2019, console_out=True)

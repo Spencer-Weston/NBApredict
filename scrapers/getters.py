@@ -13,19 +13,16 @@ def get_games_on_day(schedule, session, date):
     return session.query(schedule).filter(schedule.start_time > date, schedule.start_time < next_day)
 
 
-def get_spread_for_games(odds_table, session, games):
+def get_spreads_for_date(odds_table, session, date):
     """Return the spreads from the odds_table that correspond to the games
 
     Args:
         odds_table: Sqlalchemy table object that contains odds
         session: Sqlalchemy session object
-        games: Pandas dataframe of the games to extract spreads for
+        date: Date to extract odds for
     """
-    games = games.subquery()
-    for game, odds in session.query(games, odds_table).filter(odds_table.away_team == games.away_team).all():
-        print(game)
-        print(odds)
-    test = session.query(odds_table).filter(odds_table.home_team.in_(games.home_team),
-                                            odds_table.away_team.in_(games.away_team))
+    next_day = date + timedelta(days=1)
+    query = session.query(odds_table.start_time, odds_table.home_team, odds_table.away_team, odds_table.spread).\
+                    filter(odds_table.start_time > date, odds_table.start_time < next_day)
 
-    test = 2
+    return query
