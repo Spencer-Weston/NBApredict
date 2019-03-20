@@ -57,11 +57,16 @@ def odds_for_today(games_query):
             raise Exception("Multiple games returned. Unexpected query result")
         start_datetime = game_tbl[0].start_time
 
+        money_lines = False
         for bet in full_match_bets:
             if bet["description"] == "Moneyline":
                 home_moneyline, away_moneyline = parse_moneyline(bet)
+                money_lines = True
             elif bet["description"] == "Point Spread":
                 spread, home_spread_price, away_spread_price = parse_spread(bet)
+        if not money_lines:
+            home_moneyline = None
+            away_moneyline = None
         game_lines = [home_team, away_team, start_datetime, spread, home_spread_price, away_spread_price,
                       home_moneyline, away_moneyline, scrape_time]
 
@@ -151,6 +156,14 @@ def create_odds_table(database, data, tbl_name):
 def update_odds_table(odds_table, sched_tbl, rows, session):
     row_objects = []
     for row in rows:
+        # Delete the row in the table if it exists to allow overwrite
+        existing_rows = session.query(odds_table).filter(odds_table.home_team == row["home_team"],
+                                                         odds_table.away_team == row["away_team"],
+                                                         odds_table.start_time == row["start_time"])
+        if len(existing_rows.all()) > 0:
+            for exist_row in existing_rows.all():
+                session.delete(exist_row)
+
         # Adds all of the normal betting data
         row_object = odds_table(**row)
 
