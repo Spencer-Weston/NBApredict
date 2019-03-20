@@ -66,7 +66,7 @@ class Database:
         self.table_names = list(self.get_tables())
 
     def get_tables(self, table_names=False):
-        """Find and return the specified tables or return all tables """
+        """Find and return the specified tables or return all tables"""
         meta = MetaData(bind=self.engine)
         meta.reflect(bind=self.engine)
         if table_names:
@@ -104,7 +104,7 @@ class Database:
         """Creates all tables which have been made with the Base class of the Database"""
         self.metadata.create_all(self.engine)
 
-    def map_table(self, tbl_name, column_types, constraints=False):
+    def map_table(self, tbl_name, column_types, constraints=False, relationships=False):
         """Maps a dictionary keyed on column names with Type values and, optionally, constraints
 
         Args:
@@ -113,17 +113,38 @@ class Database:
             constraints: A dictionary of desired constraints where the constraints (Such as UniqueConstraint) are keys
             and the columns to be constrained is a list of string column names
         """
-        if constraints:
+        columns = self._generate_columns(column_types)
+        if constraints and relationships:
             t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
-                      *(Column(key, value) for key, value in column_types.items()),
+                      *(Column(key, *value) for key, value in column_types.items()),
+                      *(constraint(*columns) for constraint, columns in constraints.items()),
+                      "RELATIONSHIPS"
+                      )
+        elif constraints:
+            t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
+                      *(Column(key, *value) for key, value in column_types.items()),
                       *(constraint(*columns) for constraint, columns in constraints.items())
                       )
-
+        elif relationships:
+            t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
+                      *(Column(key, *value) for key, value in column_types.items()),
+                      "RELATIONSHIPS"
+                      )
         else:
             t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
                       *(Column(key, value) for key, value in column_types.items()))
 
         mapper(self.Template, t)
+
+    @staticmethod
+    def _generate_columns(columns):
+        column_list = []
+        for key, value in columns.items():
+            try:
+                column_list.append(Column(key, *value))  # Unpacks additional column arguments
+            except TypeError:  # if no additional arguments, just make a standard name and type column
+                column_list.append(Column(key, value))
+        return column_list
 
     @staticmethod
     def clear_mappers():

@@ -259,12 +259,9 @@ def main(database, session, year=2019, graph=False):
     ff_list = four_factors_list()
 
     # Convert database tables to pandas
-    misc_tbl = database.get_table_mappings("misc_stats_{}".format(year))
     ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
-    sched_tbl = database.get_table_mappings("sched_{}".format(year))
     sched_df = getters.get_pandas_df_from_table(database, session, "sched_{}".format(year),
                                                 lambda df: df.away_team_score > 0)
-    #sched_df = pd.read_sql(sched_query.statement, sched_query.session.bind)[lambda df: df.away_team_score > 0]
 
     # Combines four factors and seasons df's and separates them into X (predictors) and y (target)
     regression_df = create_ff_regression_df(ff_df, sched_df, br.four_factors)

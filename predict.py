@@ -17,7 +17,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, relationship
+from sqlalchemy import ForeignKey, Column, Integer
 
 # Local imports
 from references import br_references
@@ -139,7 +140,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
 
 
-def predict_game(database, session, home_tm, away_tm, start_time, line, year=2019, console_out=False):
+def predict_game(database, session, regression, home_tm, away_tm, start_time, line, year=2019, console_out=False):
     """Generates print statements that predict a game's score and present the CDF or SF or the betting line
 
     Cdf is a cumulative density function. SF is a survival function. CDF is calculated when the betting line's
@@ -147,6 +148,9 @@ def predict_game(database, session, home_tm, away_tm, start_time, line, year=201
     prediction.
 
     Args:
+        database: an instantiated Database class from database.py
+        session: A SQLalchemy session object
+        regression: A regression object 
         start_time: Date.datetime with the date and start time of the game
         home_tm: The home team
         away_tm: The away team
@@ -155,21 +159,18 @@ def predict_game(database, session, home_tm, away_tm, start_time, line, year=201
         year: The year to use stats from in predicting the game
         console_out: If true, print the prediction results. Ignore otherwise
     """
-    reg = lm.main(database=database, session=session, year=year)
-
     home_tm = get_team_name(home_tm)
     away_tm = get_team_name(away_tm)
 
     # Get Misc stats for year
     ff_list = lm.four_factors_list()
-    misc_stats = "misc_stats_{}".format(year)
-    ff_df = pd.read_sql_table(misc_stats)[ff_list]
+    ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
 
     pred_df = create_prediction_df(home_tm, away_tm, ff_df)
 
-    prediction = get_prediction(reg, pred_df)
+    prediction = get_prediction(regression, pred_df)
 
-    probability, function = line_probability(prediction, line, np.std(reg.residuals))
+    probability, function = line_probability(prediction, line, np.std(regression.residuals))
 
     if console_out:
         prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
@@ -182,26 +183,34 @@ def predict_games_on_day(database, session, games, console_out=False):
     """Take a sqlalchemy query object of games, and return a prediction for each game.
 
     """
-    results = dict()
+    results = []
+    regression = lm.main(database=database, session=session, year=year)
     try:
         for game in games:
-            predict_game(database=database, session=session, home_tm=game.home_team, away_tm=game.away_team,
-                         start_time=game.start_time, line=game.spread, console_out=console_out)
+            prediction = predict_game(database=database, session=session, regression=regression, home_tm=game.home_team,
+                                      away_tm=game.away_team, start_time=game.start_time, line=game.spread,
+                                      console_out=console_out)
+            results.append(prediction)
     except AttributeError:
         # If games doesn't contain spreads, catch the attribute error and pass a 0 line.
         # If games is missing other data, function will break.
         for game in games:
-            predict_game(home_tm=game.home_team, away_tm=game.away_team, start_time=game.start_time,
+            prediction = predict_game(home_tm=game.home_team, away_tm=game.away_team, start_time=game.start_time,
                          line=0, console_out=console_out)
-    return 2
+            results.append(prediction)
+    return results
 
 
 def create_prediction_table(database, data, tbl_name):
     sql_types = data.get_sql_type()
-    database.map_table(tbl_name, sql_types, "CONSTRAINTS", "RELATIONSHIPS")
-    database.create_tables()
-    database.insert_rows(tbl_name, data.dict_to_rows())
-    database.clear_mappers()
+    year = tbl_name[-4:]
+    additional_cols = [{'game_id': [Integer, ForeignKey("sched_{}.id".format(year))]},
+                       {"odds_id": [Integer, ForeignKey("odds_{}.id".format(year))]}]
+    test = (Column(key, value) for key, value in col.items())
+    # database.map_table(tbl_name, sql_types, "CONSTRAINTS", "RELATIONSHIPS")
+    # database.create_tables()
+    # database.insert_rows(tbl_name, data.dict_to_rows())
+    # database.clear_mappers()
 
 
 def main(database, session, league_year, day, month, year, console_out):
@@ -235,7 +244,7 @@ def main(database, session, league_year, day, month, year, console_out):
     prediction_tbl = "predictions_{}".format(league_year)
     data = DataManipulator(results)
     if not database.table_exists(prediction_tbl):
-        create_prediction_table()
+        create_prediction_table(database, data, prediction_tbl)
 
 
 if __name__ == "__main__":
