@@ -24,6 +24,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor as vi
 
 # Local Packages
 from references import br_references as br
+from scrapers import getters
 
 
 class LinearRegression:
@@ -234,7 +235,7 @@ def four_factors_list():
     return ff_list
 
 
-def main(database, year=2019, graph=False):
+def main(database, session, year=2019, graph=False):
     """Create a regression data frame, run a regression with the LinearRegression class, and return the class
 
     Functions and class docstrings contain specific behaviors for the module.
@@ -246,8 +247,9 @@ def main(database, year=2019, graph=False):
     Returns:
         A LinearRegression class
     """
-    if not os.path.isdir("graphs"):
+    if not os.path.isdir("graphs") and graph:
         os.mkdir("graphs")
+
     # Variable setup
     db_url = "sqlite:///database//nba_db.db"
     engine = create_engine(db_url)
@@ -256,11 +258,13 @@ def main(database, year=2019, graph=False):
     # Import and specify a list of factors to extract from database
     ff_list = four_factors_list()
 
-    # Database table to pandas table
-    misc_stats = "misc_stats_{}".format(year)
-    ff_df = pd.read_sql_table(misc_stats, conn)[ff_list]  # FF = four factors
-    sched = "sched_{}".format(year)
-    sched_df = pd.read_sql_table(sched, conn)[lambda df: df.away_team_score > 0]
+    # Convert database tables to pandas
+    misc_tbl = database.get_table_mappings("misc_stats_{}".format(year))
+    ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
+    sched_tbl = database.get_table_mappings("sched_{}".format(year))
+    sched_df = getters.get_pandas_df_from_table(database, session, "sched_{}".format(year),
+                                                lambda df: df.away_team_score > 0)
+    #sched_df = pd.read_sql(sched_query.statement, sched_query.session.bind)[lambda df: df.away_team_score > 0]
 
     # Combines four factors and seasons df's and separates them into X (predictors) and y (target)
     regression_df = create_ff_regression_df(ff_df, sched_df, br.four_factors)

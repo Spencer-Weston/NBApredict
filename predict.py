@@ -139,7 +139,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
 
 
-def predict_game(database, home_tm, away_tm, start_time, line, year=2019, console_out=False):
+def predict_game(database, session, home_tm, away_tm, start_time, line, year=2019, console_out=False):
     """Generates print statements that predict a game's score and present the CDF or SF or the betting line
 
     Cdf is a cumulative density function. SF is a survival function. CDF is calculated when the betting line's
@@ -155,7 +155,7 @@ def predict_game(database, home_tm, away_tm, start_time, line, year=2019, consol
         year: The year to use stats from in predicting the game
         console_out: If true, print the prediction results. Ignore otherwise
     """
-    reg = lm.main(year=year)
+    reg = lm.main(database=database, session=session, year=year)
 
     home_tm = get_team_name(home_tm)
     away_tm = get_team_name(away_tm)
@@ -178,15 +178,15 @@ def predict_game(database, home_tm, away_tm, start_time, line, year=2019, consol
             "prediction": prediction, "probability": probability, "function": function}
 
 
-def predict_games_on_day(database, games, console_out=False):
+def predict_games_on_day(database, session, games, console_out=False):
     """Take a sqlalchemy query object of games, and return a prediction for each game.
 
     """
     results = dict()
     try:
         for game in games:
-            predict_game(database, home_tm=game.home_team, away_tm=game.away_team, start_time=game.start_time,
-                         line=game.spread, console_out=console_out)
+            predict_game(database=database, session=session, home_tm=game.home_team, away_tm=game.away_team,
+                         start_time=game.start_time, line=game.spread, console_out=console_out)
     except AttributeError:
         # If games doesn't contain spreads, catch the attribute error and pass a 0 line.
         # If games is missing other data, function will break.
@@ -230,7 +230,7 @@ def main(database, session, league_year, day, month, year, console_out):
     games_query = getters.get_spreads_for_date(odds_map, session, date)
     game_spreads = [game for game in games_query]
 
-    results = predict_games_on_day(database, game_spreads, console_out=console_out)
+    results = predict_games_on_day(database, session, game_spreads, console_out=console_out)
 
     prediction_tbl = "predictions_{}".format(league_year)
     data = DataManipulator(results)

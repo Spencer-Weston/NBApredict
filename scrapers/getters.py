@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-
+import pandas as pd
 
 def get_games_on_day(schedule, session, date):
     """Return the games from schedule on the specified date
@@ -26,3 +26,20 @@ def get_spreads_for_date(odds_table, session, date):
                     filter(odds_table.start_time > date, odds_table.start_time < next_day)
 
     return query
+
+
+def get_pandas_df_from_table(database, session, tbl_name, qualifiers=False):
+    """Convert the specified table into a pandas dataframe, modify it according to qualifiers, and return the result
+
+    Args:
+        database: An instantiated Database class from database.py
+        session: SQLalchemy session object
+        tbl_name: name of the desired table
+        qualifiers: A list of columns or a function to filter rows by
+        """
+    tbl = database.get_table_mappings(tbl_name)
+    query = session.query(tbl)
+    if qualifiers:
+        return pd.read_sql(query.statement, query.session.bind)[qualifiers]
+    else:
+        return pd.read_sql(query.statement, query.session.bind)
