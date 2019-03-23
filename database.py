@@ -112,27 +112,29 @@ class Database:
             column_types: A dictionary with column names as keys and sql types as values
             constraints: A dictionary of desired constraints where the constraints (Such as UniqueConstraint) are keys
             and the columns to be constrained is a list of string column names
+            relationships: A dictionary of the desired relationships (functionality not yet tested) 
         """
         columns = self._generate_columns(column_types)
         if constraints and relationships:
             t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
-                      *(Column(key, *value) for key, value in column_types.items()),
+                      *columns,
                       *(constraint(*columns) for constraint, columns in constraints.items()),
                       "RELATIONSHIPS"
                       )
         elif constraints:
             t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
-                      *(Column(key, *value) for key, value in column_types.items()),
+                      *columns,
                       *(constraint(*columns) for constraint, columns in constraints.items())
                       )
         elif relationships:
             t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
-                      *(Column(key, *value) for key, value in column_types.items()),
+                      *columns,
                       "RELATIONSHIPS"
                       )
         else:
             t = Table(tbl_name, self.metadata, Column('id', Integer, primary_key=True),
-                      *(Column(key, value) for key, value in column_types.items()))
+                      *columns
+                      )
 
         mapper(self.Template, t)
 

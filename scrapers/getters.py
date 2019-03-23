@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 import pandas as pd
+
 
 def get_games_on_day(schedule, session, date):
     """Return the games from schedule on the specified date
@@ -22,8 +23,8 @@ def get_spreads_for_date(odds_table, session, date):
         date: Date to extract odds for
     """
     next_day = date + timedelta(days=1)
-    query = session.query(odds_table.start_time, odds_table.home_team, odds_table.away_team, odds_table.spread).\
-                    filter(odds_table.start_time > date, odds_table.start_time < next_day)
+    query = session.query(odds_table.start_time, odds_table.home_team, odds_table.away_team, odds_table.spread). \
+                filter(odds_table.start_time > date, odds_table.start_time < next_day)
 
     return query
 

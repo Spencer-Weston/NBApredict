@@ -18,14 +18,13 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 from sqlalchemy.orm import Session, relationship
-from sqlalchemy import ForeignKey, Column, Integer
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 
 # Local imports
 from references import br_references
 from database import DataManipulator, Database
 from scrapers import getters
 from stats import four_factor_regression as lm
-import general
 
 
 def get_prediction(reg, pred_df):
@@ -124,7 +123,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
     """
     if prediction > 0:
         print("The {} are projected to beat the {} by {} points".format(home_tm, away_tm, prediction))
-        if (-1*line) < prediction:
+        if (-1 * line) < prediction:
             print("If the model were true, the betting line's ({}) CDF, in relation to the prediction, would "
                   "be realized {}% of the time".format(line, probability))
         else:
@@ -132,7 +131,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
     if prediction < 0:
         print("The {} are projected to lose to the {} by {} points".format(home_tm, away_tm, prediction))
-        if (-1*line) < prediction:
+        if (-1 * line) < prediction:
             print("If the model were true, the betting line's ({}) CDF, in relation to the prediction, would "
                   "be realized {}% of the time".format(line, probability))
         else:
@@ -155,7 +154,6 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
         home_tm: The home team
         away_tm: The away team
         line: The betting line
-        db_conn: Connection to the database with the four factors and to optionally write prediction results to
         year: The year to use stats from in predicting the game
         console_out: If true, print the prediction results. Ignore otherwise
     """
@@ -195,22 +193,98 @@ def predict_games_on_day(database, session, games, console_out=False):
         # If games doesn't contain spreads, catch the attribute error and pass a 0 line.
         # If games is missing other data, function will break.
         for game in games:
-            prediction = predict_game(home_tm=game.home_team, away_tm=game.away_team, start_time=game.start_time,
-                         line=0, console_out=console_out)
+            prediction = predict_game(database=database, session=session, regression=regression, home_tm=game.home_team,
+                                      away_tm=game.away_team, start_time=game.start_time, line=0,
+                                      console_out=console_out)
             results.append(prediction)
     return results
 
 
 def create_prediction_table(database, data, tbl_name):
+    # Create columns from data
     sql_types = data.get_sql_type()
+    # Add new columns
     year = tbl_name[-4:]
-    additional_cols = [{'game_id': [Integer, ForeignKey("sched_{}.id".format(year))]},
-                       {"odds_id": [Integer, ForeignKey("odds_{}.id".format(year))]}]
-    test = (Column(key, value) for key, value in col.items())
-    # database.map_table(tbl_name, sql_types, "CONSTRAINTS", "RELATIONSHIPS")
-    # database.create_tables()
-    # database.insert_rows(tbl_name, data.dict_to_rows())
-    # database.clear_mappers()
+    schedule_name = "sched_{}".format(year)
+    additional_cols = [{'game_id': [Integer, ForeignKey(schedule_name + ".id")]},
+                       {"odds_id": [Integer, ForeignKey("odds_{}.id".format(year))]},
+                       {"home_team_score": Integer},
+                       {"away_team_score": Integer},
+                       {"bet_result": String}]
+    for col in additional_cols:
+        sql_types.update(col)
+    constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
+    # Map prediction table
+    database.map_table("predictions_{}".format(year), sql_types, constraint)
+
+    # Get tables for relationships
+    sched_tbl = database.get_table_mappings(schedule_name)
+    odds_tbl = database.get_table_mappings("odds_{}".format(year))
+    # Create Relationships
+    if "predictions" not in sched_tbl.__mapper__.relationships.keys():
+        sched_tbl.predictions = relationship(database.Template)
+    if "predictions" not in odds_tbl.__mapper__.relationships.keys():
+        odds_tbl.predictions = relationship(database.Template)
+
+    database.create_tables()
+
+
+def insert_prediction_table(data, session, pred_tbl, sched_tbl, odds_tbl):
+    row_objects = []
+    for row in data:
+        row_obj = pred_tbl(**row)
+        row_objects.append(row_obj)
+    row_objects = get_odds_id(row_objects, session, odds_tbl)
+    row_objects = get_schedule_attributes(row_objects, session, sched_tbl)
+
+    session.add_all(row_objects)
+
+
+def update_prediction_table(table):
+    pass
+
+
+def get_game_identifiers(row_objects):
+    """Return a dictionary of home_team, start_team, and start_time that forms a unique identifier
+
+    The unique identifier works for every table in the database as home_team, away_team, and start_time are unique
+    and constant for every table which involves games in the database"""
+    query_dict = {"home_team": [], "away_team": [], "start_time": []}
+    for row in row_objects:
+        query_dict["home_team"].append(row.home_team)
+        query_dict["away_team"].append(row.away_team)
+        query_dict["start_time"].append(row.start_time)
+    return query_dict
+
+
+def get_odds_id(row_objects, session, odds_tbl):
+    identifiers = get_game_identifiers(row_objects)
+    odds_query = session.query(odds_tbl).filter(odds_tbl.home_team.in_(identifiers["home_team"]),
+                                                odds_tbl.away_team.in_(identifiers["away_team"]),
+                                                odds_tbl.start_time.in_(identifiers["start_time"])).all()
+    for row in row_objects:
+        for odds in odds_query:
+            if row.home_team == odds.home_team and row.away_team == odds.away_team \
+                    and row.start_time == odds.start_time:
+                row.odds_id = odds.id
+                break
+    return row_objects
+
+
+def get_schedule_attributes(row_objects, session, sched_tbl):
+    identifiers = get_game_identifiers(row_objects)
+    sched_query = session.query(sched_tbl).filter(sched_tbl.home_team.in_(identifiers["home_team"]),
+                                                  sched_tbl.away_team.in_(identifiers["away_team"]),
+                                                  sched_tbl.start_time.in_(identifiers["start_time"])).all()
+    for row in row_objects:
+        for game in sched_query:
+            if row.home_team == game.home_team and row.away_team == game.away_team \
+                    and row.start_time == game.start_time:
+                row.game_id = game.id
+                row.home_team_score = game.home_team_score
+                row.away_team_score = game.away_team_score
+                break
+    return row_objects
 
 
 def main(database, session, league_year, day, month, year, console_out):
@@ -225,18 +299,10 @@ def main(database, session, league_year, day, month, year, console_out):
         year: Create a date for day, month, and year to query against
         console_out: If true, prints prediction results to the console
     """
-
-    # # Get games on the specified day
-    # # schedule = database.get_tables("sched_{}".format(league_year))
-    # schedule = database.get_table_mappings(["sched_{}".format(league_year)])
-
-    # games = getters.get_games_on_day(schedule, session, date)
-    # games_df = pd.DataFrame(games)
-
     # Get lines for the games
     date = datetime(year, month, day)
-    odds_map = database.get_table_mappings(["odds_{}".format(league_year)])
-    games_query = getters.get_spreads_for_date(odds_map, session, date)
+    odds_tbl = database.get_table_mappings(["odds_{}".format(league_year)])
+    games_query = getters.get_spreads_for_date(odds_tbl, session, date)
     game_spreads = [game for game in games_query]
 
     results = predict_games_on_day(database, session, game_spreads, console_out=console_out)
@@ -246,10 +312,20 @@ def main(database, session, league_year, day, month, year, console_out):
     if not database.table_exists(prediction_tbl):
         create_prediction_table(database, data, prediction_tbl)
 
+    sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
+    pred_tbl = database.get_table_mappings("predictions_{}".format(league_year))
+
+    # Results are sent to DataManipulator in row format, so just pass data.data instead of data.dict_to_rows()
+    insert_prediction_table(data.data, session, pred_tbl, sched_tbl, odds_tbl)
+    session.commit()
+    update_prediction_table()
+
+    # session.commit()
+
 
 if __name__ == "__main__":
     database = Database(r"sqlite:///database//nba_db.db")
     year = 2019
     session = Session(bind=database.engine)
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
-    main(database, session, league_year=2019, day=14, month=3, year=2019, console_out=True)
+    main(database, session, league_year=2019, day=14, month=3, year=2019, console_out=False)
