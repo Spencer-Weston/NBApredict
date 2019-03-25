@@ -270,7 +270,6 @@ def update_bet_results(update_objects):
     return update_objects
 
 
-
 def get_game_identifiers(update_objects):
     """Return a dictionary of home_team, start_team, and start_time that forms a unique identifier
 
@@ -326,20 +325,19 @@ def update_schedule_attributes(update_objects, session, sched_tbl):
     return update_objects
 
 
-def main(database, session, league_year, day, month, year, console_out):
+def main(database, session, league_year, date, console_out):
     """Predict games on the specified date and write the results to the database
 
     Args:
         database: An instantiated Database class from database.py
         session: A sqlalchemy session object for queries and writes
         league_year: The league year to work with. For example, the league year of the 2018-19 season is 2019
-        day: Create a date for day, month, and year to query against
-        month: Create a date for day, month, and year to query against
-        year: Create a date for day, month, and year to query against
+        date: Either a datetime.date or a dictionary keyed formatted as {"day": day, "month": month, "year": year"}
         console_out: If true, prints prediction results to the console
     """
     # Get lines for the games
-    date = datetime(year, month, day)
+    if not isinstance(date, datetime):
+        date = datetime(date["year"], date["month"], date["day"])
     odds_tbl = database.get_table_mappings(["odds_{}".format(league_year)])
     games_query = getters.get_spreads_for_date(odds_tbl, session, date)
     game_spreads = [game for game in games_query]
@@ -365,12 +363,11 @@ def main(database, session, league_year, day, month, year, console_out):
     finally:
         session.close()
 
-    test = 2
-
 
 if __name__ == "__main__":
     database = Database(r"sqlite:///database//nba_db.db")
     year = 2019
     session = Session(bind=database.engine)
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
-    main(database, session, league_year=2019, day=15, month=3, year=2019, console_out=False)
+    date = datetime(2019, 3, 3)
+    main(database, session, league_year=2019, date=date, console_out=False)
