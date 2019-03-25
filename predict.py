@@ -18,7 +18,8 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 from sqlalchemy.orm import Session, relationship
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint, or_
+from sqlalchemy.exc import IntegrityError
 
 # Local imports
 from references import br_references
@@ -235,22 +236,48 @@ def insert_prediction_table(data, session, pred_tbl, sched_tbl, odds_tbl):
         row_obj = pred_tbl(**row)
         row_objects.append(row_obj)
     row_objects = get_odds_id(row_objects, session, odds_tbl)
-    row_objects = get_schedule_attributes(row_objects, session, sched_tbl)
+    row_objects = update_schedule_attributes(row_objects, session, sched_tbl)
 
     session.add_all(row_objects)
 
 
-def update_prediction_table(table):
-    pass
+def update_prediction_table(session, pred_tbl, sched_tbl):
+    """Find and update null or 0 values in the score or bet_result columns of the prediction table."""
+    score_update_objs = session.query(pred_tbl).filter(or_(pred_tbl.home_team_score == 0,
+                                                           pred_tbl.away_team_score == 0)).all()
+    score_update_objs = update_schedule_attributes(score_update_objs, session, sched_tbl)
+    session.add_all(score_update_objs)
+
+    bet_update_objs = session.query(pred_tbl).filter(pred_tbl.bet_result.is_(None), pred_tbl.home_team_score > 0).all()
+    bet_update_objs = update_bet_results(bet_update_objs)
+    session.add_all(bet_update_objs)
 
 
-def get_game_identifiers(row_objects):
+def update_bet_results(update_objects):
+    """Take update_objects, determine the prediction result, and add the result to each row in update_objects"""
+    for row in update_objects:
+        score_margin = row.home_team_score - row.away_team_score
+        line_inverse = row.line * -1
+        prediction = row.prediction
+        if score_margin == line_inverse:
+            row.bet_result = "PUSH"
+        elif (score_margin < line_inverse) and (prediction < line_inverse):
+            row.bet_result = "WIN"
+        elif (score_margin > line_inverse) and (prediction > line_inverse):
+            row.bet_result = "WIN"
+        else:
+            row.bet_result = "LOSS"
+    return update_objects
+
+
+
+def get_game_identifiers(update_objects):
     """Return a dictionary of home_team, start_team, and start_time that forms a unique identifier
 
     The unique identifier works for every table in the database as home_team, away_team, and start_time are unique
     and constant for every table which involves games in the database"""
     query_dict = {"home_team": [], "away_team": [], "start_time": []}
-    for row in row_objects:
+    for row in update_objects:
         query_dict["home_team"].append(row.home_team)
         query_dict["away_team"].append(row.away_team)
         query_dict["start_time"].append(row.start_time)
@@ -271,12 +298,24 @@ def get_odds_id(row_objects, session, odds_tbl):
     return row_objects
 
 
-def get_schedule_attributes(row_objects, session, sched_tbl):
-    identifiers = get_game_identifiers(row_objects)
+def update_schedule_attributes(update_objects, session, sched_tbl):
+    """Match a row object with a game from schedule, add the game's information to the object, and return the objects
+
+    Note: This matches game.id with the row_object. This is necessary for insertions, but the attribute should already
+    be present on updates. Therefore, it's a superfluous action when the function is called by update functions. Use
+    KWARGS to fix?
+
+    Args:
+        update_objects: Objects to update. Expects objects to contain table rows that do not have an updated score
+        and/or game.id
+        session: A SQLalchemy Session object
+        sched_tbl: Mapped schedule table object
+    """
+    identifiers = get_game_identifiers(update_objects)
     sched_query = session.query(sched_tbl).filter(sched_tbl.home_team.in_(identifiers["home_team"]),
                                                   sched_tbl.away_team.in_(identifiers["away_team"]),
                                                   sched_tbl.start_time.in_(identifiers["start_time"])).all()
-    for row in row_objects:
+    for row in update_objects:
         for game in sched_query:
             if row.home_team == game.home_team and row.away_team == game.away_team \
                     and row.start_time == game.start_time:
@@ -284,7 +323,7 @@ def get_schedule_attributes(row_objects, session, sched_tbl):
                 row.home_team_score = game.home_team_score
                 row.away_team_score = game.away_team_score
                 break
-    return row_objects
+    return update_objects
 
 
 def main(database, session, league_year, day, month, year, console_out):
@@ -316,11 +355,17 @@ def main(database, session, league_year, day, month, year, console_out):
     pred_tbl = database.get_table_mappings("predictions_{}".format(league_year))
 
     # Results are sent to DataManipulator in row format, so just pass data.data instead of data.dict_to_rows()
-    insert_prediction_table(data.data, session, pred_tbl, sched_tbl, odds_tbl)
-    session.commit()
-    update_prediction_table()
+    try:
+        insert_prediction_table(data.data, session, pred_tbl, sched_tbl, odds_tbl)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        update_prediction_table(session, pred_tbl, sched_tbl)
+        session.commit()
+    finally:
+        session.close()
 
-    # session.commit()
+    test = 2
 
 
 if __name__ == "__main__":
@@ -328,4 +373,4 @@ if __name__ == "__main__":
     year = 2019
     session = Session(bind=database.engine)
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
-    main(database, session, league_year=2019, day=14, month=3, year=2019, console_out=False)
+    main(database, session, league_year=2019, day=15, month=3, year=2019, console_out=False)

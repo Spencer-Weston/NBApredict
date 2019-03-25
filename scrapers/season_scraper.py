@@ -134,4 +134,3 @@ def scrape(database, session, year=2019):
         update_season_table(session, schedule, pandas.DataFrame(season_data))
 
     return True
-
