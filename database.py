@@ -104,7 +104,7 @@ class Database:
         """Creates all tables which have been made with the Base class of the Database"""
         self.metadata.create_all(self.engine)
 
-    def map_table(self, tbl_name, column_types, constraints=False, relationships=False):
+    def map_table(self, tbl_name, column_types, constraints=None, relationships=None):
         """Maps a dictionary keyed on column names with Type values and, optionally, constraints
 
         Args:
@@ -112,7 +112,7 @@ class Database:
             column_types: A dictionary with column names as keys and sql types as values
             constraints: A dictionary of desired constraints where the constraints (Such as UniqueConstraint) are keys
             and the columns to be constrained is a list of string column names
-            relationships: A dictionary of the desired relationships (functionality not yet tested) 
+            relationships: A dictionary of the desired relationships (functionality not yet tested)
         """
         columns = self._generate_columns(column_types)
         if constraints and relationships:
