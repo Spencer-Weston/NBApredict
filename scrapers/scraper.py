@@ -10,9 +10,10 @@ import path
 if not os.path.isdir(path.output_directory()):
     os.mkdir(path.output_directory())
 
+
 # Set up database environment
-db = database.Database(r"sqlite:///outputs//nba_db.db")
-test = database.Database(path.database_file())
+db_path = path.database_file(os.path.dirname(__file__))
+db = database.Database(db_path)
 year = 2019
 session = Session(bind=db.engine)
 
