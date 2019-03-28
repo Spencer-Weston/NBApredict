@@ -24,7 +24,7 @@ import os
 from database.database import DataManipulator
 from references.br_references import BASE_URL
 from references.br_references import data_stat_headers as headers
-from helpers import general
+from helpers import type
 
 
 def team_statistics(year, tbl_name):
@@ -69,7 +69,7 @@ def parse_table(page, tbl_name):
     data_dict = get_data_dict_from_tbl(table)
     keys = data_dict.keys()
     for key in keys:
-        data_dict[key] = general.set_type(data_dict[key])
+        data_dict[key] = type.set_type(data_dict[key])
 
     return data_dict
 
