@@ -16,7 +16,7 @@ from sqlalchemy import UniqueConstraint
 
 
 from br_web_scraper import client
-from database.database import DataManipulator
+from database.manipulator import DataManipulator
 
 
 def season_to_dict_list(season):

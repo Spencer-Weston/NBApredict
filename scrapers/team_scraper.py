@@ -21,9 +21,9 @@ import requests
 import os
 
 # Local imports
-from database.database import DataManipulator
-from references.br_references import BASE_URL
-from references.br_references import data_stat_headers as headers
+from database.manipulator import DataManipulator
+from helpers.br_references import BASE_URL
+from helpers.br_references import data_stat_headers as headers
 from helpers import type
 
 

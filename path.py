@@ -11,12 +11,12 @@ def project_directory():
 
 
 def output_directory():
-    return "outputs"
+    return os.path.join(project_directory(), "outputs")
 
 
 def database_file():
-    return r"sqlite:///database//nba_db.db"
+    return r"sqlite:///outputs//nba_db.db"
 
 
 def graphs_directory():
-    return "outputs/graphs"
+    return os.path.join(output_directory(), "graphs")

@@ -23,7 +23,7 @@ import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
 
 # Local Packages
-from references import br_references as br
+from helpers import br_references as br
 from scrapers import getters
 
 
