@@ -1,13 +1,15 @@
 import os
+from sqlalchemy.orm import Session
 
 # Local Imports
 from database import database
 from scrapers import team_scraper, season_scraper, line_scraper
-from sqlalchemy.orm import Session
+from helpers import path
+
 
 # Insure the database folder exists
-if not os.path.isdir("database"):
-    os.mkdir("database")
+if not os.path.isdir(path.output_directory()):
+    os.mkdir(path.output_directory())
 
 # Set up database environment
 db = database.Database(r"sqlite:///database//nba_db.db")
