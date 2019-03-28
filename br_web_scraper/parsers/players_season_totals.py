@@ -1,6 +1,6 @@
 from lxml import html
 
-from references.br_references import TEAM_ABBREVIATIONS_TO_TEAM, POSITION_ABBREVIATIONS_TO_POSITION
+from helpers.br_references import TEAM_ABBREVIATIONS_TO_TEAM, POSITION_ABBREVIATIONS_TO_POSITION
 
 
 def parse_player_season_totals(row):

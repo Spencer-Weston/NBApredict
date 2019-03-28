@@ -2,7 +2,7 @@ from lxml import html
 import datetime
 import pytz
 
-from references.br_references import Team
+from helpers.br_references import Team
 
 TEAM_NAME_TO_TEAM = {
     member.value: member
