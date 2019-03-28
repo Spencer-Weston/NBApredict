@@ -129,8 +129,3 @@ def is_python_type(x):
         return True
     else:
         return False
-
-
-def return_project_directory():
-    """Returns the project directory so long as type.py is in the top-level of the project"""
-    return os.path.abspath(os.path.dirname(__file__))

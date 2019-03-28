@@ -10,8 +10,12 @@ def project_directory():
     return os.path.abspath(os.path.dirname(__file__))
 
 
-def database_directory():
+def output_directory():
     return "outputs"
+
+
+def database_file():
+    return r"sqlite:///database//nba_db.db"
 
 
 def graphs_directory():
