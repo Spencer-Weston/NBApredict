@@ -160,7 +160,6 @@ def create_ff_regression_df(ff_df, sched_df, ff_list):
             regression_df = merged.reindex([new_index])
             initialized_df = True
         else:
-
             regression_df = pd.concat([regression_df, merged], sort=True)
     regression_df = regression_df.drop(["key"], axis=1)
 
@@ -241,6 +240,8 @@ def main(database, session, year=2019, graph=False):
     Functions and class docstrings contain specific behaviors for the module.
 
     Args:
+        database: An instantiated Database object from database.py
+        session: An instantiated Session object from sqlalchemy
         year: The year to run the regression for
         graph: A boolean that creates graphs if true
 
@@ -249,11 +250,6 @@ def main(database, session, year=2019, graph=False):
     """
     if not os.path.isdir("graphs") and graph:
         os.mkdir("graphs")
-
-    # Variable setup
-    db_url = "sqlite:///database//nba_db.db"
-    engine = create_engine(db_url)
-    conn = engine.connect()
 
     # Import and specify a list of factors to extract from database
     ff_list = four_factors_list()
@@ -283,7 +279,3 @@ def main(database, session, year=2019, graph=False):
     ff_reg.residual_distribution()
 
     return ff_reg
-
-
-if __name__ == "__main__":
-    main(year=2019, graph=True)

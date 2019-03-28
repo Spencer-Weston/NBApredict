@@ -21,10 +21,10 @@ import requests
 import os
 
 # Local imports
-from database import DataManipulator
+from database.database import DataManipulator
 from references.br_references import BASE_URL
 from references.br_references import data_stat_headers as headers
-import general
+from helpers import general
 
 
 def team_statistics(year, tbl_name):

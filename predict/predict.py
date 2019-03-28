@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 
 # Local imports
 from references import br_references
-from database import DataManipulator, Database
+from database.database import DataManipulator, Database
 from scrapers import getters
 from stats import four_factor_regression as lm
 
@@ -166,9 +166,7 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
     ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
 
     pred_df = create_prediction_df(home_tm, away_tm, ff_df)
-
     prediction = get_prediction(regression, pred_df)
-
     probability, function = line_probability(prediction, line, np.std(regression.residuals))
 
     if console_out:

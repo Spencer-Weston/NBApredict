@@ -1,7 +1,7 @@
 import os
 
 # Local Imports
-import database
+from database import database
 from scrapers import team_scraper, season_scraper, line_scraper
 from sqlalchemy.orm import Session
 

@@ -14,7 +14,7 @@ from sqlalchemy import UniqueConstraint, ForeignKeyConstraint
 from sqlalchemy.exc import IntegrityError
 
 # Local Imports
-from database import DataManipulator
+from database.database import DataManipulator
 from scrapers import getters
 
 
