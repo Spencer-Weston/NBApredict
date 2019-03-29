@@ -24,6 +24,7 @@ def database_file(calling_file_path):
     head_path = project_directory()
     head_folder = os.path.split(head_path)[1]
 
+    calling_file_path = calling_file_path.replace("\\", "/")
     sub_dirs = []
     split_path = os.path.split(calling_file_path)
     path = split_path[0]
