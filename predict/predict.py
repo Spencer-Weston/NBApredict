@@ -326,6 +326,24 @@ def update_schedule_attributes(update_objects, session, sched_tbl):
     return update_objects
 
 
+def predict_all(database, session, league_year):
+    """Generate and store predictions for all games available in the odds table.
+
+    Check if the table exists. If it doesn't, use the first game in the schedule table to generate a table template"""
+    pred_tbl_name = "predictions_{}".format(league_year)
+    if not database.table_exists(pred_tbl_name):
+        regression = lm.main(database=database, session=session, year=year)
+
+        sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
+        first_game_time = session.query()
+
+        sample_game = session.query()
+        sample_game = predict_game(database, session, regression, )
+
+        create_prediction_table(database, data, pred_tbl_name)
+
+
+
 def main(database, session, league_year, date, console_out):
     """Predict games on the specified date and write the results to the database
 
