@@ -15,6 +15,7 @@ Args (default):
 
 from datetime import datetime
 import numpy as np
+import os
 import pandas as pd
 import scipy.stats as stats
 from sqlalchemy.orm import Session, relationship
@@ -22,10 +23,12 @@ from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint, or_
 from sqlalchemy.exc import IntegrityError
 
 # Local imports
-from references import br_references
-from database.database import DataManipulator, Database
+from helpers import br_references
+from database.manipulator import DataManipulator
+from database.database import Database
 from scrapers import getters
 from stats import four_factor_regression as lm
+import path
 
 
 def get_prediction(reg, pred_df):
@@ -363,9 +366,10 @@ def main(database, session, league_year, date, console_out):
 
 
 if __name__ == "__main__":
-    database = Database(r"sqlite:///database//nba_db.db")
+    db_path = path.database_file(os.path.dirname(__file__))
+    database = Database(db_path)
     year = 2019
     session = Session(bind=database.engine)
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
-    date = datetime(2019, 3, 3)
+    date = datetime(2019, 3, 26)
     main(database, session, league_year=2019, date=date, console_out=False)

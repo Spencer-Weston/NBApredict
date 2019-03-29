@@ -15,7 +15,11 @@ def output_directory():
 
 
 def database_file(calling_file_path):
-    """Return the database file path with the path modified in relation to the path the function is called from
+    """Return the database file path with the path modified in relation to the path the function is called from.
+
+    The base path is r"sqlite:///outputs//nba_db.db". This function modifies that path in relation to the calling file
+    path by inserting ..// to the front of the base path. So a file nested one level below the root directory becomes
+    r"sqlite:///..//outputs//nba_db.db"
     """
     head_path = project_directory()
     head_folder = os.path.split(head_path)[1]
@@ -33,11 +37,11 @@ def database_file(calling_file_path):
     if len(sub_dirs) > 0:
         for folder in sub_dirs:
             modified_path = calling_file_path.replace(folder, "..")
-        relative_path_addin = modified_path.split(head_folder)[1]
-        relative_path_addin = relative_path_addin.replace("/", "//")
-        while relative_path_addin[0] == "/":
-            relative_path_addin = relative_path_addin[1:]
-        db_path = r"sqlite:///{}//outputs//nba_db.db".format(relative_path_addin)
+        path_addin = modified_path.split(head_folder)[1]
+        path_addin = path_addin.replace("/", "//")
+        while path_addin[0] == "/":
+            path_addin = path_addin[1:]
+        db_path = r"sqlite:///{}//outputs//nba_db.db".format(path_addin)
         return db_path
     else:
         return r"sqlite:///outputs//nba_db.db"
