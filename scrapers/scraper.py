@@ -2,7 +2,7 @@ import os
 from sqlalchemy.orm import Session
 
 # Local Imports
-from database import database
+from database.database import Database
 from scrapers import team_scraper, season_scraper, line_scraper
 import path
 
@@ -18,4 +18,8 @@ def scrape_all(database, session, year):
 
 
 if __name__ == "__main__":
-    scrape_all()
+    db_path = path.database_file(os.path.dirname(__file__))
+    db = Database(db_path)
+    year = 2019
+    session = Session(bind=db.engine)
+    scrape_all(database=db, session=session, year=year)

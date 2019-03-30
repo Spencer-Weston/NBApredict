@@ -202,6 +202,20 @@ def predict_games_on_day(database, session, games, console_out=False):
     return results
 
 
+def predict_games_in_odds(database, session, regression, league_year):
+    odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
+    all_odds = session.query(odds_tbl).all()
+    sched_tbl = database.get_table_mappings("sched_{}".format(2019))
+    predictions = []
+    for odds in all_odds:
+        home_team = odds.home_team
+        away_team = odds.away_team
+        start_time = odds.start_time
+        line = odds.spread
+        predictions.append(predict_game(database, session, regression, home_team, away_team, start_time, line))
+    return predictions
+
+
 def create_prediction_table(database, data, tbl_name):
     # Create columns from data
     sql_types = data.get_sql_type()
@@ -217,7 +231,7 @@ def create_prediction_table(database, data, tbl_name):
         sql_types.update(col)
     constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
     # Map prediction table
-    database.map_table("predictions_{}".format(year), sql_types, constraint)
+    database.map_table(tbl_name, sql_types, constraint)
 
     # Get tables for relationships
     sched_tbl = database.get_table_mappings(schedule_name)
@@ -231,11 +245,30 @@ def create_prediction_table(database, data, tbl_name):
     database.create_tables()
 
 
-def insert_prediction_table(data, session, pred_tbl, sched_tbl, odds_tbl):
+def insert_predictions(data, session, pred_tbl, sched_tbl, odds_tbl):
+    """Insert all predictions from data into pred_tbl"""
     row_objects = []
     for row in data:
         row_obj = pred_tbl(**row)
         row_objects.append(row_obj)
+    row_objects = get_odds_id(row_objects, session, odds_tbl)
+    row_objects = update_schedule_attributes(row_objects, session, sched_tbl)
+
+    session.add_all(row_objects)
+
+
+def insert_new_predictions(data, session, pred_tbl, sched_tbl, odds_tbl):
+    """Insert unique predictions from data which do not exist in the prediction table"""
+    row_objects = []
+    existing_predictions = session.query(pred_tbl.home_team, pred_tbl.away_team, pred_tbl.start_time).all()
+    existing_predictions = [(game.home_team, game.away_team, game.start_time) for game in existing_predictions]
+    for row in data:
+        game_identifier = (row["home_team"], row["away_team"], row["start_time"])
+        if game_identifier in existing_predictions:
+            continue
+        else:
+            row_obj = pred_tbl(**row)
+            row_objects.append(row_obj)
     row_objects = get_odds_id(row_objects, session, odds_tbl)
     row_objects = update_schedule_attributes(row_objects, session, sched_tbl)
 
@@ -290,11 +323,16 @@ def get_odds_id(row_objects, session, odds_tbl):
                                                 odds_tbl.away_team.in_(identifiers["away_team"]),
                                                 odds_tbl.start_time.in_(identifiers["start_time"])).all()
     for row in row_objects:
+        id_found = False
         for odds in odds_query:
             if row.home_team == odds.home_team and row.away_team == odds.away_team \
                     and row.start_time == odds.start_time:
                 row.odds_id = odds.id
+                id_found = True
                 break
+        if not id_found:
+            row.odds_id = None
+
     return row_objects
 
 
@@ -326,22 +364,47 @@ def update_schedule_attributes(update_objects, session, sched_tbl):
     return update_objects
 
 
+def prepare_prediction_tbl(database, session, league_year, regression, pred_tbl_name):
+    """Generate a sample prediction to base the table off of then create the table"""
+    odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
+    first_game_odds = session.query(odds_tbl).order_by(odds_tbl.start_time).first()
+
+    home_tm = first_game_odds.home_team
+    away_tm = first_game_odds.away_team
+    start_time = first_game_odds.start_time
+    line = first_game_odds.spread
+
+    sample_prediction = predict_game(database, session, regression, home_tm, away_tm, start_time, line)
+    data = DataManipulator(sample_prediction)
+    create_prediction_table(database, data, pred_tbl_name)
+
+
 def predict_all(database, session, league_year):
     """Generate and store predictions for all games available in the odds table.
 
-    Check if the table exists. If it doesn't, use the first game in the schedule table to generate a table template"""
+    Check if the table exists. If it doesn't, generate a table in the database.
+    """
+    regression = lm.main(database=database, session=session, year=league_year)
     pred_tbl_name = "predictions_{}".format(league_year)
+
     if not database.table_exists(pred_tbl_name):
-        regression = lm.main(database=database, session=session, year=year)
+        prepare_prediction_tbl(database, session, league_year, regression, pred_tbl_name)
 
-        sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
-        first_game_time = session.query()
+    results = predict_games_in_odds(database, session, regression, league_year)
 
-        sample_game = session.query()
-        sample_game = predict_game(database, session, regression, )
+    pred_tbl = database.get_table_mappings(pred_tbl_name)
+    sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
+    odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
 
-        create_prediction_table(database, data, pred_tbl_name)
+    try:
+        insert_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        insert_new_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
+        session.commit()
 
+    update_prediction_table(session, pred_tbl, sched_tbl)
 
 
 def main(database, session, league_year, date, console_out):
@@ -373,7 +436,7 @@ def main(database, session, league_year, date, console_out):
 
     # Results are sent to DataManipulator in row format, so just pass data.data instead of data.dict_to_rows()
     try:
-        insert_prediction_table(data.data, session, pred_tbl, sched_tbl, odds_tbl)
+        insert_predictions(data.data, session, pred_tbl, sched_tbl, odds_tbl)
         session.commit()
     except IntegrityError:
         session.rollback()
