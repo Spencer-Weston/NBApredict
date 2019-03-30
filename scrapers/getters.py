@@ -44,3 +44,6 @@ def get_pandas_df_from_table(database, session, tbl_name, qualifiers=False):
         return pd.read_sql(query.statement, query.session.bind)[qualifiers]
     else:
         return pd.read_sql(query.statement, query.session.bind)
+
+
+# def get_first_start_time_on_date(date):

@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 from sqlalchemy.orm import Session
 
@@ -21,3 +22,6 @@ predict.predict_all(db, session, year)
 session.commit()
 
 session.close()
+
+now = datetime.now()
+print("Scheduled run completed at {}".format(now))
