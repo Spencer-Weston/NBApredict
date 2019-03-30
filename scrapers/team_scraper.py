@@ -118,8 +118,6 @@ def scrape(database, year=2019, tbl_name="misc_stats"):
         year: The league year of the desired season
         tbl_name: Name of the table to be scraped
     """
-    if not os.path.isdir("./database"):
-        os.mkdir("database")
 
     # Get tbl_dictionary from basketball reference
     tbl_dict = team_statistics(year, tbl_name)

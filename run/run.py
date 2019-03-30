@@ -14,7 +14,7 @@ db = Database(db_path)
 year = 2019
 session = Session(bind=db.engine)
 
-#scraper.scrape_all()
+scraper.scrape_all(db, session, year)
 session.commit()
 
 predict.predict_all(db, session, year)

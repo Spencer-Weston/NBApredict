@@ -197,7 +197,6 @@ def scrape(database, session, year=2019):
         Bovada, the scraped site, displays only day-of our future date betting lines.
     """
 
-    # schedule = database.get_tables("sched_{}".format(year))
     schedule = database.get_table_mappings("sched_{}".format(year))
     date = datetime.date(datetime.now())
     games = getters.get_games_on_day(schedule, session, date)
