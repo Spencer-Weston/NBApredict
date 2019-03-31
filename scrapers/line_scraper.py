@@ -67,8 +67,14 @@ def odds_for_today(games_query):
         if not money_lines:
             home_moneyline = None
             away_moneyline = None
-        game_lines = [home_team, away_team, start_datetime, spread, home_spread_price, away_spread_price,
-                      home_moneyline, away_moneyline, scrape_time]
+        try:
+            game_lines = [home_team, away_team, start_datetime, spread, home_spread_price, away_spread_price,
+                          home_moneyline, away_moneyline, scrape_time]
+        except NameError:
+            if datetime.now() > start_datetime:
+                print("The game between {} and {} at {} is either ongoing or completed. Not scraping".format(
+                    home_team, away_team, start_datetime))
+                continue
 
         # This section depends on python 3.7+ to preserve the order of dict keys in lines
         i = 0
