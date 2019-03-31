@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 
 # Local Imports
 from database.manipulator import DataManipulator
-from scrapers import getters
+from database import getters
 
 
 def odds_for_today(games_query):

@@ -17,14 +17,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
-from sqlalchemy import create_engine
 import scipy.stats as stats
 import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
 
 # Local Packages
 from helpers import br_references as br
-from scrapers import getters
+from database import getters
 
 
 class LinearRegression:

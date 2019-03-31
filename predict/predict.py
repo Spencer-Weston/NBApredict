@@ -26,7 +26,7 @@ from sqlalchemy.exc import IntegrityError
 from helpers import br_references
 from database.manipulator import DataManipulator
 from database.database import Database
-from scrapers import getters
+from database import getters
 from stats import four_factor_regression as lm
 import path
 
