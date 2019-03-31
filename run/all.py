@@ -10,15 +10,12 @@ from scrapers import scraper
 
 
 def run_all():
-    print("name:", __name__)
     if __name__ != "__main__":
-        print("here")
         file_path = os.getcwd()
         db_path = path.database_file(file_path)
     # Setup environment
     else:
         db_path = path.database_file(os.path.dirname(__file__))
-    print(db_path)
     db = Database(db_path)
     year = 2019
     session = Session(bind=db.engine)
@@ -32,7 +29,7 @@ def run_all():
     session.close()
 
     now = datetime.now()
-    print("Scheduled run completed at {}".format(now))
+    print("run_all() completed at {}".format(now))
 
 
 if __name__ == "__main__":
