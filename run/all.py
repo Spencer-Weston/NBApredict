@@ -10,12 +10,12 @@ from scrapers import scraper
 
 
 def run_all():
-    # if __name__ != "__main__":
-    #     file_path = os.getcwd()
-    #     db_path = path.database_file(file_path)
-    # # Setup environment
-    # else:
-    #     db_path = path.database_file(os.path.dirname(__file__))
+    if __name__ != "__main__":
+        file_path = os.getcwd()
+        db_path = path.database_file(file_path)
+    # Setup environment
+    else:
+        db_path = path.database_file(os.path.dirname(__file__))
 
     db = Database()
     year = 2019
@@ -30,6 +30,8 @@ def run_all():
     session.commit()
     print("HERE4")
     session.close()
+
+    return True
 
 
 if __name__ == "__main__":

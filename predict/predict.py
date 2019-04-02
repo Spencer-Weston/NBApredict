@@ -251,7 +251,7 @@ def insert_predictions(data, session, pred_tbl, sched_tbl, odds_tbl):
     for row in data:
         row_obj = pred_tbl(**row)
         row_objects.append(row_obj)
-    row_objects = get_odds_id(row_objects, session, odds_tbl)
+    row_objects = update_odds_id(row_objects, session, odds_tbl)
     row_objects = update_schedule_attributes(row_objects, session, sched_tbl)
 
     session.add_all(row_objects)
@@ -269,18 +269,21 @@ def insert_new_predictions(data, session, pred_tbl, sched_tbl, odds_tbl):
         else:
             row_obj = pred_tbl(**row)
             row_objects.append(row_obj)
-    row_objects = get_odds_id(row_objects, session, odds_tbl)
-    row_objects = update_schedule_attributes(row_objects, session, sched_tbl)
+    if len(row_objects) > 0:
+        row_objects = update_odds_id(row_objects, session, odds_tbl)
+        row_objects = update_schedule_attributes(row_objects, session, sched_tbl)
+        session.add_all(row_objects)
 
-    session.add_all(row_objects)
 
-
-def update_prediction_table(session, pred_tbl, sched_tbl):
-    """Find and update null or 0 values in the score or bet_result columns of the prediction table."""
+def update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl):
+    """Find and update null or 0 values in the score, odds_id, or bet_result columns of the prediction table."""
     score_update_objs = session.query(pred_tbl).filter(or_(pred_tbl.home_team_score == 0,
                                                            pred_tbl.away_team_score == 0)).all()
     score_update_objs = update_schedule_attributes(score_update_objs, session, sched_tbl)
     session.add_all(score_update_objs)
+
+    odds_update_objs = session.query(pred_tbl).filter(pred_tbl.odds_id.is_(None))
+    odds_update_objs = update_odds_id(odds_update_objs, session, odds_tbl)
 
     bet_update_objs = session.query(pred_tbl).filter(pred_tbl.bet_result.is_(None), pred_tbl.home_team_score > 0).all()
     bet_update_objs = update_bet_results(bet_update_objs)
@@ -317,7 +320,7 @@ def get_game_identifiers(update_objects):
     return query_dict
 
 
-def get_odds_id(row_objects, session, odds_tbl):
+def update_odds_id(row_objects, session, odds_tbl):
     identifiers = get_game_identifiers(row_objects)
     odds_query = session.query(odds_tbl).filter(odds_tbl.home_team.in_(identifiers["home_team"]),
                                                 odds_tbl.away_team.in_(identifiers["away_team"]),
@@ -384,27 +387,34 @@ def predict_all(database, session, league_year):
 
     Check if the table exists. If it doesn't, generate a table in the database.
     """
+    print("P HERE")
     regression = lm.main(database=database, session=session, year=league_year)
     pred_tbl_name = "predictions_{}".format(league_year)
+    print("P HERE2")
 
     if not database.table_exists(pred_tbl_name):
+        print("P HERE3")
         prepare_prediction_tbl(database, session, league_year, regression, pred_tbl_name)
 
     results = predict_games_in_odds(database, session, regression, league_year)
-
+    print("P HERE4")
     pred_tbl = database.get_table_mappings(pred_tbl_name)
     sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
     odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
 
-    try:
-        insert_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        insert_new_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
-        session.commit()
+    # try:
+    #     print("P HERE5")
+    #     insert_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
+    # except IntegrityError:
+    #     print("P HERE6")
+    #     session.rollback()
+    insert_new_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
 
-    update_prediction_table(session, pred_tbl, sched_tbl)
+    session.commit()
+
+    print("P HERE7")
+    update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl)
+    print("P HERE8")
 
 
 def main(database, session, league_year, date, console_out):

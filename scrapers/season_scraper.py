@@ -118,11 +118,13 @@ def scrape(database, session, year=2019):
     To-do:
         Add
     """
-
+    print("SS HERE0")
     tbl_name = "sched_{}".format(year)
 
+    print("SS HERE")
     # Create table
     season_data = client.season_schedule(year)
+    print("SS HERE2")
     season_data = br_enum_to_string(season_data)
     data = DataManipulator(season_data)
 
