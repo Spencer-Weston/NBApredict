@@ -5,7 +5,6 @@ import logging
 from sqlalchemy.orm import Session
 import time
 
-
 # Local Imports
 from database import getters
 from database.database import Database
@@ -19,34 +18,45 @@ def run_all_daily():
     session = Session(bind=database.engine)
     sched_tbl = database.get_table_mappings("sched_{}".format(year))
 
+    # Get today and the last day of the season so jobs can be scheduled from today through end of season
+    start_date = datetime.date(datetime.now())
+    end_date = session.query(sched_tbl.start_time).order_by(sched_tbl.start_time.desc()).first()[0]
+    end_date = datetime.date(end_date)
+
+    # Get every date between now and the last day of the season
+    date = start_date
+    game_dates = [date]
+    while date <= end_date:
+        date = date + timedelta(days=1)
+        game_dates.append(date)
+
+    # Get start times for every day in date if there are games on that day
+    start_times = []
+    for date in game_dates:
+        first_game_time = getters.get_first_game_time_on_day(sched_tbl, session, date)
+        if first_game_time:
+            start_times.append(first_game_time - timedelta(hours=1))
+
+    # Transform start times into chron arguments as triggers
+    cron_args = [datetime_to_dict(s_time) for s_time in start_times]
+    # tests = [datetime.now() + timedelta(minutes=delta) for delta in range(2, 8, 2)]
+    # cron_args = [datetime_to_dict(t_time) for t_time in tests]
+
     # Schedule setup
     scheduler = BackgroundScheduler()
     scheduler.add_listener(job_runs, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
-    cron_args = datetime_to_dict(datetime.now() + timedelta(minutes=1))
-    job = scheduler.add_job(run_all, "cron", **cron_args)
-    test = scheduler.start()
+    # cron_args = datetime_to_dict(datetime.now() + timedelta(minutes=1))
+    for kwargs in cron_args:
+        scheduler.add_job(run_all, "cron", **kwargs)
+    scheduler.start()
     scheduler.print_jobs()
 
     logging.basicConfig()
     logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-    while True:
-        print("in daily infinite while loop")
-        date = datetime.date(datetime.now())
-        first_game_time = getters.get_first_game_time_on_day(sched_tbl, session, date)
-        cron_args = datetime_to_dict(datetime.now() - timedelta(hours=1))
-        job = scheduler.add_job(run_all, "cron", **cron_args)
-        test = 2
-    # date = datetime.date(datetime.now())
-    # first_game_time = getters.get_first_game_time_on_day(sched_tbl, session, date)
-    # next_run_time = first_game_time - timedelta(hours=1)
-    # cron_args = datetime_to_dict(next_run_time)
-    #
-    # scheduler.reschedule_job(job.id, "cron", **cron_args)
-    #
-    # print("not time to run yet @ {}!".format(datetime.now()))
-    # time.sleep(30)
-    # print("Completed a check @ {}!".format(datetime.now()))
+    while len(scheduler.get_jobs()) > 0:
+        time.sleep(1200)
+        print("{} jobs remaining".format(len(scheduler.get_jobs())))
 
 
 def datetime_to_dict(d_time):

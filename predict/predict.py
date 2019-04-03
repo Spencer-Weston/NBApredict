@@ -284,6 +284,7 @@ def update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl):
 
     odds_update_objs = session.query(pred_tbl).filter(pred_tbl.odds_id.is_(None))
     odds_update_objs = update_odds_id(odds_update_objs, session, odds_tbl)
+    session.add_all(odds_update_objs)
 
     bet_update_objs = session.query(pred_tbl).filter(pred_tbl.bet_result.is_(None), pred_tbl.home_team_score > 0).all()
     bet_update_objs = update_bet_results(bet_update_objs)
@@ -387,17 +388,13 @@ def predict_all(database, session, league_year):
 
     Check if the table exists. If it doesn't, generate a table in the database.
     """
-    print("P HERE")
     regression = lm.main(database=database, session=session, year=league_year)
     pred_tbl_name = "predictions_{}".format(league_year)
-    print("P HERE2")
 
     if not database.table_exists(pred_tbl_name):
-        print("P HERE3")
         prepare_prediction_tbl(database, session, league_year, regression, pred_tbl_name)
 
     results = predict_games_in_odds(database, session, regression, league_year)
-    print("P HERE4")
     pred_tbl = database.get_table_mappings(pred_tbl_name)
     sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
     odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
@@ -412,9 +409,7 @@ def predict_all(database, session, league_year):
 
     session.commit()
 
-    print("P HERE7")
     update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl)
-    print("P HERE8")
 
 
 def main(database, session, league_year, date, console_out):
@@ -450,7 +445,7 @@ def main(database, session, league_year, date, console_out):
         session.commit()
     except IntegrityError:
         session.rollback()
-        update_prediction_table(session, pred_tbl, sched_tbl)
+        update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl)
         session.commit()
     finally:
         session.close()

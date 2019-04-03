@@ -21,14 +21,10 @@ def run_all():
     year = 2019
     session = Session(bind=db.engine)
 
-    print("HERE")
     scraper.scrape_all(db, session, year)
-    print("HERE2")
     session.commit()
-    print("HERE3")
     predict.predict_all(db, session, year)
     session.commit()
-    print("HERE4")
     session.close()
 
     return True
