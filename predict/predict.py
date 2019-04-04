@@ -407,7 +407,7 @@ def predict_all(database, session, league_year):
     #     session.rollback()
     insert_new_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
 
-    session.commit()
+    session.commit()  # Commit here b/c update_prediction_tbl() needs the inserted values
 
     update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl)
 

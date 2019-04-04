@@ -17,27 +17,27 @@ from sqlalchemy.ext.automap import automap_base
 import path
 
 
-def create_col_definitions(tbl_name, id_type_dict, foreign_key=False):
-    """Create and return a dictionary of column specifications for a sql_alchemy table.
-
-    Returns a dictionary that begins with __table__name and an integer id followed by columns as specified
-    in the id_type_dict
-
-    Args:
-        tbl_name: name of the table to create column definitions for
-        id_type_dict: dictionary of column id's as keys and sql_alchemy sql types as values
-        foreign_key: To add a foreign key column, pass a string formatted as foreign "table.column"
-    Returns:
-        Column definitions
-    """
-    col_specs = {'__tablename__': '{}'.format(tbl_name),
-                 'id': Column(Integer, primary_key=True)}
-    if foreign_key:
-        col_specs[foreign_key] = Column(foreign_key, Integer, ForeignKey(foreign_key), nullable=False, unique=True)
-    for key in id_type_dict:
-        col_specs[key] = Column(id_type_dict[key])
-
-    return col_specs
+# def create_col_definitions(tbl_name, id_type_dict, foreign_key=False):
+#     """Create and return a dictionary of column specifications for a sql_alchemy table.
+#
+#     Returns a dictionary that begins with __table__name and an integer id followed by columns as specified
+#     in the id_type_dict
+#
+#     Args:
+#         tbl_name: name of the table to create column definitions for
+#         id_type_dict: dictionary of column id's as keys and sql_alchemy sql types as values
+#         foreign_key: To add a foreign key column, pass a string formatted as foreign "table.column"
+#     Returns:
+#         Column definitions
+#     """
+#     col_specs = {'__tablename__': '{}'.format(tbl_name),
+#                  'id': Column(Integer, primary_key=True)}
+#     if foreign_key:
+#         col_specs[foreign_key] = Column(foreign_key, Integer, ForeignKey(foreign_key), nullable=False, unique=True)
+#     for key in id_type_dict:
+#         col_specs[key] = Column(id_type_dict[key])
+#
+#     return col_specs
 
 
 class Database:
