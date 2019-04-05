@@ -1,24 +1,17 @@
 """
-Author: Spencer Weston
+team_scraper scrapes and stores team stats from basketball reference.
 
-Purpose: team_scraper is used to scrape team stats from basketball reference. By default, it scrapes miscellaneous
-stats in 2019. Alternate years and tables may be scraped though functionality is not yet guaranteed. The scraped
-tables are written to the specified database.
-
-Args (defaults):
-    Year (2019) - Desired year
-    tbl_name ('misc_stats') - Name of the table to be scraped
-    db_url ('sqlite:///database//nba_db.db') - Path to the database the table should be written to
+By default, it scrapes miscellaneous stats from 2019. Alternate years and tables may be scraped though functionality is
+not yet guaranteed. The scraped tables are written to the specified database.
 
 To-Do:
-    1. Create a method for stripping extraneous characters from team-names. If querying a historical season, the teams
-    that made the playoffs have a '*' appended that we want to strip from the team-name
+    1. Create a method for stripping extraneous characters from team-names. If querying a historical season (<2001),
+    the teams that made the playoffs have a '*' appended that we want to strip from the team-name
 """
 
 from bs4 import BeautifulSoup  # Requires lxml to be installed as well
 import re
 import requests
-import os
 
 # Local imports
 from database.manipulator import DataManipulator
@@ -27,13 +20,13 @@ from helpers.br_references import data_stat_headers as headers
 from helpers import type
 
 
-def team_statistics(year, tbl_name):
-    """Build a URL for the specified year and return team box scores for a specified table on that page.
+def team_statistics(league_year, tbl_name):
+    """Build a URL for the specified year and return team statistics for the specified table on that page.
 
     Performance not guaranteed for tables that are not "misc_stats"
 
     Args:
-        year: The year of the stats to be returned
+        league_year: The league year of the stats to be returned
         tbl_name: The name of the table to be returned
 
     Returns:
@@ -42,7 +35,7 @@ def team_statistics(year, tbl_name):
 
     url = '{BASE_URL}/leagues/NBA_{year}.html'.format(
         BASE_URL=BASE_URL,  # imported from br_references.py
-        year=year
+        year=league_year
     )
 
     response = requests.get(url=url, allow_redirects=False)
@@ -110,17 +103,17 @@ def clean_team_name(team_names):
     return new_team_names
 
 
-def scrape(database, year=2019, tbl_name="misc_stats"):
+def scrape(database, league_year=2019, tbl_name="misc_stats"):
     """Scrape a basketball_reference table of team stats, parse the table, and write it to a database
 
     Args:
-        database: A Database class from database.py which dictates table interactions
-        year: The league year of the desired season
-        tbl_name: Name of the table to be scraped
+        database: An instantiated Database object from database.database for database interactions
+        league_year: The league year to scrape data from (i.e. 2018-2019 season is 2019)
+        tbl_name: The name of the table to scrape on basketballreference.com
     """
 
     # Get tbl_dictionary from basketball reference
-    tbl_dict = team_statistics(year, tbl_name)
+    tbl_dict = team_statistics(league_year, tbl_name)
     tbl_dict["team_name"] = clean_team_name(tbl_dict["team_name"])
 
     data = DataManipulator(tbl_dict)
@@ -128,7 +121,7 @@ def scrape(database, year=2019, tbl_name="misc_stats"):
     sql_types = data.get_sql_type()
 
     # Initial tbl_name is for scraping basketball reference; Year is added to disambiguate tables
-    tbl_name = '{}_{}'.format(tbl_name, year)
+    tbl_name = '{}_{}'.format(tbl_name, league_year)
 
     if database.table_exists(tbl_name):  # Table needs to be completely reset each run
         database.drop_table(tbl_name)
