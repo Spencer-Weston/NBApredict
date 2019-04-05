@@ -1,3 +1,6 @@
+"""
+manpulator holds the DataManipulator class which aims to coerce and extract raw_data into SQLalchemy compatible formats.
+"""
 from datetime import datetime
 from helpers import type
 from sqlalchemy import Integer, Float, String, DateTime, Boolean
@@ -6,27 +9,32 @@ from sqlalchemy import Integer, Float, String, DateTime, Boolean
 class DataManipulator:
     """DataManipulator takes scraped data in init, and uses its member functions to return manipulations of that data"""
 
-    def __init__(self, data_dict):
+    def __init__(self, data):
         """Stores the data dictionary passed to it
 
         Args:
-            data_dict: A dictionary of data which will, usually, reflect data scraped from a website"""
-        self.data = data_dict
+            data: A dictionary of data which will, usually, reflect data scraped from a website. Two dictionary
+            formats are accepted. First, data may hold column names with data values formatted as:
+            data[col1] = [val1, val2, ...]
+            data[col2] = [val1, val2, ...]
+            Second, data may be a list of rows formatted as:
+            data[0] = {col1: val1, col2: val1, colx: val1}
+            data[x] = {col1: valx, col2: valx, colx: valx}
+        """
+        self.data = data
         self.rows = None
 
     def get_sql_type(self):
-        """Take the object's dictionary {key: [values]} and return a dictionary formatted as {key: SQLtype}
-
+        """Take the object's data and return a dictionary formatted as {key: SQLtype}.
 
         Returns:
             A dictionary with the same keys as tbl_dict. The dictionary's values are the sql_types of each key:value
-            pair in tbl_dict. The sql_types are defined to function with sqlalchemy.
+            pair in tbl_dict. The sql_types are defined to function with SQLalchemy as column definitions.
         """
         py_types = self._get_py_type()  # py_types is a dict
         sql_types = self._py_type_to_sql_type(py_types)
         return sql_types
 
-    # Type conversion functions (python types, sql types, sqlalchemy types)
     def _get_py_type(self):
         """Take the classes data values and return a dictionary that holds the python type for the values.
 
@@ -56,7 +64,7 @@ class DataManipulator:
             An exception if a py_type is not an integer, float, string, datetime, bool, or none
 
         To-do:
-            Change the logic into a switch statement
+            * Change the logic into a switch statement
         """
 
         sql_types = dict()
@@ -81,13 +89,13 @@ class DataManipulator:
 
     # Table modification functions
     def dict_to_rows(self):
-        """Convert and return an input dictionary into rows compatible with sqlalchemy's insert function
+        """Convert and return class data into rows compatible with sqlalchemy's insert function
 
         Currently presumes each dictionary object is a list of equivalent length. Calls _dict_to_rows() to do primary
         processing. Does not yet function with lists.
 
         Returns:
-            a list of rows compatible with sqlalchemy's insert function
+            a list of rows compatible with SQLalchemy's
 
         Raise:
             Exception: If the input is neither a list nor dictionary, an exception is raised
@@ -102,7 +110,7 @@ class DataManipulator:
             raise Exception("tbl is neither a list or dictionary, and cannot be handled")
 
     def _dict_to_rows(self):
-        """Convert and return an input dictionary into rows compatible with sqlalchemy's insert function"""
+        """Convert and return an input dictionary into rows compatible with SQLalchemy"""
 
         rows = []
         keys = list(self.data.keys())
