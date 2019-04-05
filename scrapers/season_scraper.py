@@ -1,13 +1,8 @@
 """
-Author: Spencer Weston
+season_scraper scrapes data from a specified season and writes it to the specified database.
 
-Purpose: season_scraper scrapes data from a specified season and writes it to the specified database. The
-basketball_reference_web_scraper package is used to scrape the data. The data is then formatted and written to the
+The basketball_reference_web_scraper package is used to scrape the data. The data is then formatted and written to the
 database. The table is automatically named 'sched' for schedule with the year appended as in 'sched_2019'.
-
-Args (default):
-    year (2019): The year of the season desired
-    db_url ('sqlite:///database//nba_db.db'): Path to the database where data should be written
 """
 
 from datetime import datetime
@@ -17,35 +12,6 @@ from sqlalchemy import UniqueConstraint
 
 from br_web_scraper import client
 from database.manipulator import DataManipulator
-
-
-def season_to_dict_list(season):
-    """ DELETE???
-
-    Take a season, parse it into a dictionary of lists, and return the dictionary
-
-    Args:
-        season: A season formatted as if returned by basketball_reference_web_scraper
-
-    Returns:
-        A dictionary formatted as dict[key] = [] where the list contains all values in the season found for that key.
-        Each list is ordered so that all information from game 1 will be in index 0, game 2 in index 1, and so on.
-        For example,
-
-        dict['start_time] = [time1,time2,time3]
-        dict['home_team] = [h_team1, h_team2, h_team3]
-        dict['away_team] = [a_team1, a_team2, a_team3]
-
-        with other keys, such as 'home_team_score' included.
-    """
-    dict_list = dict()
-    for game in season:
-        keys = game.keys()
-        for key in keys:
-            if key not in dict_list.keys():
-                dict_list[key] = []
-            dict_list[key].append(game[key])
-    return dict_list
 
 
 def br_enum_to_string(season):
