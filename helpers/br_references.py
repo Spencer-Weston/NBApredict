@@ -9,7 +9,6 @@ project.
 
 from enum import Enum
 import os
-from helpers import test
 
 
 class Location(Enum):

@@ -1,16 +1,9 @@
 """
-Author: Spencer Weston
+predict contains functions organized around generating game predictions
 
-Purpose: Predict takes a home team, away, team and betting line. It reports a prediction of the margin of victory
-of the two teams and also reports a cumulative density function or survival function, as appropriate, for the betting
-line
-
-Args (default):
-    home_tm: The home team in the matchup
-    away_tm: The away team in the matchup
-    line: The betting line for the matchup
-    year (2019): The year to use data from
-    db_url ('sqlite:///database//nba_db.db'): Path to the database holding data for predictions
+ToDo:
+    In theory, the module will allow multiple model inputs. Thus, we can pass it a linear, bayesian, ML, etc. model,
+    generate results, and store them. That functionality does not exist.
 """
 
 from datetime import datetime
@@ -32,11 +25,11 @@ import path
 
 
 def get_prediction(reg, pred_df):
-    """Generate and return a prediction for the values in the pred_df.
+    """Generate and return a prediction for the observations in the pred_df.
 
     Args:
         reg: LinearRegression class from four_factors_regression.py
-        pred_df: A dataframe of predictive variables from which to generate a prediction
+        pred_df: A dataframe of observations, with home and away statistics, from which to generate a prediction
 
     Returns:
         The predicted value generated from the regression object and the predictors"""
@@ -44,19 +37,20 @@ def get_prediction(reg, pred_df):
 
 
 def get_team_name(team):
-    """Match team to a standard team name (not cap sensitive) and return the br_references standard team name"""
+    """Match team to a standard team name (not cap-sensitive) and return the br_references standard team name."""
     for team_name in br_references.Team:
         if team.lower() == team_name.value.lower():
             return team_name.value
 
 
 def create_prediction_df(home_tm, away_tm, ff_df):
-    """Create and return a dataframe of the four factors for the home and away team.
+    """Create and return a dataframe that merges the four factors for the home and away team.
 
     Args:
         home_tm: The home team
         away_tm: The away team
         ff_df: Dataframe of the four factors for all teams
+
     Returns:
         A single row four factors data frame of the home and away team's four factors
     """
@@ -72,7 +66,7 @@ def create_prediction_df(home_tm, away_tm, ff_df):
 
 
 def get_team_ff(team, ff_df, home):
-    """Create and return a data frame of the four factors for the specified team
+    """Create and return a data frame of the four factors for the specified team.
 
     Args:
         team: The team to extract the four factors for
@@ -101,8 +95,9 @@ def line_probability(prediction, line, std):
         prediction: The prediction for a game
         line: The line associated with the same game as the prediction
         std: The standard deviation of the residuals for the model used to make the prediction
+
     Returns:
-        The likelihood of the betting line if the prediction were true
+        The survival function or cumulative density function for the line in relation to the prediction
     """
     dist = stats.norm(loc=prediction, scale=std)
     line_prediction = -1 * line
@@ -116,7 +111,7 @@ def line_probability(prediction, line, std):
 
 
 def prediction_result_console_output(home_tm, away_tm, line, prediction, probability):
-    """Generate human readable printout comparing the model's predictions, the line, and the p_value of the line
+    """Generate human readable printout comparing the model's predictions, the line, and the p_value of the line.
 
     Args:
         home_tm: The home team
@@ -144,14 +139,14 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
 
 
 def predict_game(database, session, regression, home_tm, away_tm, start_time, line, year=2019, console_out=False):
-    """Generates print statements that predict a game's score and present the CDF or SF or the betting line
+    """Predict a game versus the line, and return the information in a dictionary.
 
-    Cdf is a cumulative density function. SF is a survival function. CDF is calculated when the betting line's
-    prediction is below the model's prediction. SF is calculated when the betting line's prediction is above the model's
-    prediction.
+    Use console out for human readable output if desired.Cdf is a cumulative density function. SF is a survival
+    function. CDF is calculated when the betting line's prediction is below the model's prediction. SF is calculated
+    when the betting line's prediction is above the model's prediction.
 
     Args:
-        database: an instantiated Database class from database.py
+        database: an instantiated Database class from database.database.py
         session: A SQLalchemy session object
         regression: A regression object 
         start_time: Date.datetime with the date and start time of the game
@@ -180,8 +175,13 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
 
 
 def predict_games_on_day(database, session, games, console_out=False):
-    """Take a sqlalchemy query object of games, and return a prediction for each game.
+    """Take a SQLalchemy query object of games, and return a prediction for each game.
 
+    Args:
+        database: an instantiated Database class from database.database.py
+        session: A SQLalchemy session object
+        games: a SQLalchemy query object of games containing start_time, home_tm, away_tm, and the spread
+        console_out: A bool. True to print prediction outputs
     """
     results = []
     regression = lm.main(database=database, session=session, year=year)
@@ -203,6 +203,14 @@ def predict_games_on_day(database, session, games, console_out=False):
 
 
 def predict_games_in_odds(database, session, regression, league_year):
+    """Generate and return predictions for all games with odds in the odds_tbl
+
+    Args:
+        database: An instantiated Database class from database.database.py
+        session: A SQLalchemy session object
+        regression: A linear regression object generated from four_factor_regression
+        league_year: The desired league year for predictions
+    """
     odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
     all_odds = session.query(odds_tbl).all()
     sched_tbl = database.get_table_mappings("sched_{}".format(2019))
@@ -217,6 +225,13 @@ def predict_games_in_odds(database, session, regression, league_year):
 
 
 def create_prediction_table(database, data, tbl_name):
+    """Create a prediction table from the data and with the table name in the database.
+
+    Args:
+        database: An initialized Database class from database.database.py
+        data: An initialized DataManipulator object, from database.manipulator, with prediction data
+        tbl_name: The desired table name (with year as the last four characters)
+    """
     # Create columns from data
     sql_types = data.get_sql_type()
     # Add new columns
@@ -245,10 +260,18 @@ def create_prediction_table(database, data, tbl_name):
     database.create_tables()
 
 
-def insert_predictions(data, session, pred_tbl, sched_tbl, odds_tbl):
-    """Insert all predictions from data into pred_tbl"""
+def insert_predictions(rows, session, pred_tbl, sched_tbl, odds_tbl):
+    """Add rows into the prediction table in session with additional information from sched_tbl and odds_tbl.
+
+    Args:
+        rows: SQLalchemy compatible rows
+        session: A SQLalchemy session object
+        pred_tbl: A mapped prediction table object
+        sched_tbl: A mapped scheduled table object
+        odds_tbl: A mapped odds_tbl object
+    """
     row_objects = []
-    for row in data:
+    for row in rows:
         row_obj = pred_tbl(**row)
         row_objects.append(row_obj)
     row_objects = update_odds_id(row_objects, session, odds_tbl)
@@ -257,12 +280,22 @@ def insert_predictions(data, session, pred_tbl, sched_tbl, odds_tbl):
     session.add_all(row_objects)
 
 
-def insert_new_predictions(data, session, pred_tbl, sched_tbl, odds_tbl):
-    """Insert unique predictions from data which do not exist in the prediction table"""
+def insert_new_predictions(rows, session, pred_tbl, sched_tbl, odds_tbl):
+    """Insert unique predictions in rows which do not already exist in the prediction table.
+
+    Additional information from sched_tbl and odds_tbl is added to the rows as well.
+
+    Args:
+        rows: SQLalchemy compatible rows
+        session: a SQLalchemy session object
+        pred_tbl: A mapped prediction table object
+        sched_tbl: A mapped scheduled table object
+        odds_tbl: A mapped odds_tbl object
+    """
     row_objects = []
     existing_predictions = session.query(pred_tbl.home_team, pred_tbl.away_team, pred_tbl.start_time).all()
     existing_predictions = [(game.home_team, game.away_team, game.start_time) for game in existing_predictions]
-    for row in data:
+    for row in rows:
         game_identifier = (row["home_team"], row["away_team"], row["start_time"])
         if game_identifier in existing_predictions:
             continue
@@ -276,7 +309,14 @@ def insert_new_predictions(data, session, pred_tbl, sched_tbl, odds_tbl):
 
 
 def update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl):
-    """Find and update null or 0 values in the score, odds_id, or bet_result columns of the prediction table."""
+    """Find and update null or 0 values in the score, odds_id, or bet_result columns of the prediction table.
+
+    Args:
+        session: A SQLalchemy session object 
+        pred_tbl: A mapped prediction table object
+        sched_tbl: A mapped scheduled table object
+        odds_tbl: A mapped odds_tbl object
+    """
     score_update_objs = session.query(pred_tbl).filter(or_(pred_tbl.home_team_score == 0,
                                                            pred_tbl.away_team_score == 0)).all()
     score_update_objs = update_schedule_attributes(score_update_objs, session, sched_tbl)
@@ -399,12 +439,6 @@ def predict_all(database, session, league_year):
     sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
     odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
 
-    # try:
-    #     print("P HERE5")
-    #     insert_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
-    # except IntegrityError:
-    #     print("P HERE6")
-    #     session.rollback()
     insert_new_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
 
     session.commit()  # Commit here b/c update_prediction_tbl() needs the inserted values
