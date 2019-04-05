@@ -1,3 +1,7 @@
+"""
+getters contains functions which may be commonly used to get certain subsets of data or data transformations
+"""
+
 from datetime import timedelta
 import pandas as pd
 
@@ -15,6 +19,13 @@ def get_games_on_day(schedule, session, date):
 
 
 def get_first_game_time_on_day(schedule, session, date):
+    """Return the first game game time on the specified date
+
+    Args:
+        schedule: A mapped table object containing a schedule of games
+        session: An instantiated session object
+        date: The date to check for games
+    """
     games_on_day = get_games_on_day(schedule, session, date).subquery()
     first_game = session.query(games_on_day).order_by(games_on_day.c.start_time).first()
     if first_game:
@@ -22,6 +33,7 @@ def get_first_game_time_on_day(schedule, session, date):
         return first_game_time
     else:
         return None
+
 
 def get_spreads_for_date(odds_table, session, date):
     """Return the spreads from the odds_table that correspond to the games
@@ -46,7 +58,7 @@ def get_pandas_df_from_table(database, session, tbl_name, qualifiers=False):
         session: SQLalchemy session object
         tbl_name: name of the desired table
         qualifiers: A list of columns or a function to filter rows by
-        """
+    """
     tbl = database.get_table_mappings(tbl_name)
     query = session.query(tbl)
     if qualifiers:
