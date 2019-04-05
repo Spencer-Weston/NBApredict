@@ -1,3 +1,8 @@
+"""
+JSON interaction class and functions.
+
+Created for a use-case which is no longer needed. This module is not used in the project.
+"""
 import copy
 import json
 import os

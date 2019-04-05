@@ -1,8 +1,5 @@
 """
-Author: Spencer Weston
-
-Purpose: Contains general functions. The NBA_bet project uses these functions. However, their utility is not restricted
-to the project. The functions, for the most part, deal with type checks, type conversions, and length comparisons
+Contains type checks and type conversion functions
 """
 
 from datetime import datetime
