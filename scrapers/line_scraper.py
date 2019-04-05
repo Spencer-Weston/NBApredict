@@ -164,7 +164,7 @@ def update_odds_table(odds_table, sched_tbl, rows, session):
         odds_table: A mapped odds table object from the database
         sched_tbl: A mapped schedule table object from the database
         rows: A dictionary of rows with column names as keys with lists of values
-        session: A SQLalchemy session object  
+        session: A SQLalchemy session object
     """
     row_objects = []
     for row in rows:
