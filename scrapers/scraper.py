@@ -27,7 +27,7 @@ def scrape_all(database, session, league_year):
         os.mkdir(path.output_directory())
 
     team_scrape = team_scraper.scrape(database=database, league_year=league_year)
-    season_scrape = season_scraper.scrape(database=database, session=session, year=league_year)
+    season_scrape = season_scraper.scrape(database=database, session=session, league_year=league_year)
     line_scrape = line_scraper.scrape(database=database, session=session)
 
 
