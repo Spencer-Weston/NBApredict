@@ -1,11 +1,5 @@
 """
-Author: Spencer Weston
-
-Purpose: line_scraper is used to scrape betting odds from Bovada.
-
-Args (defaults):
-
-To-Do:
+line_scraper scrapes NBA betting odds from Bovada and stores them in the database
 """
 
 from datetime import datetime
@@ -19,15 +13,17 @@ from database import getters
 
 
 def odds_for_today(games_query):
-    """Build a URL for the specified year and return team box scores for a specified table on that page.
+    """Match betting odds from Bovada to the games_query and return the odds
 
     Args:
         games_query: A games query object typically returned from getters.get_games_on_day(); Should be the current
         date to reflect the current games on Bovada)
 
     Returns:
+        A dictionary where the column keys lists of values
     """
 
+    # The specific URL that needs to be scraped
     url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba"
 
     response = requests.get(url=url, allow_redirects=False).json()
@@ -48,6 +44,7 @@ def odds_for_today(games_query):
     for game in bovada_games:
         home_team, away_team = parse_teams(game["competitors"])
 
+        # Get only the full match betting information from the game object
         betting_info = game["displayGroups"][0]["markets"]
         full_match_bets = [bet for bet in betting_info if bet["period"]["description"] == "Match"]
 
@@ -145,6 +142,7 @@ def parse_spread(spread_bet):
 
 
 def create_odds_table(database, data, tbl_name):
+    """NEEDS TO BE FIXED"""
     raise Exception("This has NOT been updated to establish the correct foreign keys")
     if not data.validate_data_length():
         raise Exception("Lengths in the data are not equal")
@@ -160,6 +158,14 @@ def create_odds_table(database, data, tbl_name):
 
 
 def update_odds_table(odds_table, sched_tbl, rows, session):
+    """Update the odds_table with the information in rows
+
+    Args:
+        odds_table: A mapped odds table object from the database
+        sched_tbl: A mapped schedule table object from the database
+        rows: A dictionary of rows with column names as keys with lists of values
+        session: A SQLalchemy session object  
+    """
     row_objects = []
     for row in rows:
         # Delete the row in the table if it exists to allow overwrite
@@ -193,24 +199,24 @@ def update_odds_table(odds_table, sched_tbl, rows, session):
                 continue
 
 
-def scrape(database, session, year=2019):
-    """Macro level function to scrape betting lines from Bovada.
+def scrape(database, session, league_year=2019):
+    """Scrapes betting line information from bovada and adds it to the session
 
     Args:
-        database: A database class from database.py
+        database: An instantiated Database object from database.database for database interactions
         session: An instance of a sqlalchemy Session class bound to the database's engine
-        year: The desired league year to scrape. In all likelihood, this will always be the current league year as
-        Bovada, the scraped site, displays only day-of our future date betting lines.
+        league_year: The desired league year to scrape. In all likelihood, this will always be the current league year as
+        Bovada, the scraped site, displays only day-of or future date betting lines.
     """
 
-    schedule = database.get_table_mappings("sched_{}".format(year))
+    schedule = database.get_table_mappings("sched_{}".format(league_year))
     date = datetime.date(datetime.now())
     games = getters.get_games_on_day(schedule, session, date)
 
     lines = odds_for_today(games)
     line_data = DataManipulator(lines)
 
-    tbl_name = "odds_{}".format(year)
+    tbl_name = "odds_{}".format(league_year)
     tbl_exists = database.table_exists(tbl_name)
     if not tbl_exists:
         create_odds_table(database, line_data, tbl_name)

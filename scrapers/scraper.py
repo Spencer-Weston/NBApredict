@@ -19,7 +19,7 @@ def scrape_all(database, session, league_year):
 
     Args:
         database: An instantiated Database object from database.database for database interactions
-        session: A SQLalchemy session object
+        session: An instance of a sqlalchemy Session class bound to the database's engine
         league_year: The league year to scrape data from (i.e. 2018-2019 season is 2019)
     """
     # Insure the database folder exists
