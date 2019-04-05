@@ -1,7 +1,5 @@
 """
-Author: Spencer Weston
-
-This module runs the entire NBA_bet project process one hour before each day's game time.
+This module runs the entire NBA_bet project process daily one hour before the first game time.
 
 It runs one hour before game times in order to capture the most up-to-date betting information. The project is meant to
 be run from the command line. Once running, debug information from the scheduler will be printed as well as notifying
@@ -83,7 +81,7 @@ if __name__ == "__main__":
 
     try:
         while len(scheduler.get_jobs()) > 0:
-            time.sleep(60)
-            print("{} jobs remaining".format(len(scheduler.get_jobs())))
+            time.sleep(1800)
+            print("{} jobs remaining @ {}".format(len(scheduler.get_jobs()), datetime.now()))
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()

@@ -1,5 +1,4 @@
-"""Author: Spencer Weston
-
+"""
 This module runs the entire NBA_bet project.
 
 This module wraps the entire project into a single script with run_all() as the function which drives the script. First,
