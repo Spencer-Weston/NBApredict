@@ -73,8 +73,8 @@ def update_season_table(session, sched_tbl, season_df):
         print("Season is up to date; Returning without performing an update.")
         return
     all_update_rows = update_rows.all()
-    first_game_time = all_update_rows.all()[0].start_time
-    last_game_time = all_update_rows.all()[len(update_rows.all()) - 1].start_time
+    first_game_time = all_update_rows[0].start_time
+    last_game_time = all_update_rows[len(update_rows.all()) - 1].start_time
 
     # Reduce season to games between first and last game time
     season_df["start_time"] = season_df["start_time"].dt.tz_localize(None)
