@@ -1,7 +1,5 @@
 """
-Author: Spencer Weston
-
-Purpose: Contains functions for creating evaluative graphs for regressions
+graphing contains functions for creating evaluative graphs for regressions
 """
 
 import matplotlib.pyplot as plt
@@ -22,7 +20,7 @@ def pred_vs_actual(predictions, target, r_squared, out_path=None):
         out_path: An optional path to save the graph to
     Returns:
         The predicted vs. actual graph
-        """
+    """
 
     # Generate coordinates for a 1:1 line
     minimum = int(predictions.min()) - 1
@@ -78,12 +76,12 @@ def residuals_vs_fitted(predictions, residuals, out_path=None):
     return fig
 
 
-def cooks_distance(cooks_d, out_path):
+def cooks_distance(cooks_d, out_path=None):
     """Create and return a cook's distance graph
 
     Args:
         cooks_d: Cook's distance from a regression
-
+        out_path: optional path to save the figure to
     Returns:
         The cook's distance graph
     """
