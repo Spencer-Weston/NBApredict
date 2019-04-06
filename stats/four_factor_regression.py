@@ -48,6 +48,7 @@ class LinearRegression:
         p_values: p_values of the coefficients
         coefs: values of the coefficients
         output: data frame of coefficients with their values and p_values"""
+    
     def __init__(self, target, predictors):
         """Performs a linear regression and stores pertinent regression outputs as class variables
 
@@ -204,7 +205,8 @@ def ensure_unique_index(index, indices, i=1):  # Indexed to 1 so +1 == 2nd, 3rd,
     """Check if index is in indices, modify index until it's unique, and return the unique index
 
     If the index is unique, it's returned as is. Otherwise, the function calls itself and increments i. The recursion
-    stops when the index and numerical suffix (i) are not in indices.
+    stops when the index and numerical suffix (i) are not in indices. Used to create unique identifiers for multiple
+    matchups between the same teams.
 
     Args:
         index: A string index to check for in indices
@@ -225,7 +227,7 @@ def ensure_unique_index(index, indices, i=1):  # Indexed to 1 so +1 == 2nd, 3rd,
 
 
 def four_factors_list():
-    """Create a four factor(ff) list that contains the ff's and then return."""
+    """Create a four factor(ff) list and identifying information and return it."""
     # Import and specify a list of factors to extract from database
     ff_list = br.four_factors.copy()
 
@@ -237,9 +239,7 @@ def four_factors_list():
 
 
 def main(database, session, year=2019, graph=False):
-    """Create a regression data frame, run a regression with the LinearRegression class, and return the class
-
-    Functions and class docstrings contain specific behaviors for the module.
+    """Create a regression data frame, run a regression through the LinearRegression class, and return the class
 
     Args:
         database: An instantiated Database object from database.py
