@@ -50,8 +50,6 @@ def create_season_table(database, data, tbl_name):
     constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
     database.map_table(tbl_name, sql_types, constraint)
     database.create_tables()
-    # client.season_schedule() returns data in row form. The necessary formatting is done by br_enum_to_string().
-    # data.data is passed, rather than season, just to be explicit and consistent with other scrapers
     database.insert_rows(tbl_name, data.data)
     database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
 
