@@ -48,7 +48,7 @@ class LinearRegression:
         p_values: p_values of the coefficients
         coefs: values of the coefficients
         output: data frame of coefficients with their values and p_values"""
-    
+
     def __init__(self, target, predictors):
         """Performs a linear regression and stores pertinent regression outputs as class variables
 
