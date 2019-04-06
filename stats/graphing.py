@@ -41,7 +41,7 @@ def pred_vs_actual(predictions, target, r_squared, out_path=None):
     ax.text(0.1, 0.9, "R^2 = {}".format(r_squared), transform=ax.transAxes, bbox=dict(fill=False))
 
     if out_path:
-        fig.savefig(out_path)
+        fig.savefig(fname=out_path)
     return fig
 
 

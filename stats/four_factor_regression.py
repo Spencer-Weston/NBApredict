@@ -18,12 +18,15 @@ import numpy as np
 import pandas as pd
 import os
 import scipy.stats as stats
+from sqlalchemy.orm import Session
 import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
 
 # Local Packages
-from helpers import br_references as br
 from database import getters
+from database.database import Database
+from helpers import br_references as br
+import path
 
 
 class LinearRegression:
@@ -247,8 +250,9 @@ def main(database, session, year=2019, graph=False):
     Returns:
         A LinearRegression class
     """
-    if not os.path.isdir("graphs") and graph:
-        os.mkdir("graphs")
+    graph_dir = path.graphs_directory()
+    if not os.path.exists(graph_dir) and graph:
+        os.mkdir(graph_dir)
 
     # Import and specify a list of factors to extract from database
     ff_list = four_factors_list()
@@ -265,16 +269,23 @@ def main(database, session, year=2019, graph=False):
 
     ff_reg = LinearRegression(target, predictors)
 
-    # Evaluative graphs
+    # Note that on Windows graphs will not appear to be updated
+    # To change that, go to properties -> customize -> optimize for: Documents
     if graph:
-        ff_reg.predicted_vs_actual(out_path=r"graphs/pred_vs_actual_{}.png".format(year))
-        ff_reg.residuals_vs_fitted(out_path=r"graphs/residuals_vs_fitted_{}.png".format(year))
-        ff_reg.qqplot(out_path=r"graphs/qqplot_{}.png".format(year))
-        ff_reg.influence_plot(out_path=r"graphs/influence_{}.png".format(year))
-        ff_reg.cooks_distance(out_path=r"graphs/cooks_distance_{}.png".format(year))
+        ff_reg.predicted_vs_actual(out_path=os.path.join(graph_dir, "pred_vs_actual_{}.png".format(year)))
+        ff_reg.residuals_vs_fitted(out_path=os.path.join(graph_dir, "residuals_vs_fitted_{}.png".format(year)))
+        ff_reg.qqplot(out_path=os.path.join(graph_dir, "qqplot_{}.png".format(year)))
+        ff_reg.influence_plot(out_path=os.path.join(graph_dir, "influence_{}.png".format(year)))
+        ff_reg.cooks_distance(out_path=os.path.join(graph_dir, "cooks_distance_{}.png".format(year)))
 
     # Multicollinearity
     # vif_df = ff_reg.vif()
     ff_reg.residual_distribution()
 
     return ff_reg
+
+
+if __name__ == "__main__":
+    database = Database()
+    session = Session(database.engine)
+    main(database, session, 2019, True)

@@ -1,16 +1,16 @@
 """
-Author: Spencer Weston
+Path contains function which return file and folder paths for the project
 """
-
 import os
 
 
 def project_directory():
-    """Returns the project directory so long as type.py is in the top-level of the project"""
+    """Returns the project directory so long as path.py is in the top-level of the project"""
     return os.path.abspath(os.path.dirname(__file__))
 
 
 def output_directory():
+    """Returns the path to the output folder which holds the database and graphs"""
     return os.path.join(project_directory(), "outputs")
 
 
@@ -49,4 +49,5 @@ def database_file(calling_file_path):
 
 
 def graphs_directory():
+    """Return the folder which holds graphs for the project."""
     return os.path.join(output_directory(), "graphs")
