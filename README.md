@@ -4,15 +4,16 @@ NBA_bet is a package for predicting NBA games against betting lines. It has two 
 1. Scrape and store team statistics, game results, and betting lines.
 2. Generate predictions for each NBA game, compare the prediction to the betting line, and store the results.
 
+## The Model
 As of now, the model uses a linear regression based on the [Four Factors of Basketball Success](https://www.basketball-reference.com/about/factors.html) which encapsulates shooting, turnovers, rebounding, and free throws. Further, we include the opposing four factors, which are how a team's opponents perform on the four factors in aggregate. Thus, each team has eight variables, and the model uses sixteen variables (eight for each team) for each prediction. 
 
 The target, Y, or dependent variable is home Margin of Victory (MOV). Away MOV is simply the inverse of home MOV. MOV is targeted because it provides an easy comparison with two types of betting lines, the spread and moneyline. Here's what the spread and moneyline might look like for a matchup between the Milwaukee Bucks and Atlanta Hawks:
 
-Milwaukee Bucks:
+Milwaukee Bucks (Home):
 1. Spread: -8
 2. Moneyline: -350
 
-Atlanta Hawks:
+Atlanta Hawks (Away):
 1. Spread: 8
 2. Moneyline: 270
 
@@ -20,13 +21,15 @@ First, the spread attempts to guess the MOV between two teams. The Milwaukee Buc
 
 In comparison, the moneyline states the likelihood of a team winning or losing in terms of a monetary return. A negative moneyline, such as the Buck's -350, means one must put up $350 in order to win $100. A positive moneyline, such as the Hawk's 270, means a bet of $100 will return $270 if it is correct. 
 
-To compare the model's predictions to the betting lines, we look at the prediction's distance from the betting line. But before comparison, we must determine if the data and model match the assumptions of regression. This requires a separate discussion, but one may use the project's graphing functions to evaluate the model. Graphs indicate the residuals are normal and homoscedastic, there do not appear to be severe outliers, and the variance inflation factors, which test for multicollinearity, are acceptable.* 
+To compare the model's predictions to the betting lines, we look at the prediction's distance from the betting line. But before comparison, we must determine if the data and model match the assumptions of regression. This requires a separate discussion, but one may use the project's graphing functions to evaluate the model. Graphs indicate the residuals are normal and homoscedastic, there do not appear to be severe outliers, and the variance inflation factors, which test for multicollinearity, are acceptable.* Thus, there is decent reason to trust the model is well calibrated. Or in other words, an outcome the model predicts to happen 70% of the time will indeed happen 70% of the time. 
 
-Thus, there is decent reason to trust the model is well calibrated. Or in other words, an outcome the model predicts to happen 70% of the time will indeed happen 70% of the time. 
+Here, we evaluate betting lines as possible outcomes. Let the model predict the Bucks to beat the Hawks by six points, and let the model have a standard deviation of 13 (it's ~12.7 as of 04/07/2019). Since the residuals are normally distributed and homoscedastic, we assume the outcome of the game will be the result of a random variable, P, with mean six and a standard deviation of thirteen. Since the predicted home MOV (the Buck's MOV) is less than the betting line, we want to determine the likelihood of an outcome equal to or greater than 8. Thus, we calculate the survival function** of 8 based on P. The result is ~ 0.44 which means we'd expect the home MOV to be greater than or equal to 8 44% of the time. Inversely, we expect the home MOV to be less than 8 56% of the time. 
+
+This process is repeated for every game where odds are available, and the results are stored in the predictions table in the database. 
 
 
-Note: The variance inflation factor of the intercept is very high. I have no clue if this is bad or unexpected. Any advice on the consequences of this are appreciated.
-
+*The variance inflation factor of the intercept is very high. I have no clue if this is bad or unexpected. Any advice on the consequences of this are appreciated.
+** The model uses a cumulative density function when the predicted MOV is greater than the betting line
 
 ## Usage
 
@@ -38,6 +41,8 @@ In its current status, the project operates as a concurrent whole. From the run 
 
 The project is minimal because it doesn't do anything else. First, it contains no other functionality and/or no method for propogating functionality through the run directory at run time. For example, the regression model has graphing functions available, but the user cannot specify graph generation unless they run the regression script on its own. Second, the project only generates predictions with a linear model on a specific subset of data. A better product would allow the user to choose their desired data and model. Finally, the current product lacks infrastructure. There are no tests, and there is no setup.py. Thus, the project is not particularly resiliant to bugs nor reproducible for users across environments. 
 
+
+## ToDo:
 
 ## Author
 Spencer Weston
