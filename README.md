@@ -4,10 +4,20 @@ NBA_bet is a package for predicting NBA games against betting lines. It has two 
 1. Scrape and store team statistics, game results, and betting lines.
 2. Generate predictions for each NBA game, compare the prediction to the betting line, and store the results.
 
-## The Model
-As of now, the model uses a linear regression based on the [Four Factors of Basketball Success](https://www.basketball-reference.com/about/factors.html) which encapsulates shooting, turnovers, rebounding, and free throws. Further, we include the opposing four factors, which are how a team's opponents perform on the four factors in aggregate. Thus, each team has eight variables, and the model uses sixteen variables (eight for each team) for each prediction. 
+## Project Overview
+### Directories
+* run - The run directory holds two scripts, daily.py and all.py. The daily script will set the project to run daily while the all script runs the project when called
+* scrapers - The scrapers folder holds scripts for scaping data. scraper.py's scrape_all() function will scrape all season, team, and betting line data. To just scrape one type of data, call the desired data's scrape function. For example, line_scraper.scrape() will scrape betting lines.
+* database - This directory holds three scripts. database/database holds a Database class. The database class controls table access and creation. database/manipulator holds the DataManipulator class which manipulates input data for table creation and insertion. The primary function is DataManipulator.get_sql_types() which returns a dictionary of SQl types to generate tables with. This allows the data, usually returned from a scraper function, to dictate the table stored in the database. Finally, getters.py has functions which return specific queries or datatypes from the database. 
 
-The target, Y, or dependent variable is home Margin of Victory (MOV). Away MOV is simply the inverse of home MOV. MOV is targeted because it provides an easy comparison with two types of betting lines, the spread and moneyline. Here's what the spread and moneyline might look like for a matchup between the Milwaukee Bucks and Atlanta Hawks:
+* path.py - contains functions to determine relative paths throughout the project
+
+
+## The Model
+As of now, the model uses a linear regression based on the [Four Factors of Basketball Success](https://www.basketball-reference.com/about/factors.html) which encapsulates shooting, turnovers, rebounding, and free throws. Further, we include the opposing four factors, which are how a team's opponents perform on the four factors in aggregate. Thus, each team has eight variables, and the model uses sixteen variables (eight for each team) for each prediction. The target, Y, or dependent variable is home Margin of Victory (MOV). Away MOV is simply the inverse of home MOV. 
+
+### What are betting lines? 
+MOV is targeted because it provides an easy comparison with two types of betting lines, the spread and moneyline. Here's what the spread and moneyline might look like for a matchup between the Milwaukee Bucks and Atlanta Hawks:
 
 Milwaukee Bucks (Home):
 1. Spread: -8
@@ -21,12 +31,15 @@ First, the spread attempts to guess the MOV between two teams. The Milwaukee Buc
 
 In comparison, the moneyline states the likelihood of a team winning or losing in terms of a monetary return. A negative moneyline, such as the Buck's -350, means one must put up $350 in order to win $100. A positive moneyline, such as the Hawk's 270, means a bet of $100 will return $270 if it is correct. 
 
-To compare the model's predictions to the betting lines, we look at the prediction's distance from the betting line. But before comparison, we must determine if the data and model match the assumptions of regression. This requires a separate discussion, but one may use the project's graphing functions to evaluate the model. Graphs indicate the residuals are normal and homoscedastic, there do not appear to be severe outliers, and the variance inflation factors, which test for multicollinearity, are acceptable.* Thus, there is decent reason to trust the model is well calibrated. Or in other words, an outcome the model predicts to happen 70% of the time will indeed happen 70% of the time. 
+### Generating Predictions
 
-Here, we evaluate betting lines as possible outcomes. Let the model predict the Bucks to beat the Hawks by six points, and let the model have a standard deviation of 13 (it's ~12.7 as of 04/07/2019). Since the residuals are normally distributed and homoscedastic, we assume the outcome of the game will be the result of a random variable, P, with mean six and a standard deviation of thirteen. Since the predicted home MOV (the Buck's MOV) is less than the betting line, we want to determine the likelihood of an outcome equal to or greater than 8. Thus, we calculate the survival function** of 8 based on P. The result is approximately 0.44 which means we'd expect the home MOV to be greater than or equal to 8 44% of the time. Inversely, we expect the home MOV to be less than 8 approximately 56% of the time. 
+Before comparing predictions to betting lines, we need to ensure the model meets the assumptions of regression. For now, assume assumptions are met, and refer to [Additional Reading](#additional-reading) for further model discussion. To compare the model's predictions to betting lines, we look at the prediction's distance from the betting line. In the model, the prediction is the expected value, or the mean, of the matchup. All possible outcomes of the game are normally distributed around this mean with a standard deviation, which as of 04/07/2019, is approximately thirteen. 
+
+Continuing the Bucks-Hawks example, lets say the model predicts the Bucks to win by 6 in comparison to the betting line of 8. To compare the betting line to the prediction, we want to evaluate the likelihood of a Bucks win by 8 or more given a normal distribution with a mean of 6 and standard deviation of 13. Thus, we calculate the survival function** of 8 based on the distribution. The result is approximately 0.44 which means we'd expect the home MOV to be greater than or equal to 8 44% of the time. Inversely, we expect the home MOV to be less than 8 approximately 56% of the time. 
+
+To compare moneylines instead of spreads, simply set the spread to 0, and the output will be the likelihood of a win or loss. 
 
 This process is repeated for every game where odds are available, and the results are stored in the predictions table in the database. 
-
 
 *The variance inflation factor of the intercept is very high. I have no clue if this is bad or unexpected. Any advice on the consequences of this are appreciated.
 
@@ -52,6 +65,9 @@ The project is minimal because it doesn't do anything else. First, it contains n
 Spencer Weston
 
 personal website: [Crockpot Thoughts](https://crockpotthoughts.wordpress.com/)
+
+## Additional Reading
+* Will be added as published 
 
 ## Credits:
 Jae Bradley: https://github.com/jaebradley/basketball_reference_web_scraper
