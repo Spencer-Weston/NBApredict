@@ -6,11 +6,13 @@ NBA_bet is a package for predicting NBA games against betting lines. It has two 
 
 ## Project Overview
 ### Directories
-* run - The run directory holds two scripts, daily.py and all.py. The daily script will set the project to run daily while the all script runs the project when called
-* scrapers - The scrapers folder holds scripts for scaping data. scraper.py's scrape_all() function will scrape all season, team, and betting line data. To just scrape one type of data, call the desired data's scrape function. For example, line_scraper.scrape() will scrape betting lines.
-* database - This directory holds three scripts. database/database holds a Database class. The database class controls table access and creation. database/manipulator holds the DataManipulator class which manipulates input data for table creation and insertion. The primary function is DataManipulator.get_sql_types() which returns a dictionary of SQl types to generate tables with. This allows the data, usually returned from a scraper function, to dictate the table stored in the database. Finally, getters.py has functions which return specific queries or datatypes from the database. 
+This section overviews the main components of the project. Details for other sections of the project are available in the documentation. 
 
-* path.py - contains functions to determine relative paths throughout the project
+* run - The run directory holds two scripts, daily.py and all.py. The daily script will set the project to run daily while the all script runs the project when called. 
+* scrapers - The scrapers folder holds modules for scaping data. scraper.py's scrape_all() function will scrape all season, team, and betting line data. To just scrape one type of data, call the desired data's scrape function. For example, line_scraper.scrape() will scrape betting lines.
+* database - This directory holds three modules. database/database holds a Database class. The database class controls table access and creation. database/manipulator holds the DataManipulator class which manipulates input data for table creation and insertion. Combined, Database and DataManipulator allow the data to dictate tables in the database. Finally, getters.py has functions which return specific queries or datatypes from the database. 
+* stats - The stats directory contains the four_factor_regression and graphing modules. four_factor_regression implements a linear regression based on the four factors as explained in [the model section](#the-model). The graphing module functions generate graphs for regression evaluation.
+* predict - Holds the predict module. The predict module has functions for predicting games on a date, a single game, or all games for which betting odds exist. Predict generates predictions from the linear model discussed in [the model section](#the-model)
 
 
 ## The Model
