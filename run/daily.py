@@ -10,7 +10,7 @@ Example:
     From the project directory, run 'python -m run.daily'
 """
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
 from datetime import datetime, timedelta
 import logging
 from sqlalchemy.orm import Session
@@ -37,6 +37,13 @@ def job_runs(event):
         print('The job did not run')
     else:
         print('The job completed @ {}'.format(datetime.now()))
+
+
+def missed_job(event):
+    print('The job was missed. Scheduling a new one to run in one minute')
+    run_time = datetime_to_dict(datetime.now() + timedelta(minutes=1))
+    scheduler.add_job(run_all, "cron", **run_time)
+    scheduler.print_jobs()
 
 
 if __name__ == "__main__":
@@ -67,14 +74,15 @@ if __name__ == "__main__":
 
     # Transform start times into chron arguments for triggers
     cron_args = [datetime_to_dict(s_time) for s_time in start_times]
-    # cron_args = [datetime.now() + timedelta(hours=i) for i in range(1, 4)]  # TEST
+    # cron_args = [datetime.now() + timedelta(minutes=i) for i in range(1, 2)]  # TEST
     # cron_args = [datetime_to_dict(d_time) for d_time in cron_args]  # TEST
 
     # Setup scheduler, add jobs and listeners, and start the scheduler
     scheduler = BackgroundScheduler()
     scheduler.add_listener(job_runs, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+    scheduler.add_listener(missed_job, EVENT_JOB_MISSED)
     for kwargs in cron_args:
-        scheduler.add_job(run_all, "cron", **kwargs)
+        scheduler.add_job(run_all, "cron", **kwargs, misfire_grace_time=60)
     scheduler.start()
     scheduler.print_jobs()
 
@@ -84,5 +92,6 @@ if __name__ == "__main__":
     try:
         while True:
             time.sleep(1)
+            # ADD JOB IF MISSED!!!!!
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()

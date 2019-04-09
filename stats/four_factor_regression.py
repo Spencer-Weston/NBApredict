@@ -113,7 +113,7 @@ class LinearRegression:
         """Calculate the normal curve of the residuals and return the distribution"""
         norm = stats.norm
         mu, std = norm.fit(self.residuals)
-        mu = 0  # By definition, mu of resids = 0, but the fit provides approximately 0. It's perhaps best to just
+        # mu = 0  # By definition, mu of resids = 0, but the fit provides approximately 0. It's perhaps best to just
         # set mu=0?
         return norm(loc=mu, scale=std)
 

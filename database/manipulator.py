@@ -1,5 +1,5 @@
 """
-manpulator holds the DataManipulator class which aims to coerce and extract raw_data into SQLalchemy compatible formats.
+manipulator holds the DataManipulator class which coerces raw_data into SQLalchemy compatible formats.
 """
 from datetime import datetime
 from helpers import type
@@ -18,7 +18,7 @@ class DataManipulator:
             data[col1] = [val1, val2, ...]
             data[col2] = [val1, val2, ...]
             Second, data may be a list of rows formatted as:
-            data[0] = {col1: val1, col2: val1, colx: val1}
+            data[0] = {col1: val0, col2: val0, colx: val0}
             data[x] = {col1: valx, col2: valx, colx: valx}
         """
         self.data = data
@@ -53,7 +53,7 @@ class DataManipulator:
                 py_types = [type.get_type(data[key]) for key in tbl_keys]
                 py_types_dict = dict(zip(tbl_keys, py_types))
             else:
-                raise Exception("The data structure ({}) is by _get_py_type".format(type(self.data)))
+                raise Exception("The data structure ({}) is not handled by _get_py_type".format(type(self.data)))
         return py_types_dict
 
     @staticmethod
