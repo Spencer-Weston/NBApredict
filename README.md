@@ -10,9 +10,9 @@ This section overviews the main components of the project. Details for other sec
 
 * run - The run directory holds two scripts, daily.py and all.py. The daily script will set the project to run daily while the all script runs the project when called. 
 * scrapers - The scrapers folder holds modules for scaping data. scraper.py's scrape_all() function will scrape all season, team, and betting line data. To just scrape one type of data, call the desired data's scrape function. For example, line_scraper.scrape() will scrape betting lines.
-* database - This directory holds three modules. database/database holds a Database class. The database class controls table access and creation. database/manipulator holds the DataManipulator class which manipulates input data for table creation and insertion. Combined, Database and DataManipulator allow the data to dictate tables in the database. Finally, getters.py has functions which return specific queries or datatypes from the database. 
+* database - This directory holds three modules. database/database holds a Database class. Database controls table access and creation. database/manipulator holds the DataManipulator class which manipulates input data for table creation and insertion. Combined, Database and DataManipulator allow the data to dictate tables in the database. Finally, getters.py has functions which return specific queries or datatypes from the database. 
 * stats - The stats directory contains the four_factor_regression and graphing modules. four_factor_regression implements a linear regression based on the four factors as explained in [the model section](#the-model). The graphing module functions generate graphs for regression evaluation.
-* predict - Holds the predict module. The predict module has functions for predicting games on a date, a single game, or all games for which betting odds exist. Predict generates predictions from the linear model discussed in [the model section](#the-model)
+* predict - Holds the predict module. The predict module has functions for predicting games on a date, a single game, or all games for which betting odds exist. The scripts in the run directory predict all games with betting odds.Predict generates predictions from the linear model discussed in [the model section](#the-model)
 
 
 ## The Model
@@ -37,21 +37,20 @@ In comparison, the moneyline states the likelihood of a team winning or losing i
 
 Before comparing predictions to betting lines, we need to ensure the model meets the assumptions of regression. For now, assume assumptions are met, and refer to [Additional Reading](#additional-reading) for further model discussion. To compare the model's predictions to betting lines, we look at the prediction's distance from the betting line. In the model, the prediction is the expected value, or the mean, of the matchup. All possible outcomes of the game are normally distributed around this mean with a standard deviation, which as of 04/07/2019, is approximately thirteen. 
 
-Continuing the Bucks-Hawks example, lets say the model predicts the Bucks to win by 6 in comparison to the betting line of 8. To compare the betting line to the prediction, we want to evaluate the likelihood of a Bucks win by 8 or more given a normal distribution with a mean of 6 and standard deviation of 13. Thus, we calculate the survival function** of 8 based on the distribution. The result is approximately 0.44 which means we'd expect the home MOV to be greater than or equal to 8 44% of the time. Inversely, we expect the home MOV to be less than 8 approximately 56% of the time. 
+Continuing the Bucks-Hawks example, lets say the model predicts the Bucks to win by 6 in comparison to the betting line of 8. To compare the betting line to the prediction, we want to evaluate the likelihood of a Bucks win by 8 or more given a normal distribution with a mean of 6 and standard deviation of 13. Thus, we calculate the survival function* of 8 based on the distribution. The result is approximately 0.44 which means we'd expect the home MOV to be greater than or equal to 8 44% of the time. Inversely, we expect the home MOV to be less than 8 approximately 56% of the time. 
 
 To compare moneylines instead of spreads, simply set the spread to 0, and the output will be the likelihood of a win or loss. 
+ 
 
-This process is repeated for every game where odds are available, and the results are stored in the predictions table in the database. 
-
-*The variance inflation factor of the intercept is very high. I have no clue if this is bad or unexpected. Any advice on the consequences of this are appreciated.
-
-**The model uses a cumulative density function when the predicted MOV is greater than the betting line
+*The model uses a cumulative density function when the predicted MOV is greater than the betting line
 
 ## Usage
 Clone this repo to your local machine: https://github.com/Spencer-Weston/NBA_bet.git
 
 To set the project to run daily:
 ```~\NBA_bet>python -m run.daily```
+
+run.daily sets the project to run 1 hour before the first game of each day. This time is chosen because betting lines are not always available until later in the day. 
 
 Or to run the project once:
 ```~\NBA_bet>python -m run.all```
