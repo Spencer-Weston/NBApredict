@@ -73,9 +73,9 @@ if __name__ == "__main__":
             start_times.append(first_game_time - timedelta(hours=1))
 
     # Transform start times into chron arguments for triggers
-    cron_args = [datetime_to_dict(s_time) for s_time in start_times]
-    # cron_args = [datetime.now() + timedelta(minutes=i) for i in range(1, 2)]  # TEST
-    # cron_args = [datetime_to_dict(d_time) for d_time in cron_args]  # TEST
+    # cron_args = [datetime_to_dict(s_time) for s_time in start_times]
+    cron_args = [datetime.now() + timedelta(minutes=i*5) for i in range(1, 2)]  # TEST
+    cron_args = [datetime_to_dict(d_time) for d_time in cron_args]  # TEST
 
     # Setup scheduler, add jobs and listeners, and start the scheduler
     scheduler = BackgroundScheduler()
@@ -90,8 +90,12 @@ if __name__ == "__main__":
     logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
     try:
+        sleep_time = 0
         while True:
             time.sleep(1)
-            # ADD JOB IF MISSED!!!!!
+            sleep_time += 1
+            if sleep_time >= 600:
+                scheduler.wakeup()
+                sleep_time = 0
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
