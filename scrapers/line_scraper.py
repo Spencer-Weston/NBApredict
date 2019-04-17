@@ -169,6 +169,9 @@ def update_odds_table(odds_table, sched_tbl, rows, session):
         session: A SQLalchemy session object
     """
     row_objects = []
+    if len(rows) == 0:  # Avoid messing with things if no rows exist
+        print("No new rows today. Returning without updating odds table")
+        return
     for row in rows:
         # Delete the row in the table if it exists to allow overwrite
         existing_rows = session.query(odds_table).filter(odds_table.home_team == row["home_team"],
@@ -229,7 +232,7 @@ def scrape(database, session, league_year=2019):
         odds_table = database.get_table_mappings([tbl_name])
         update_odds_table(odds_table, schedule, line_data.dict_to_rows(), session)
     else:
-        raise Exception("Somethings wrong here (Not descriptive, but this point shouldn't be hit.)")
+        raise Exception("Something is wrong here (Not descriptive, but this point shouldn't be hit.)")
 
     return True
 
