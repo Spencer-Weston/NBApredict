@@ -1,5 +1,5 @@
 """
-line_scraper scrapes NBA betting odds from Bovada and stores them in the database
+line_scraper scrapes NBA betting odds from Bovada and stores them in the database.
 """
 
 from datetime import datetime
@@ -143,17 +143,19 @@ def parse_spread(spread_bet):
 
 def create_odds_table(database, data, tbl_name):
     """NEEDS TO BE FIXED"""
-    raise Exception("This has NOT been updated to establish the correct foreign keys")
     if not data.validate_data_length():
         raise Exception("Lengths in the data are not equal")
+
     sql_types = data.get_sql_type()
     constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"],
                   ForeignKeyConstraint: ForeignKeyConstraint(["game_id"], ["sched_2019.id"])}
-    database.map_table(tbl_name, sql_types, constraint)
+    database.map_table(tbl_name, sql_types, constraint)  # Maps the odds table
+    sched_tbl = database.get_table_mappings("sched_{}".format(year))
+
     database.create_tables()
 
-    rows = data.dict_to_rows()
-    database.insert_rows(tbl_name, rows)
+    #rows = data.dict_to_rows()
+    #database.insert_rows(tbl_name, rows)
     database.clear_mappers()
 
 
