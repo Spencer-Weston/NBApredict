@@ -168,7 +168,7 @@ def update_odds_table(odds_table, sched_tbl, rows, session):
     """
     row_objects = []
     if len(rows) == 0:  # Avoid messing with things if no rows exist
-        print("No news rows today. Returning without updating odds table")
+        print("No new rows today. Returning without updating odds table")
         return
     for row in rows:
         # Delete the row in the table if it exists to allow overwrite
