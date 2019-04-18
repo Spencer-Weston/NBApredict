@@ -288,4 +288,4 @@ def main(database, session, year=2019, graph=False):
 if __name__ == "__main__":
     database = Database()
     session = Session(database.engine)
-    main(database, session, 2019, True)
+    main(database, session, 2019, graph=True)

@@ -141,21 +141,22 @@ def parse_spread(spread_bet):
         raise Exception("Spread was not properly parsed. Missing data.")
 
 
-def create_odds_table(database, data, tbl_name):
-    """NEEDS TO BE FIXED"""
-    if not data.validate_data_length():
-        raise Exception("Lengths in the data are not equal")
+def create_odds_table(database, data, tbl_name, sched_tbl):
+    """Creates an odds_table in the database based on the data with foreign key based on the schedule
 
+    Args:
+        database: An instance of the Database class from database/Database.py
+        data: A DataManipulator object from database/manipulator which holds the data and
+        tbl_name:
+        sched_tbl: The schedule table which will contain the game_id for the odds_table and which will be given a
+        relationship to the odds table
+    """
     sql_types = data.get_sql_type()
     constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"],
                   ForeignKeyConstraint: ForeignKeyConstraint(["game_id"], ["sched_2019.id"])}
     database.map_table(tbl_name, sql_types, constraint)  # Maps the odds table
-    sched_tbl = database.get_table_mappings("sched_{}".format(year))
 
     database.create_tables()
-
-    #rows = data.dict_to_rows()
-    #database.insert_rows(tbl_name, rows)
     database.clear_mappers()
 
 
@@ -224,7 +225,7 @@ def scrape(database, session, league_year=2019):
     tbl_name = "odds_{}".format(league_year)
     tbl_exists = database.table_exists(tbl_name)
     if not tbl_exists:
-        create_odds_table(database, line_data, tbl_name)
+        create_odds_table(database, line_data, tbl_name, schedule)
 
     elif line_data.validate_data_length() and tbl_exists:
         # All values in line_data are expected to be be unique from values in the database. A possible place for errors
@@ -237,7 +238,8 @@ def scrape(database, session, league_year=2019):
     return True
 
 
-# if __name__ == "__main__":
-    # db = database.Database(r"sqlite:///../database//nba_db.db")
-    # year = 2019
-    # scrape(db, year)
+if __name__ == "__main__":
+    from database.database import Database
+    db = Database()
+    year = 2019
+    scrape(db, year)
