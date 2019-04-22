@@ -72,14 +72,15 @@ def update_season_table(session, sched_tbl, season_df):
         return
     all_update_rows = update_rows.all()
     first_game_time = all_update_rows[0].start_time
-    last_game_time = all_update_rows[len(update_rows.all()) - 1].start_time
+    last_game_time = all_update_rows[len(all_update_rows) - 1].start_time
 
     # Reduce season to games between first and last game time
     season_df["start_time"] = season_df["start_time"].dt.tz_localize(None)
     season_df = season_df.loc[(season_df.start_time >= first_game_time) & (season_df.start_time <= last_game_time)]
 
     for row in all_update_rows:
-        game = season_df.loc[(season_df.home_team == row.home_team) & (season_df.away_team == row.away_team)]
+        game = season_df.loc[(season_df.home_team == row.home_team) & (season_df.away_team == row.away_team) &
+                             (season_df.start_time == row.start_time)]
         row.home_team_score = int(game.home_team_score)
         row.away_team_score = int(game.away_team_score)
         session.add(row)

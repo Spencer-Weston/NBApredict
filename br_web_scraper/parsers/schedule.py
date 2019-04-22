@@ -91,6 +91,8 @@ def parse_schedule(page):
             # elif start_time > now:
             #    break
             schedule.append(parse_game(row))
+        if row.text_content() == "Playoffs":
+            print('here')
     return schedule
 
 

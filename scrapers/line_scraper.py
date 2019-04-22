@@ -25,6 +25,7 @@ def odds_for_today(games_query):
 
     # The specific URL that needs to be scraped
     url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba"
+    url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba-playoffs"
 
     response = requests.get(url=url, allow_redirects=False).json()
     scrape_time = datetime.now()
