@@ -15,7 +15,9 @@ import path
 
 
 def scrape_all(database, session, league_year):
-    """Scrape and store team stats, schedule information, and betting lines in the database
+    """Scrape and store team stats, schedule information, and betting lines in the database.
+
+    Note, this only adds data to the session. Changes must be committed to be saved.
 
     Args:
         database: An instantiated Database object from database.database for database interactions

@@ -7,7 +7,7 @@ database. The table is automatically named 'sched' for schedule with the year ap
 
 from datetime import datetime
 import pandas
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, func
 
 # Local Imports
 from br_web_scraper import client
@@ -51,17 +51,18 @@ def create_season_table(database, data, tbl_name):
     database.map_table(tbl_name, sql_types, constraint)
     database.create_tables()
     database.insert_rows(tbl_name, data.data)
-    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use template
+    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use Database.Template
 
 
 def update_season_table(session, sched_tbl, season_df):
     """Updates the schedule table in the database with new data stored in the season_df
 
     Changes are added to the session and need to be committed later.
+    During the playoffs, some games are removed from the sched_df as described in line.
 
     Args:
         session: A SQLalchemy session object
-        sched_tbl: A mapped (i.e. queryable) table that holds the schedule
+        sched_tbl: A mapped table that holds the schedule
         season_df: A pandas Dataframe version of the season as returned from br_web_scraper
     """
     date = datetime.date(datetime.now())
@@ -70,20 +71,37 @@ def update_season_table(session, sched_tbl, season_df):
     if update_rows.count() == 0:
         print("Season is up to date; Returning without performing an update.")
         return
+
     all_update_rows = update_rows.all()
     first_game_time = all_update_rows[0].start_time
     last_game_time = all_update_rows[len(all_update_rows) - 1].start_time
 
     # Reduce season to games between first and last game time
     season_df["start_time"] = season_df["start_time"].dt.tz_localize(None)
-    season_df = season_df.loc[(season_df.start_time >= first_game_time) & (season_df.start_time <= last_game_time)]
+    update_df = season_df.loc[(season_df.start_time >= first_game_time) & (season_df.start_time <= last_game_time)]
 
     for row in all_update_rows:
-        game = season_df.loc[(season_df.home_team == row.home_team) & (season_df.away_team == row.away_team) &
-                             (season_df.start_time == row.start_time)]
-        row.home_team_score = int(game.home_team_score)
-        row.away_team_score = int(game.away_team_score)
-        session.add(row)
+        game = update_df.loc[(update_df.home_team == row.home_team) & (update_df.away_team == row.away_team) &
+                             (update_df.start_time.dt.date == datetime.date(row.start_time))]
+        if len(game) == 0:
+            # This catches playoff games which do not end up happening (i.e. a game 7 in a series a team sweeps), and
+            # removes it from the dataframe
+            session.delete(row)
+        else:
+            row.home_team_score = int(game.home_team_score)
+            row.away_team_score = int(game.away_team_score)
+            row.start_time = game.start_time.dt.to_pydatetime()[0]  # Convert Pandas TimeStamp to datetime
+            session.add(row)
+
+
+def add_rows(session, schedule, rows):
+    most_recent_game = session.query(func.max(schedule.start_time)).one()[0]  # The most recent game in the database
+    most_recent_game = most_recent_game.replace(tzinfo=rows[0]["start_time"].tzinfo) # Unify timezones
+    new_rows = [row for row in rows if row["start_time"] > most_recent_game and row["home_team_score"] > 0]
+    new_row_objects =[]
+    for row in new_rows:
+        new_row_objects.append(schedule(**row))
+    session.add_all(new_row_objects)
 
 
 def scrape(database, session, league_year=2019):
@@ -110,5 +128,7 @@ def scrape(database, session, league_year=2019):
     else:  # Updates database
         schedule = database.get_table_mappings([tbl_name])
         update_season_table(session, schedule, pandas.DataFrame(season_data))
+        if len(data.data) > session.query(schedule).count():
+            add_rows(session, schedule, data.data)
 
     return True
