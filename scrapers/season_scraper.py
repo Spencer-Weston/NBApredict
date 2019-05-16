@@ -85,7 +85,7 @@ def update_season_table(session, sched_tbl, season_df):
                              (update_df.start_time.dt.date == datetime.date(row.start_time))]
         if len(game) == 0:
             # This catches playoff games which do not end up happening (i.e. a game 7 in a series a team sweeps), and
-            # removes it from the dataframe
+            # removes it from the database
             session.delete(row)
         else:
             row.home_team_score = int(game.home_team_score)
@@ -96,9 +96,9 @@ def update_season_table(session, sched_tbl, season_df):
 
 def add_rows(session, schedule, rows):
     most_recent_game = session.query(func.max(schedule.start_time)).one()[0]  # The most recent game in the database
-    most_recent_game = most_recent_game.replace(tzinfo=rows[0]["start_time"].tzinfo) # Unify timezones
-    new_rows = [row for row in rows if row["start_time"] > most_recent_game and row["home_team_score"] > 0]
-    new_row_objects =[]
+    most_recent_game = most_recent_game.replace(tzinfo=rows[0]["start_time"].tzinfo)  # Unify timezones
+    new_rows = [row for row in rows if row["start_time"] > most_recent_game]
+    new_row_objects = []
     for row in new_rows:
         new_row_objects.append(schedule(**row))
     session.add_all(new_row_objects)
