@@ -62,6 +62,10 @@ In its current status, the project operates as a concurrent whole. From the run 
 
 The project is minimal because it doesn't do anything else. First, it contains no other functionality and/or no method for propogating functionality through the project at run time. For example, the regression model has graphing functions available, but the user cannot specify graph generation unless they run the regression script on its own. Second, the project only generates predictions with a linear model on a specific subset of data. A better product would allow the user to choose their desired data and model. Finally, the current product lacks infrastructure. There are no tests, and there is no setup.py. Thus, the project is not particularly resiliant to bugs nor automatically reproducible for users across environments. 
 
+Plenty of other limitations or drawbacks exist. For example, the four factors update every day which means it is inappropriate to predict a game earlier in the season with current data. Further, playoff games are predicted with the regular season four factors. However, the availability of odds is the biggest drawback. When odds are scraped, they are stored. But for odds before the odd scraping module was available, I need to find another data source. Most of these appear to require money to access. And since the database is not in the cloud (yet), each user only has the odds they scrape themselves. 
+
+Yet, to the best of my ability, the project was designed to be extendable. With any luck, it should, fingers-crossed, serve as a framework that can be easily extended with further functionality. 
+
 ## Author
 Spencer Weston
 
