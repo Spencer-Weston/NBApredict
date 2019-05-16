@@ -259,10 +259,11 @@ def create_prediction_table(database, data, tbl_name):
     database.create_tables()
 
 
-def get_sample_prediction(odds_tbl, session, regression):
+def get_sample_prediction(database, odds_tbl, session, regression):
     """Generate and return a sample prediction to create a prediction table from.
 
     Args:
+        database: An initialized Database class from database.database.py
         odds_tbl: A mapped odds table
         session: A SQLalchemy session object
         regression: A regression object from four_factor_regression.py
@@ -505,7 +506,7 @@ def predict_all(database, session, league_year):
 
     odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
     if not database.table_exists(pred_tbl_name):
-        data = get_sample_prediction(odds_tbl, session, regression)
+        data = get_sample_prediction(database, odds_tbl, session, regression)
         create_prediction_table(database, data, pred_tbl_name)
 
     results = predict_games_in_odds(database, session, regression, league_year)

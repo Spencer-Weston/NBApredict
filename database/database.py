@@ -95,6 +95,8 @@ class Database:
     def map_table(self, tbl_name, column_types, constraints=None):
         """Map a table named tbl_name and with column_types to Template, add constraints if specified.
 
+        Note: Foreign key constraints should likely be added to the mapped table explicitly rather than in this function
+
         Args:
             tbl_name: The name of the table to be mapped
             column_types: A dictionary with column names as keys and sql types as values

@@ -4,8 +4,9 @@ line_scraper scrapes NBA betting odds from Bovada and stores them in the databas
 
 from datetime import datetime
 import requests
-from sqlalchemy import UniqueConstraint, ForeignKeyConstraint
+from sqlalchemy import UniqueConstraint, ForeignKey, Integer
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, relationship
 
 # Local Imports
 from database.manipulator import DataManipulator
@@ -23,7 +24,7 @@ def odds_for_today(games_query):
         A dictionary where the column keys lists of values
     """
 
-    # The specific URL that needs to be scraped
+    # The specific URL that needs to be scraped (need a way to differentiate playoffs and non-playoffs
     url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba"
     url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba-playoffs"
 
@@ -73,6 +74,8 @@ def odds_for_today(games_query):
                 print("The game between {} and {} at {} is either ongoing or completed. Not scraping".format(
                     home_team, away_team, start_datetime))
                 continue
+            else:
+                raise NameError
 
         # This section depends on python 3.7+ to preserve the order of dict keys in lines
         i = 0
@@ -152,10 +155,18 @@ def create_odds_table(database, data, tbl_name, sched_tbl):
         sched_tbl: The schedule table which will contain the game_id for the odds_table and which will be given a
         relationship to the odds table
     """
+    # Set columns and constraints
     sql_types = data.get_sql_type()
-    constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"],
-                  ForeignKeyConstraint: ForeignKeyConstraint(["game_id"], ["sched_2019.id"])}
+    sched_tbl_name = sched_tbl.classes.items()[0][0]
+    sql_types.update({'game_id': [Integer, ForeignKey(sched_tbl_name + ".id")]})
+    constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"]}
+
     database.map_table(tbl_name, sql_types, constraint)  # Maps the odds table
+    # odds_tbl_map = database.metadata.tables[tbl_name]
+    # odds_tbl_map.schedule = relationship(sched_tbl_name, back_populates=sched_tbl_name)
+
+    if "odds" not in sched_tbl.__mapper__.relationships.keys():
+        sched_tbl.odds = relationship(database.Template)
 
     database.create_tables()
     database.clear_mappers()
@@ -243,4 +254,5 @@ if __name__ == "__main__":
     from database.database import Database
     db = Database()
     year = 2019
-    scrape(db, year)
+    session = Session(bind=db.engine)
+    scrape(db, session, year)
