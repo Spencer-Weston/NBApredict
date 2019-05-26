@@ -83,7 +83,8 @@ def parse_schedule(page):
     schedule = []
     for row in rows:
         if row.text_content() != "Playoffs":
-            start_time = parse_start_time(formatted_date=row[0].text_content(), formatted_time_of_day=row[1].text_content())
+            start_time = parse_start_time(formatted_date=row[0].text_content(),
+                                          formatted_time_of_day=row[1].text_content())
             # now = current_time()
             # Scrape all data up to 'yesterday'; Don't scrape for today as in progress games create errors
             # if (start_time.month == now.month) and (start_time.day > (now.day - 1)):
@@ -92,7 +93,7 @@ def parse_schedule(page):
             #    break
             schedule.append(parse_game(row))
         if row.text_content() == "Playoffs":
-            print('here')
+            pass  # An extraneous text_content() that arises when games switch from regular season to playoffs
     return schedule
 
 

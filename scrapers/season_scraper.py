@@ -127,8 +127,8 @@ def scrape(database, session, league_year=2019):
 
     else:  # Updates database
         schedule = database.get_table_mappings([tbl_name])
-        update_season_table(session, schedule, pandas.DataFrame(season_data))
+        update_season_table(session, schedule, pandas.DataFrame(season_data))  # Update rows with new data
         if len(data.data) > session.query(schedule).count():
-            add_rows(session, schedule, data.data)
+            add_rows(session, schedule, data.data)  # Add new rows not in database
 
     return True
