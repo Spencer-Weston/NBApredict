@@ -1,5 +1,3 @@
-import sqlalchemy_utils
-
 """
 At the moment, reconcile contains one function which "reconciles" primary and reference tables for a specific column.
 """
@@ -29,8 +27,8 @@ def reconcile(ref_tbl, change_tbl, column, ref_key, change_key, session):
         ref_obj = obj[0]
         change_obj = obj[1]
         ref_val = getattr(ref_obj, column)
-        obj_val = getattr(change_obj, column)
-        if ref_val != obj_val:
+        change_val = getattr(change_obj, column)
+        if ref_val != change_val:
             setattr(change_obj, column, ref_val)
             session.add(change_obj)
 

@@ -22,6 +22,7 @@ def run_all():
 
     scraper.scrape_all(db, session, year)
     session.commit()
+
     predict.predict_all(db, session, year)
     session.commit()
     session.close()

@@ -251,8 +251,11 @@ def scrape(database, session, league_year=2019):
         # All values in line_data are expected to be be unique from values in the database. A possible place for errors
         # to occur
         odds_table = database.get_table_mappings([tbl_name])
-        update_odds_table(odds_table, schedule, line_data.dict_to_rows(), session)
+
+        # Reconcile ensures the odds_table has appropriate start_times; Add logic so its not called every run
         reconcile(schedule, odds_table, "start_time", "id", "game_id", session)
+
+        update_odds_table(odds_table, schedule, line_data.dict_to_rows(), session)
     else:
         raise Exception("Something is wrong here (Not descriptive, but this point shouldn't be hit.)")
 

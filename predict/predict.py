@@ -17,9 +17,11 @@ from sqlalchemy.exc import IntegrityError
 
 # Local imports
 from helpers import br_references
-from database.manipulator import DataManipulator
 from database.database import Database
+from database.manipulator import DataManipulator
+from database.reconcile import reconcile
 from database import getters
+
 from stats import four_factor_regression as lm
 import path
 
@@ -516,6 +518,10 @@ def predict_all(database, session, league_year):
     insert_new_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
 
     session.commit()  # Commit here b/c update_prediction_tbl() needs the inserted values
+
+    # Reconcile ensures the sched_tbl has appropriate start_times; Add logic so its not called every run
+    reconcile(sched_tbl, pred_tbl, "start_time", "id", "game_id", session)
+    session.commit()
 
     update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl)
 
