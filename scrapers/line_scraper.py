@@ -2,7 +2,7 @@
 line_scraper scrapes NBA betting odds from Bovada and stores them in the database.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 from sqlalchemy import UniqueConstraint, ForeignKey, Integer
 from sqlalchemy.exc import IntegrityError
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, relationship
 # Local Imports
 from database.manipulator import DataManipulator
 from database import getters
+from database.reconcile import reconcile
 
 
 def odds_for_today(games_query):
@@ -18,15 +19,15 @@ def odds_for_today(games_query):
 
     Args:
         games_query: A games query object typically returned from getters.get_games_on_day(); Should be the current
-        date to reflect the current games on Bovada)
+        date to reflect the current games on Bovada.
 
     Returns:
         A dictionary where the column keys lists of values
     """
 
-    # The specific URL that needs to be scraped (need a way to differentiate playoffs and non-playoffs
-    url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba"
-    url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba-playoffs"
+    # The specific URL that needs to be scraped (need a way to differentiate playoffs and non-playoffs)
+    # url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba"  # Regular Season
+    url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba-playoffs"  # Playoffs
 
     response = requests.get(url=url, allow_redirects=False).json()
     scrape_time = datetime.now()
@@ -183,7 +184,7 @@ def update_odds_table(odds_table, sched_tbl, rows, session):
     """
     row_objects = []
     if len(rows) == 0:  # Avoid messing with things if no rows exist
-        print("No new rows today. Returning without updating odds table")
+        print("No new odds available. Returning without updating odds table")
         return
     for row in rows:
         # Delete the row in the table if it exists to allow overwrite
@@ -231,6 +232,13 @@ def scrape(database, session, league_year=2019):
     date = datetime.date(datetime.now())
     games = getters.get_games_on_day(schedule, session, date)
 
+    # If there's no games today, search for games up to 10 days past the current date
+    i = 1
+    while len(games.all()) < 1 and i <= 10:
+        date = date + timedelta(days=i)
+        games = getters.get_games_on_day(schedule, session, date)
+        i += 1
+
     lines = odds_for_today(games)
     line_data = DataManipulator(lines)
 
@@ -244,6 +252,7 @@ def scrape(database, session, league_year=2019):
         # to occur
         odds_table = database.get_table_mappings([tbl_name])
         update_odds_table(odds_table, schedule, line_data.dict_to_rows(), session)
+        reconcile(schedule, odds_table, "start_time", "id", "game_id", session)
     else:
         raise Exception("Something is wrong here (Not descriptive, but this point shouldn't be hit.)")
 
