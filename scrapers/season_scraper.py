@@ -95,6 +95,13 @@ def update_season_table(session, sched_tbl, season_df):
 
 
 def add_rows(session, schedule, rows):
+    """Add rows into the schedule if they contain games past the most recent game in schedule.
+
+    Args:
+        session: An instantiated sqlalchemy session
+        schedule: A mapped schedule table
+        rows: rows compatible with schedule
+    """
     most_recent_game = session.query(func.max(schedule.start_time)).one()[0]  # The most recent game in the database
     most_recent_game = most_recent_game.replace(tzinfo=rows[0]["start_time"].tzinfo)  # Unify timezones
     new_rows = [row for row in rows if row["start_time"] > most_recent_game]
