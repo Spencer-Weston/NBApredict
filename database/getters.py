@@ -1,5 +1,6 @@
 """
-getters contains functions which may be commonly used to get certain subsets of data or data transformations
+getters contains functions which may be commonly used to get certain subsets of data, data transformations, or data
+summaries
 """
 
 from datetime import timedelta

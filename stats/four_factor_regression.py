@@ -88,7 +88,7 @@ class LinearRegression:
     def influence_plot(self, out_path=None):
         """Generate an influence plot, save to out_path if it exists, and return the graph."""
         fig, ax = plt.subplots(figsize=(12, 8))
-        fig = sm.graphics.influence_plot(self.results, ax=ax, criterion="cooks")
+        fig = sm.graphics.influence_plot(self.results, alpha=0, ax=ax, criterion="cooks")
         if out_path:
             fig.savefig(out_path)
         return fig

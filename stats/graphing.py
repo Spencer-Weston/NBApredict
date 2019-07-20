@@ -2,9 +2,12 @@
 graphing contains functions for creating evaluative graphs for regressions
 """
 
+import math
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.stats as sci_stats
 from sklearn.linear_model import LinearRegression
+import statistics as stats
 import statsmodels.api as sm
 from statsmodels.compat import lzip
 from yellowbrick.regressor import ResidualsPlot
@@ -60,6 +63,11 @@ def residuals_vs_fitted(predictions, residuals, out_path=None):
     jarque_bera = lzip(name, test)
     p_value = jarque_bera[1][1]
 
+    mu = 0
+    variance = stats.variance(residuals)
+    sigma = math.sqrt(variance)
+    x = np.linspace(mu-4*sigma, mu+4*sigma, 100)
+
     # Build Scatterplot
     fig, ax = plt.subplots(nrows=1, ncols=2, gridspec_kw={'width_ratios': [3, 1]})
     ax[0].scatter(predictions, residuals)
@@ -68,9 +76,14 @@ def residuals_vs_fitted(predictions, residuals, out_path=None):
     ax[0].set_ylabel("Residuals")
     ax[0].axhline(0, c="k", linewidth=0.5)
     ax[1].hist(residuals, bins=30, orientation="horizontal")
+    # ax[1].set_xticks(np.linspace(0, round(ax[1].get_xbound()[1]), 3))
+    ax2 = ax[1].twiny()
+    # ax2.set_xticks(np.linspace(0, round(ax2.get_xbound()[1], 2), 3))
+    ax2.plot(sci_stats.norm.pdf(x, mu, sigma), x, color="red")
     ax[1].set_xlabel("Frequency")
     ax[1].set_title("Jarque-Bera \n P-Value: {}".format(np.around(p_value, 3)))
-
+    fig.tight_layout()
+    align_xaxis(ax[1], 0, ax2, 0)
     if out_path:
         fig.savefig(out_path)
     return fig
@@ -105,3 +118,13 @@ def residuals_yellowbrick(predictors, target):
     visualizer = ResidualsPlot(lm)
     visualizer.fit(predictors, target)
     return visualizer
+
+
+def align_xaxis(ax1, v1, ax2, v2):
+    """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""
+    _, x1 = ax1.transData.transform((0, v1))
+    _, x2 = ax2.transData.transform((0, v2))
+    inv = ax2.transData.inverted()
+    _, dx = inv.transform((0, 0)) - inv.transform((0, x1-x2))
+    minx, maxx = ax2.get_xlim()
+    ax2.set_xlim(minx+dx, maxx+dx)
