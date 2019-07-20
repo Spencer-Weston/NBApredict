@@ -164,7 +164,15 @@ def create_ff_regression_df(ff_df, sched_df, ff_list):
             initialized_df = True
         else:
             regression_df = pd.concat([regression_df, merged], sort=True)
+
+    # Create column list to put columns in correct order
+    home_cols = home_tm_ff.drop(["key", "mov"], axis=1)
+    away_cols = away_tm_ff.drop(["key"], axis=1)
+    ordered_cols = ["mov", *home_cols.columns.to_list(), *away_cols.columns.to_list()]
+
     regression_df = regression_df.drop(["key"], axis=1)
+    regression_df = regression_df[ordered_cols]
+
 
     return regression_df
 
