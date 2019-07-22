@@ -33,6 +33,8 @@ def odds_for_today(games_query):
     scrape_time = datetime.now()
 
     # Move down tree towards games
+    if not len(response):
+        return None
     events = response[0]["events"]
 
     # Get the game dictionaries (which hold a bunch of random data) stripped from the events object
@@ -240,6 +242,8 @@ def scrape(database, session, league_year=2019):
         i += 1
 
     lines = odds_for_today(games)
+    if not lines:
+        return False
     line_data = DataManipulator(lines)
 
     tbl_name = "odds_{}".format(league_year)
