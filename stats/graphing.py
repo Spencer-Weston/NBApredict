@@ -81,7 +81,7 @@ def residuals_vs_fitted(predictions, residuals, out_path=None):
     # ax2.set_xticks(np.linspace(0, round(ax2.get_xbound()[1], 2), 3))
     ax2.plot(sci_stats.norm.pdf(x, mu, sigma), x, color="red")
     ax[1].set_xlabel("Frequency")
-    ax[1].set_title("Jarque-Bera \n P-Value: {}".format(np.around(p_value, 3)))
+    ax[1].set_title("Residual Distribution")
     fig.tight_layout()
     align_xaxis(ax[1], 0, ax2, 0)
     if out_path:
@@ -108,16 +108,21 @@ def cooks_distance(cooks_d, out_path=None):
     return fig
 
 
-def residuals_yellowbrick(predictors, target):
-    """Returns a residuals vs. fitted graph with a histogram. Not currently functional.
+def residual_independence(residuals):
+    """Create a residual time series plot to check for independence.
 
-    For future development. uses yellowbrick, which makes good graphs, but experiencing an unexplained missing
-    argument TypeError
+    Row number on X-axis, Residual on Y-axis
+
+    Args:
+        residuals: Pandas series holding residuals
     """
-    lm = LinearRegression
-    visualizer = ResidualsPlot(lm)
-    visualizer.fit(predictors, target)
-    return visualizer
+    indices = [x for x in range(len(residuals))]
+    fig, ax = plt.subplots()
+    ax.stem(indices, residuals)
+    ax.set_title("Residual Independence")
+    ax.set_xlabel("Row Number")
+    ax.set_ylabel("Residual")
+    return fig
 
 
 def align_xaxis(ax1, v1, ax2, v2):
@@ -128,3 +133,15 @@ def align_xaxis(ax1, v1, ax2, v2):
     _, dx = inv.transform((0, 0)) - inv.transform((0, x1-x2))
     minx, maxx = ax2.get_xlim()
     ax2.set_xlim(minx+dx, maxx+dx)
+
+
+def residuals_yellowbrick(predictors, target):
+    """Returns a residuals vs. fitted graph with a histogram. Not currently functional.
+
+    For future development. uses yellowbrick, which makes good graphs, but experiencing an unexplained missing
+    argument TypeError
+    """
+    lm = LinearRegression
+    visualizer = ResidualsPlot(lm)
+    visualizer.fit(predictors, target)
+    return visualizer

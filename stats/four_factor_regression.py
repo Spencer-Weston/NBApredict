@@ -101,6 +101,14 @@ class LinearRegression:
         graph = graphing.cooks_distance(c, out_path)
         return graph
 
+    def residual_independence(self, out_path=None):
+        """Generate a residual independence plot, save to out_path if it exists, and return the graph."""
+        residuals = self.residuals
+        plot = graphing.residual_independence(residuals)
+        if out_path:
+            plot.savefig(out_path)
+        return plot
+
     def vif(self):
         """Determine the Variance Inflation Factor (vif) of the coefficients and return a dataframe of the vif's."""
         vif_out = pd.DataFrame()
@@ -285,6 +293,7 @@ def main(database, session, year=2019, graph=False):
         ff_reg.qqplot(out_path=os.path.join(graph_dir, "qqplot_{}.png".format(year)))
         ff_reg.influence_plot(out_path=os.path.join(graph_dir, "influence_{}.png".format(year)))
         ff_reg.cooks_distance(out_path=os.path.join(graph_dir, "cooks_distance_{}.png".format(year)))
+        ff_reg.residual_independence(out_path=os.path.join(graph_dir, "resid_independence_{}.png".format(year)))
 
     # Multicollinearity
     # vif_df = ff_reg.vif()
