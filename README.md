@@ -73,8 +73,7 @@ personal website: [Crockpot Thoughts](https://crockpotthoughts.wordpress.com/)
 
 ## Additional Reading
 * [Part 1:Announcement](https://crockpotthoughts.wordpress.com/2019/06/20/an-nba-prediction-model/)
-* [Part 2: The How and the Why](https://crockpotthoughts.wordpress.com/2019/07/23/an-nba-prediction-model-part-2-the-how-and-why/)
-* [Part 3: The Model](https://crockpotthoughts.wordpress.com/?p=191)(Scheduled for publication: 08/05/2019)
+* [Part 2: The How and the Why](https://crockpotthoughts.wordpress.com/2019/07/23/an-nba-predictio r publication: 08/05/2019)
 * Part 4: The Code (Work ongoing) 
 
 ## Credits:
