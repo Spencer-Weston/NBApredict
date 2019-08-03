@@ -72,8 +72,9 @@ Spencer Weston
 personal website: [Crockpot Thoughts](https://crockpotthoughts.wordpress.com/)
 
 ## Additional Reading
-* [Part 1:Announcement](https://crockpotthoughts.wordpress.com/2019/06/20/an-nba-prediction-model/)
-* [Part 2: The How and the Why](https://crockpotthoughts.wordpress.com/2019/07/23/an-nba-predictio r publication: 08/05/2019)
+* [Part 1: Announcement](https://crockpotthoughts.wordpress.com/2019/06/20/an-nba-prediction-model/)
+* [Part 2: The How and the Why](https://crockpotthoughts.wordpress.com/2019/07/23/an-nba-prediction-model-part-2-the-how-and-why/) 
+* [Part 3: The Model](https://crockpotthoughts.wordpress.com/2019/08/05/predicting-nba-games-part-3-the-model/) (Scheduled for publication on 08/05/2019)
 * Part 4: The Code (Work ongoing) 
 
 ## Credits:
