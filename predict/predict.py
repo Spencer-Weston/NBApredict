@@ -22,7 +22,7 @@ from database.manipulator import DataManipulator
 from database.reconcile import reconcile
 from database import getters
 
-from stats import four_factor_regression as lm
+from models import four_factor_regression as lm
 import path
 
 

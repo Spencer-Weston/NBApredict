@@ -25,7 +25,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor as vi
 from database import getters
 from database.database import Database
 from helpers import br_references as br
-from stats import graphing
+from models import graphing
 import path
 
 
