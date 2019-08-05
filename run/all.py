@@ -27,8 +27,6 @@ def run_all():
     session.commit()
     session.close()
 
-    return True
-
 
 if __name__ == "__main__":
     run_all()
