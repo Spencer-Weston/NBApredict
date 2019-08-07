@@ -3,7 +3,9 @@ predict contains functions organized around generating game predictions
 
 ToDo:
     In theory, the module will allow multiple model inputs. Thus, we can pass it a linear, bayesian, ML, etc. model,
-    generate results, and store them. That functionality does not exist.
+    generate results, and store them. That functionality does not exist. This should also have a class of some sort to
+    manage predictions. It will add specificity and remove call complexity and name overlaps (i.e.
+    predict_games_on_day() vs. predict_games_on_date())
 """
 
 from datetime import datetime
@@ -533,4 +535,4 @@ if __name__ == "__main__":
     session = Session(bind=database.engine)
     # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
     date = datetime(2019, 3, 26)
-    predict_games_on_date(database, session, league_year=2019, date=date, console_out=False)
+    predict_games_on_date(database, session, league_year=2019, date=date, console_out=True)

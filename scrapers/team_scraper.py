@@ -139,5 +139,5 @@ def scrape(database, league_year=2019, tbl_name="misc_stats"):
     return True
 
 
-# if __name__ == "__main__":
-#     scrape(year=2019)
+if __name__ == "__main__":
+     scrape(year=2019)
