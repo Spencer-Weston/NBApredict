@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 # Local Imports
 from database.database import Database
 from scrapers import team_scraper, season_scraper, line_scraper
-import path
+import config
 
 
 def scrape_all(database, session, league_year):
@@ -25,8 +25,8 @@ def scrape_all(database, session, league_year):
         league_year: The league year to scrape data from (i.e. 2018-2019 season is 2019)
     """
     # Insure the database folder exists
-    if not os.path.isdir(path.output_directory()):
-        os.mkdir(path.output_directory())
+    if not os.path.isdir(config.output_directory()):
+        os.mkdir(config.output_directory())
 
     team_scrape = team_scraper.scrape(database=database, league_year=league_year)
     season_scrape = season_scraper.scrape(database=database, session=session, league_year=league_year)
@@ -34,7 +34,7 @@ def scrape_all(database, session, league_year):
 
 
 if __name__ == "__main__":
-    db_path = path.database_file(os.path.dirname(__file__))
+    db_path = config.database_file(os.path.dirname(__file__))
     db = Database(db_path)
     league_year = 2019
     session = Session(bind=db.engine)

@@ -25,7 +25,7 @@ from database.reconcile import reconcile
 from database import getters
 
 from models import four_factor_regression as lm
-import path
+import config
 
 
 def get_prediction(reg, pred_df):
@@ -140,91 +140,6 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
         else:
             print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
                   "be realized {}% of the time".format(line, probability))
-
-
-def predict_game(database, session, regression, home_tm, away_tm, start_time, line, year=2019, console_out=False):
-    """Predict a game versus the line, and return the information in a dictionary.
-
-    Use console out for human readable output if desired.Cdf is a cumulative density function. SF is a survival
-    function. CDF is calculated when the betting line's prediction is below the model's prediction. SF is calculated
-    when the betting line's prediction is above the model's prediction.
-
-    Args:
-        database: an instantiated Database class from database.database.py
-        session: A SQLalchemy session object
-        regression: A regression object 
-        start_time: Date.datetime with the date and start time of the game
-        home_tm: The home team
-        away_tm: The away team
-        line: The betting line
-        year: The year to use stats from in predicting the game
-        console_out: If true, print the prediction results. Ignore otherwise
-    """
-    home_tm = get_team_name(home_tm)
-    away_tm = get_team_name(away_tm)
-
-    # Get Misc stats for year
-    ff_list = lm.four_factors_list()
-    ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
-
-    pred_df = create_prediction_df(home_tm, away_tm, ff_df)
-    prediction = get_prediction(regression, pred_df)
-    probability, function = line_probability(prediction, line, np.std(regression.residuals))
-
-    if console_out:
-        prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
-
-    return {"start_time": start_time, "home_team": home_tm, "away_team": away_tm, "line": line,
-            "prediction": prediction, "probability": probability, "function": function}
-
-
-def predict_games_on_day(database, session, games, console_out=False):
-    """Take a SQLalchemy query object of games, and return a prediction for each game.
-
-    Args:
-        database: an instantiated Database class from database.database.py
-        session: A SQLalchemy session object
-        games: a SQLalchemy query object of games containing start_time, home_tm, away_tm, and the spread
-        console_out: A bool. True to print prediction outputs
-    """
-    results = []
-    regression = lm.main(database=database, session=session, year=year)
-    try:
-        for game in games:
-            prediction = predict_game(database=database, session=session, regression=regression, home_tm=game.home_team,
-                                      away_tm=game.away_team, start_time=game.start_time, line=game.spread,
-                                      console_out=console_out)
-            results.append(prediction)
-    except AttributeError:
-        # If games doesn't contain spreads, catch the attribute error and pass a 0 line.
-        # If games is missing other data, function will break.
-        for game in games:
-            prediction = predict_game(database=database, session=session, regression=regression, home_tm=game.home_team,
-                                      away_tm=game.away_team, start_time=game.start_time, line=0,
-                                      console_out=console_out)
-            results.append(prediction)
-    return results
-
-
-def predict_games_in_odds(database, session, regression, league_year):
-    """Generate and return predictions for all games with odds in the odds_tbl
-
-    Args:
-        database: An instantiated Database class from database.database.py
-        session: A SQLalchemy session object
-        regression: A linear regression object generated from four_factor_regression
-        league_year: The desired league year for predictions
-    """
-    odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
-    all_odds = session.query(odds_tbl).all()
-    predictions = []
-    for odds in all_odds:
-        home_team = odds.home_team
-        away_team = odds.away_team
-        start_time = odds.start_time
-        line = odds.spread
-        predictions.append(predict_game(database, session, regression, home_team, away_team, start_time, line))
-    return predictions
 
 
 def create_prediction_table(database, data, tbl_name):
@@ -362,7 +277,7 @@ def update_bet_results(bet_update_objects):
     """Take bet_update_objects, determine the prediction result, and add the result to each row in bet_update_objects.
 
     Args:
-        bet_update_objects: Objects from a query with .all() of the prediction table. Objects should have a home and
+        bet_update_objects: Objects from a query.all() from the prediction table. Objects should have a home and
         away team score.
 
     Returns:
@@ -461,6 +376,91 @@ def update_schedule_attributes(row_objects, session, sched_tbl):
     return row_objects
 
 
+def predict_game(database, session, regression, home_tm, away_tm, start_time, line, year=2019, console_out=False):
+    """Predict a game versus the line, and return the information in a dictionary.
+
+    Use console out for human readable output if desired.Cdf is a cumulative density function. SF is a survival
+    function. CDF is calculated when the betting line's prediction is below the model's prediction. SF is calculated
+    when the betting line's prediction is above the model's prediction.
+
+    Args:
+        database: an instantiated Database class from database.database.py
+        session: A SQLalchemy session object
+        regression: A regression object
+        start_time: Date.datetime with the date and start time of the game
+        home_tm: The home team
+        away_tm: The away team
+        line: The betting line
+        year: The year to use stats from in predicting the game
+        console_out: If true, print the prediction results. Ignore otherwise
+    """
+    home_tm = get_team_name(home_tm)
+    away_tm = get_team_name(away_tm)
+
+    # Get Misc stats for year
+    ff_list = lm.four_factors_list()
+    ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
+
+    pred_df = create_prediction_df(home_tm, away_tm, ff_df)
+    prediction = get_prediction(regression, pred_df)
+    probability, function = line_probability(prediction, line, np.std(regression.residuals))
+
+    if console_out:
+        prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
+
+    return {"start_time": start_time, "home_team": home_tm, "away_team": away_tm, "line": line,
+            "prediction": prediction, "probability": probability, "function": function}
+
+
+def predict_games_in_odds(database, session, regression, league_year):
+    """Generate and return predictions for all games with odds in the odds_tbl
+
+    Args:
+        database: An instantiated Database class from database.database.py
+        session: A SQLalchemy session object
+        regression: A linear regression object generated from four_factor_regression
+        league_year: The desired league year for predictions
+    """
+    odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
+    all_odds = session.query(odds_tbl).all()
+    predictions = []
+    for odds in all_odds:
+        home_team = odds.home_team
+        away_team = odds.away_team
+        start_time = odds.start_time
+        line = odds.spread
+        predictions.append(predict_game(database, session, regression, home_team, away_team, start_time, line))
+    return predictions
+
+
+def predict_games_on_day(database, session, games, console_out=False):
+    """Take a SQLalchemy query object of games, and return a prediction for each game.
+
+    Args:
+        database: an instantiated Database class from database.database.py
+        session: A SQLalchemy session object
+        games: a SQLalchemy query object of games containing start_time, home_tm, away_tm, and the spread
+        console_out: A bool. True to print prediction outputs
+    """
+    results = []
+    regression = lm.main(database=database, session=session, year=year)
+    try:
+        for game in games:
+            prediction = predict_game(database=database, session=session, regression=regression, home_tm=game.home_team,
+                                      away_tm=game.away_team, start_time=game.start_time, line=game.spread,
+                                      console_out=console_out)
+            results.append(prediction)
+    except AttributeError:
+        # If games doesn't contain spreads, catch the attribute error and pass a 0 line.
+        # If games is missing other data, function will break.
+        for game in games:
+            prediction = predict_game(database=database, session=session, regression=regression, home_tm=game.home_team,
+                                      away_tm=game.away_team, start_time=game.start_time, line=0,
+                                      console_out=console_out)
+            results.append(prediction)
+    return results
+
+
 def predict_games_on_date(database, session, league_year, date, console_out):
     """Predict games on the specified date and write the results to the database
 
@@ -521,7 +521,7 @@ def predict_all(database, session, league_year):
 
     session.commit()  # Commit here b/c update_prediction_tbl() needs the inserted values
 
-    # Reconcile ensures the sched_tbl has appropriate start_times; Add logic so its not called every run
+    # Reconcile ensures the sched_tbl has appropriate start_times; Need to add logic so its not called every run
     reconcile(sched_tbl, pred_tbl, "start_time", "id", "game_id", session)
     session.commit()
 
@@ -529,10 +529,10 @@ def predict_all(database, session, league_year):
 
 
 if __name__ == "__main__":
-    db_path = path.database_file(os.path.dirname(__file__))
+    db_path = config.database_file(os.path.dirname(__file__))
     database = Database(db_path)
     year = 2019
     session = Session(bind=database.engine)
-    # predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019)
+    predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019, console_out=True)
     date = datetime(2019, 3, 26)
     predict_games_on_date(database, session, league_year=2019, date=date, console_out=True)

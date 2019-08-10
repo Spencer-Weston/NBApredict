@@ -11,7 +11,7 @@ from sqlalchemy.orm import mapper, clear_mappers
 from sqlalchemy.ext.automap import automap_base
 
 # Local Imports
-import path
+import config
 
 
 class Database:
@@ -38,7 +38,7 @@ class Database:
         A session will allow interaction with the DB."""
         if not url:
             file_path = os.getcwd()
-            self.path = path.database_file(file_path)
+            self.path = config.database_file(file_path)
         else:
             self.path = url
         self.engine = create_engine(self.path, pool_pre_ping=True)
