@@ -5,7 +5,7 @@ import os
 
 
 def project_directory():
-    """Returns the project directory so long as config.py is in the top-level of the project"""
+    """Returns the project directory so long as configuration.py is in the top-level of the project"""
     return os.path.abspath(os.path.dirname(__file__))
 
 

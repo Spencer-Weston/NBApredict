@@ -26,7 +26,7 @@ from database import getters
 from database.database import Database
 from helpers import br_references as br
 from models import graphing
-import config
+import configuration
 
 
 class LinearRegression:
@@ -266,7 +266,7 @@ def main(database, session, year=2019, graph=False):
     Returns:
         A LinearRegression class
     """
-    graph_dir = config.graphs_directory()
+    graph_dir = configuration.graphs_directory()
     if not os.path.exists(graph_dir) and graph:
         os.mkdir(graph_dir)
 

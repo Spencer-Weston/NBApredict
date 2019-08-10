@@ -25,7 +25,7 @@ from database.reconcile import reconcile
 from database import getters
 
 from models import four_factor_regression as lm
-import config
+import configuration
 
 
 def get_prediction(reg, pred_df):
@@ -529,7 +529,7 @@ def predict_all(database, session, league_year):
 
 
 if __name__ == "__main__":
-    db_path = config.database_file(os.path.dirname(__file__))
+    db_path = configuration.database_file(os.path.dirname(__file__))
     database = Database(db_path)
     year = 2019
     session = Session(bind=database.engine)
