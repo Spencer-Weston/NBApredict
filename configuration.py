@@ -2,6 +2,35 @@
 Path contains function which return file and folder paths for the project
 """
 import os
+from configparser import ConfigParser
+
+
+def create_config(config_file=None):
+    parser = ConfigParser()
+    parser.read(config_file)
+    return parser
+
+
+class ConfigTest:
+    def __init__(self):
+        pass
+
+
+
+class Configuration:
+    """Read and write configuration settings from settings.ini"""
+
+    def __init__(self, settings):
+        """sets _config to the dictionary returned from reading a .yaml document"""
+        self._config = settings
+
+    def generate_config_keys(self, key):
+        pass
+
+    def get_property(self, property_name):
+        if property_name not in self._config.keys():
+            return None
+        return self._config[property_name]
 
 
 def project_directory():
