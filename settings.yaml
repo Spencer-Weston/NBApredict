@@ -1,0 +1,10 @@
+paths:
+    directory: NBA_bet
+    database: test
+
+models:
+    regression:
+        four_factor_regression:
+            settings: test
+
+league_year: 2019
