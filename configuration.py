@@ -141,9 +141,9 @@ with open(settings_file(), "r") as file:
     config_settings = yaml.load(file)
 
 Config = create_configuration(config_settings)
-test = Config.get_property("models")
-test2 = Config.get_property("four_factor_regression")
-test3 = Config.get_property("league_year")
-test4 = Config.get_property("database")
+# test = Config.get_property("models")
+# test2 = Config.get_property("four_factor_regression")
+# test3 = Config.get_property("league_year")
+# test4 = Config.get_property("database")
 
 t = 2

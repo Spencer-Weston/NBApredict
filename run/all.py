@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from database.database import Database
 from predict import predict
 from scrapers import scraper
-from configuration import Config
+# from configuration import Config
+import Config
 
 
 def run_all():
