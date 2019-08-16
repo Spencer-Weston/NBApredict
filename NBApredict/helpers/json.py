@@ -9,7 +9,7 @@ import os
 import yaml
 
 # Local imports
-from helpers import type
+from nbapredict.helpers import type
 
 
 class JsonFile:

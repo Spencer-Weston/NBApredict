@@ -11,7 +11,7 @@ from sqlalchemy.orm import mapper, clear_mappers
 from sqlalchemy.ext.automap import automap_base
 
 # Local Imports
-import configuration
+from nbapredict import configuration
 
 
 class Database:

@@ -9,9 +9,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, relationship
 
 # Local Imports
-from database.manipulator import DataManipulator
-from database import getters
-from database.reconcile import reconcile
+from NBApredict.database.manipulator import DataManipulator
+from NBApredict.database import getters
+from NBApredict.database.reconcile import reconcile
+
+
 
 
 def odds_for_today(games_query):

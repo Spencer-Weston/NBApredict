@@ -10,8 +10,8 @@ import pandas
 from sqlalchemy import UniqueConstraint, func
 
 # Local Imports
-from br_web_scraper import client
-from database.manipulator import DataManipulator
+from nbapredict.br_web_scraper import client
+from nbapredict.database.manipulator import DataManipulator
 
 
 def br_enum_to_string(season):

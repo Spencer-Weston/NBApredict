@@ -18,14 +18,14 @@ from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint, or_
 from sqlalchemy.exc import IntegrityError
 
 # Local imports
-from helpers import br_references
-from database.database import Database
-from database.manipulator import DataManipulator
-from database.reconcile import reconcile
-from database import getters
+from nbapredict.helpers import br_references
+from nbapredict.database.database import Database
+from nbapredict.database.manipulator import DataManipulator
+from nbapredict.database.reconcile import reconcile
+from nbapredict.database import getters
 
-from models import four_factor_regression as lm
-import configuration
+from nbapredict.models import four_factor_regression as lm
+from nbapredict import configuration
 
 
 def get_prediction(reg, pred_df):

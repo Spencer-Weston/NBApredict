@@ -17,9 +17,9 @@ from sqlalchemy.orm import Session
 import time
 
 # Local Imports
-from database import getters
-from database.database import Database
-from run.all import run_all
+from nbapredict.database import getters
+from nbapredict.database.database import Database
+from nbapredict.run.all import run_all
 
 
 def datetime_to_dict(d_time):

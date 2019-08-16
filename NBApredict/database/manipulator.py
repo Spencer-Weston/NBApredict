@@ -2,7 +2,7 @@
 manipulator holds the DataManipulator class which coerces raw_data into SQLalchemy compatible formats.
 """
 from datetime import datetime
-from helpers import type
+from nbapredict.helpers import type
 from sqlalchemy import Integer, Float, String, DateTime, Boolean
 
 

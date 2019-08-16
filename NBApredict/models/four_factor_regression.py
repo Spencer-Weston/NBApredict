@@ -22,11 +22,11 @@ import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
 
 # Local Packages
-from database import getters
-from database.database import Database
-from helpers import br_references as br
-from models import graphing
-import configuration
+from nbapredict.database import getters
+from nbapredict.database.database import Database
+from nbapredict.helpers import br_references as br
+from nbapredict.models import graphing
+from nbapredict import configuration
 
 
 class LinearRegression:

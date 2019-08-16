@@ -1,6 +1,6 @@
 from lxml import html
 
-from helpers.br_references import Location, Outcome, TEAM_ABBREVIATIONS_TO_TEAM
+from nbapredict.helpers.br_references import Location, Outcome, TEAM_ABBREVIATIONS_TO_TEAM
 
 
 def parse_location(symbol):

@@ -1,7 +1,7 @@
 import csv
 import json
 
-from helpers.br_references import OutputType, OutputWriteOption
+from nbapredict.helpers.br_references import OutputType, OutputWriteOption
 
 box_score_fieldname = [
     "name",

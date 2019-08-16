@@ -9,9 +9,9 @@ a commit during the process in order to function correctly.
 from sqlalchemy.orm import Session
 
 # Local Imports
-from database.database import Database
-from predict import predict
-from scrapers import scraper
+from nbapredict.database.database import Database
+from nbapredict.predict import predict
+from nbapredict.scrapers import scraper
 # from configuration import Config
 import Config
 

@@ -13,11 +13,11 @@ from bs4 import BeautifulSoup  # Requires lxml to be installed as well
 import re
 import requests
 
-# Local imports
-from database.manipulator import DataManipulator
-from helpers.br_references import BASE_URL
-from helpers.br_references import data_stat_headers as headers
-from helpers import type
+# Local imports NBApredict.
+from nbapredict.database.manipulator import DataManipulator
+from nbapredict.helpers.br_references import BASE_URL
+from nbapredict.helpers.br_references import data_stat_headers as headers
+from nbapredict.helpers import type
 
 
 def team_statistics(league_year, tbl_name):
