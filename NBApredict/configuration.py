@@ -67,8 +67,9 @@ class Configuration:
         _key_order: each key in _config with values listing keys above the specified key
     """
 
-    def __init__(self, settings):
+    def __init__(self, file, settings):
         """sets _config to the settings dictionary and stores the _key_order for accessing each element in _config"""
+        self._file = file
         self._config = settings
         self._key_order = self._generate_config_keys(self._config)
 
@@ -115,35 +116,56 @@ class Configuration:
 
         Creates the necessary state to run _recurse_nested_property. It creates a settings variable
         which is the first node in _config to look at, and it sets key_order to a list to iterate over.
+
+        Args:
+            property_key: The key of the desired setting
+            index: index to specify a key in key_order; zero by default which calls the root node of property key.
         """
-        settings = self._config[self._key_order[property_key][index]]  # Create a branch on property key's 1st value
-        index += 1
-        key_order = self._key_order[property_key]  # Create a list of property keys
-        return self._recurse_nested_property(property_key, settings, key_order, index)
+        # settings = self._config[self._key_order[property_key][index]]  # Create a branch on property key's 1st value
+        settings = self._config
+        #index += 1
+        #key_order = self._key_order[property_key]  # Create a list of property keys
+        #return self._recurse_nested_property(property_key, settings, key_order, index)
+        for key in self._key_order[property_key]:
+            settings = settings[key]
+
+        return settings[property_key]
 
     @staticmethod
-    def _recurse_nested_property(property_name, settings, key_order, index):
+    def _recurse_nested_property(property_key, settings, key_order, index):
+        """Recursive search of settings as ordered by key_order to find and return the property_name setting
+
+        Args:
+            property_key: key of the desired property
+            settings: a dictionary of settings
+            key_order: an ordered list of keys used to search settings
+            index: depth of the search used to stop recursion when key_order is exhausted
+        """
         if index >= len(key_order):
-            return settings[property_name]  # Return settings when key_order is exhausted
+            return settings[property_key]  # Return settings when key_order is exhausted
         else:
             settings = settings[key_order[index]]
-            return Configuration._recurse_nested_property(property_name, settings, key_order, index=index+1)
+            return Configuration._recurse_nested_property(property_key, settings, key_order, index=index + 1)
 
-    def set_property(self, key, value):
-        pass
+    def _set_property(self, key, value):
+        """Private function for modifying key:value pairs in self._config"""
+
+    def _write(self):
+        """Private function for over-writing self._config to the settings file"""
 
 
-def create_configuration(config_settings):
-    return Configuration(config_settings)
+def create_configuration(file, config_settings):
+    """Return an instantiated Configuration class."""
+    return Configuration(file, config_settings)
 
 
 with open(settings_file(), "r") as file:
     config_settings = yaml.load(file)
 
-Config = create_configuration(config_settings)
-# test = Config.get_property("models")
-# test2 = Config.get_property("four_factor_regression")
-# test3 = Config.get_property("league_year")
-# test4 = Config.get_property("database")
+Config = create_configuration(settings_file(), config_settings)
+test = Config.get_property("models")
+test2 = Config.get_property("four_factor_regression")
+test3 = Config.get_property("league_year")
+test4 = Config.get_property("database")
 
 t = 2
