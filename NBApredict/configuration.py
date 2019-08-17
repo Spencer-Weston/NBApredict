@@ -70,11 +70,11 @@ class Configuration:
     def __init__(self, file, settings):
         """sets _config to the settings dictionary and stores the _key_order for accessing each element in _config"""
         self._file = file
-        self._config = settings
-        self._key_order = self._generate_config_keys(self._config)
+        self._key_order = self._generate_config_keys(settings)
+        self._config = NestedDict(settings)
 
     def _generate_config_keys(self, config_dict, path=[], result={}, depth=0, ):
-        """Return a dictionary with each key, of any depth, in self._config.
+        """Return a dictionary with each key, of any depth, in self._raw_config.
 
         Each key's value is an ordered list of the keys/nodes above the key in self._config. A key in the fourth level
         of config [0,1,2,3] will be: {key: [node1, node2, node3]}
@@ -106,49 +106,16 @@ class Configuration:
         """
         if property_key not in self._key_order.keys():
             return None
-        elif property_key in self._config.keys():  # Checks if named property is in the top level of _config
+        elif property_key in self._config.dict.keys():  # Checks if named property is in the top level of _config
             return self._config[property_key]
         else:
-            return self._get_nested_property(property_key)
+            return self._config[self._key_order[property_key]]
 
-    def _get_nested_property(self, property_key, index=0):
-        """Return the property associated with the property key from _config.
-
-        Creates the necessary state to run _recurse_nested_property. It creates a settings variable
-        which is the first node in _config to look at, and it sets key_order to a list to iterate over.
-
-        Args:
-            property_key: The key of the desired setting
-            index: index to specify a key in key_order; zero by default which calls the root node of property key.
-        """
-        # settings = self._config[self._key_order[property_key][index]]  # Create a branch on property key's 1st value
-        settings = self._config
-        #index += 1
-        #key_order = self._key_order[property_key]  # Create a list of property keys
-        #return self._recurse_nested_property(property_key, settings, key_order, index)
-        for key in self._key_order[property_key]:
-            settings = settings[key]
-
-        return settings[property_key]
-
-    @staticmethod
-    def _recurse_nested_property(property_key, settings, key_order, index):
-        """Recursive search of settings as ordered by key_order to find and return the property_name setting
-
-        Args:
-            property_key: key of the desired property
-            settings: a dictionary of settings
-            key_order: an ordered list of keys used to search settings
-            index: depth of the search used to stop recursion when key_order is exhausted
-        """
-        if index >= len(key_order):
-            return settings[property_key]  # Return settings when key_order is exhausted
-        else:
-            settings = settings[key_order[index]]
-            return Configuration._recurse_nested_property(property_key, settings, key_order, index=index + 1)
-
-    def _set_property(self, key, value):
+    def _set_property(self, property_key, value):
         """Private function for modifying key:value pairs in self._config"""
+        keys = self._key_order[property_key]
+        self._config[keys] = value
+        #self._key_order = self._generate_config_keys(self._config.dict)
 
     def _write(self):
         """Private function for over-writing self._config to the settings file"""
@@ -159,10 +126,49 @@ def create_configuration(file, config_settings):
     return Configuration(file, config_settings)
 
 
+class NestedDict:
+    def __init__(self, *args, **kwargs):
+        self.dict = dict(*args, **kwargs)
+
+    def __getitem__(self, keys):
+        # Allows getting top-level branch when a single key was provided
+        if not isinstance(keys, tuple):
+            if isinstance(keys, str):  # Handles single item lists or strings
+                keys = (keys,)
+            else:
+                keys = tuple(keys)
+
+        branch = self.dict
+        for key in keys:
+            branch = branch[key]
+
+        # If we return a branch, and not a leaf value, we wrap it into a NestedDict
+        return NestedDict(branch).dict if isinstance(branch, dict) else branch
+
+    def __setitem__(self, keys, value):
+        # Allows setting top-level item when a single key was provided
+        if not isinstance(keys, tuple):
+            if len(keys) < 2:
+                keys = (keys,)
+            else:
+                keys = tuple(keys)
+
+        branch = self.dict
+        for key in keys[:-1]:
+            if not key in branch:
+                branch[key] = {}
+            branch = branch[key]
+        branch[keys[-1]] = value
+
+
 with open(settings_file(), "r") as file:
     config_settings = yaml.load(file)
 
 Config = create_configuration(settings_file(), config_settings)
+
+# noinspection PyProtectedMember
+Config._set_property("four_factor_regression", "something_else")
+
 test = Config.get_property("models")
 test2 = Config.get_property("four_factor_regression")
 test3 = Config.get_property("league_year")
