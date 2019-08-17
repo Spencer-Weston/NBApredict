@@ -9,9 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, relationship
 
 # Local Imports
-from NBApredict.database.manipulator import DataManipulator
-from NBApredict.database import getters
-from NBApredict.database.reconcile import reconcile
+from nbapredict.database.manipulator import DataManipulator
+from nbapredict.database import getters
+from nbapredict.database.reconcile import reconcile
 
 
 
@@ -269,8 +269,9 @@ def scrape(database, session, league_year=2019):
 
 
 if __name__ == "__main__":
-    from database.database import Database
-    db = Database()
-    year = 2019
-    session = Session(bind=db.engine)
-    scrape(db, session, year)
+    pass
+#    from database.database import Database
+#     db = Database()
+#     year = 2019
+#     session = Session(bind=db.engine)
+#     scrape(db, session, year)

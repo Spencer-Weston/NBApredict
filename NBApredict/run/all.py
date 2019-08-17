@@ -13,7 +13,7 @@ from nbapredict.database.database import Database
 from nbapredict.predict import predict
 from nbapredict.scrapers import scraper
 # from configuration import Config
-import Config
+from nbapredict.configuration import Config
 
 
 def run_all():
