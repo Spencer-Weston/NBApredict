@@ -154,7 +154,7 @@ def create_odds_table(database, data, tbl_name, sched_tbl):
     """Creates an odds_table in the database based on the data with foreign key based on the schedule
 
     Args:
-        database: An instance of the Database class from database/Database.py
+        database: An instance of the DBInterface class from database/DBInterface.py
         data: A DataManipulator object from database/manipulator which holds the data and
         tbl_name:
         sched_tbl: The schedule table which will contain the game_id for the odds_table and which will be given a
@@ -226,7 +226,7 @@ def scrape(database, session, league_year=2019):
     """Scrapes betting line information from bovada and adds it to the session
 
     Args:
-        database: An instantiated Database object from database.database for database interactions
+        database: An instantiated DBInterface object from database.database for database interactions
         session: An instance of a sqlalchemy Session class bound to the database's engine
         league_year: The desired league year to scrape. In all likelihood, this will always be the current league year as
         Bovada, the scraped site, displays only day-of or future date betting lines.
@@ -270,8 +270,8 @@ def scrape(database, session, league_year=2019):
 
 if __name__ == "__main__":
     pass
-#    from database.database import Database
-#     db = Database()
+#    from database.database import DBInterface
+#     db = DBInterface()
 #     year = 2019
 #     session = Session(bind=db.engine)
 #     scrape(db, session, year)

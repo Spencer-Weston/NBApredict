@@ -27,6 +27,7 @@ def database_file(calling_file_path):
     path by inserting ..// to the front of the base path. So a file nested one level below the root directory becomes
     r"sqlite:///..//outputs//nba_db.db"
     """
+    global modified_path
     head_path = project_directory()
     head_folder = os.path.split(head_path)[1]
 
@@ -125,7 +126,7 @@ class Configuration:
     def _set_property(self, property_key, value):
         """Private function for modifying key:value pairs in self._config.
 
-        Additionally, rewrites self._key_order in order to store changes"""
+        Additionally, rewrites self._key_order in order to store changes."""
         if property_key not in self._key_order.keys():
             raise KeyError("'{}' not in Config. Manually modify the settings.yaml file if you wish to add new"
                            " settings.".format(property_key))
@@ -204,9 +205,5 @@ set_paths(Config, change_paths)
 # noinspection PyProtectedMember
 Config._set_property("four_factor_regression", "something_else")
 
-test = Config.get_property("settings")
-test2 = Config.get_property("four_factor_regression")
-test3 = Config.get_property("league_year")
-test4 = Config.get_property("database")
 
 t = 2

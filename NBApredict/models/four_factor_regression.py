@@ -23,7 +23,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor as vi
 
 # Local Packages
 from nbapredict.database import getters
-from nbapredict.database.database import Database
+from nbapredict.database.dbinterface import DBInterface
 from nbapredict.helpers import br_references as br
 from nbapredict.models import graphing
 from nbapredict import configuration
@@ -258,7 +258,7 @@ def main(database, session, year=2019, graph=False):
     """Create a regression data frame, run a regression through the LinearRegression class, and return the class
 
     Args:
-        database: An instantiated Database object from database.py
+        database: An instantiated DBInterface object from dbinterface.py
         session: An instantiated Session object from sqlalchemy
         year: The year to run the regression for
         graph: A boolean that creates graphs if true
@@ -303,6 +303,6 @@ def main(database, session, year=2019, graph=False):
 
 
 if __name__ == "__main__":
-    database = Database()
+    database = DBInterface()
     session = Session(database.engine)
     main(database, session, 2019, graph=True)

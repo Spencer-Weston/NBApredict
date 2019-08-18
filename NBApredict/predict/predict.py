@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 
 # Local imports
 from nbapredict.helpers import br_references
-from nbapredict.database.database import Database
+from nbapredict.database.dbinterface import DBInterface
 from nbapredict.database.manipulator import DataManipulator
 from nbapredict.database.reconcile import reconcile
 from nbapredict.database import getters
@@ -146,7 +146,7 @@ def create_prediction_table(database, data, tbl_name):
     """Create a prediction table from the data and with the table name in the database.
 
     Args:
-        database: An initialized Database class from database.database.py
+        database: An initialized DBInterface class from database.dbinterface.py
         data: An initialized DataManipulator object, from database.manipulator, with prediction data
         tbl_name: The desired table name (with year as the last four characters)
     """
@@ -182,7 +182,7 @@ def get_sample_prediction(database, odds_tbl, session, regression):
     """Generate and return a sample prediction to create a prediction table from.
 
     Args:
-        database: An initialized Database class from database.database.py
+        database: An initialized DBInterface class from database.dbinterface.py
         odds_tbl: A mapped odds table
         session: A SQLalchemy session object
         regression: A regression object from four_factor_regression.py
@@ -384,7 +384,7 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
     when the betting line's prediction is above the model's prediction.
 
     Args:
-        database: an instantiated Database class from database.database.py
+        database: an instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
         regression: A regression object
         start_time: Date.datetime with the date and start time of the game
@@ -416,7 +416,7 @@ def predict_games_in_odds(database, session, regression, league_year):
     """Generate and return predictions for all games with odds in the odds_tbl
 
     Args:
-        database: An instantiated Database class from database.database.py
+        database: An instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
         regression: A linear regression object generated from four_factor_regression
         league_year: The desired league year for predictions
@@ -437,7 +437,7 @@ def predict_games_on_day(database, session, games, console_out=False):
     """Take a SQLalchemy query object of games, and return a prediction for each game.
 
     Args:
-        database: an instantiated Database class from database.database.py
+        database: an instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
         games: a SQLalchemy query object of games containing start_time, home_tm, away_tm, and the spread
         console_out: A bool. True to print prediction outputs
@@ -465,7 +465,7 @@ def predict_games_on_date(database, session, league_year, date, console_out):
     """Predict games on the specified date and write the results to the database
 
     Args:
-        database: An instantiated Database class from database.py
+        database: An instantiated DBInterface class from dbinterface.py
         session: A sqlalchemy session object for queries and writes
         league_year: The league year to work with. For example, the league year of the 2018-19 season is 2019
         date: Either a datetime.date or a dictionary keyed formatted as {"day": day, "month": month, "year": year"}
@@ -530,7 +530,7 @@ def predict_all(database, session, league_year):
 
 if __name__ == "__main__":
     db_path = configuration.database_file(os.path.dirname(__file__))
-    database = Database(db_path)
+    database = DBInterface(db_path)
     year = 2019
     session = Session(bind=database.engine)
     predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019, console_out=True)

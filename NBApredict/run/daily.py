@@ -18,7 +18,7 @@ import time
 
 # Local Imports
 from nbapredict.database import getters
-from nbapredict.database.database import Database
+from nbapredict.database.dbinterface import DBInterface
 from nbapredict.run.all import run_all
 
 
@@ -47,8 +47,8 @@ def missed_job(event):
 
 
 if __name__ == "__main__":
-    # Database setup
-    database = Database()
+    # DBInterface setup
+    database = DBInterface()
     year = 2019
     session = Session(bind=database.engine)
     sched_tbl = database.get_table_mappings("sched_{}".format(year))

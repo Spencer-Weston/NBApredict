@@ -13,7 +13,8 @@ from bs4 import BeautifulSoup  # Requires lxml to be installed as well
 import re
 import requests
 
-# Local imports NBApredict.
+# Local imports.
+from nbapredict.configuration import Config
 from nbapredict.database.manipulator import DataManipulator
 from nbapredict.helpers.br_references import BASE_URL
 from nbapredict.helpers.br_references import data_stat_headers as headers
@@ -107,7 +108,7 @@ def scrape(database, league_year=2019, tbl_name="misc_stats"):
     """Scrape a basketball_reference table of team stats, parse the table, and write it to a database
 
     Args:
-        database: An instantiated Database object from database.database for database interactions
+        database: An instantiated DBInterface object from database.database for database interactions
         league_year: The league year to scrape data from (i.e. 2018-2019 season is 2019)
         tbl_name: The name of the table to scrape on basketballreference.com
     """
@@ -140,4 +141,5 @@ def scrape(database, league_year=2019, tbl_name="misc_stats"):
 
 
 if __name__ == "__main__":
-     scrape(year=2019)
+    db =
+    scrape(Config.get_property("league_year"))

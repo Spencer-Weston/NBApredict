@@ -1,5 +1,5 @@
 """
-This file contains a Database class which dictates table creation, deletion, and access.
+This file contains a DBInterface class which dictates table creation, deletion, and access.
 """
 
 import os
@@ -14,8 +14,8 @@ from sqlalchemy.ext.automap import automap_base
 from nbapredict import configuration
 
 
-class Database:
-    """Database contains high level information about the desired database and creation, deletion, and access functions
+class DBInterface:
+    """DBInterface contains high level information about the desired database and creation, deletion, and access functions
 
     Attributes:
          path: The path to the database
@@ -86,7 +86,7 @@ class Database:
             return False
 
     def create_tables(self):
-        """Creates all tables which have been made or modified with the Base class of the Database
+        """Creates all tables which have been made or modified with the Base class of the DBInterface
 
         Note that existing tables which have been modified, such as by adding a relationship, will be updated when
         create_tables() is called. """

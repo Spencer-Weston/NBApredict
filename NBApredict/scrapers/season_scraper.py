@@ -42,7 +42,7 @@ def create_season_table(database, data, tbl_name):
     Use only if the table does not already exist
 
     Args:
-        database: An instantiated Database object from database.database for database interactions.
+        database: An instantiated DBInterface object from database.database for database interactions.
         data: A DataManipulator object from database.manipulator that holds the data to add.
         tbl_name: The name of the table to create.
     """
@@ -51,7 +51,7 @@ def create_season_table(database, data, tbl_name):
     database.map_table(tbl_name, sql_types, constraint)
     database.create_tables()
     database.insert_rows(tbl_name, data.data)
-    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use Database.Template
+    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use DBInterface.Template
 
 
 def update_season_table(session, sched_tbl, season_df):
@@ -118,7 +118,7 @@ def scrape(database, session, league_year=2019):
     return every game up to the day before the module is run. This ensures only completed games are returned.
 
     Args:
-        database: An instantiated Database object from database.database for database interactions
+        database: An instantiated DBInterface object from database.database for database interactions
         session: A SQLalchemy session object
         league_year (2019): The league year of the desired season
     """

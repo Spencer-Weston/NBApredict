@@ -55,7 +55,7 @@ def get_pandas_df_from_table(database, session, tbl_name, qualifiers=False):
     """Convert the specified table into a pandas dataframe, modify it according to qualifiers, and return the result
 
     Args:
-        database: An instantiated Database class from database.py
+        database: An instantiated DBInterface class from dbinterface.py
         session: SQLalchemy session object
         tbl_name: name of the desired table
         qualifiers: A list of columns or a function to filter rows by

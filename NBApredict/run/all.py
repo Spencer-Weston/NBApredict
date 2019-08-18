@@ -9,17 +9,16 @@ a commit during the process in order to function correctly.
 from sqlalchemy.orm import Session
 
 # Local Imports
-from nbapredict.database.database import Database
+from nbapredict.database.dbinterface import DBInterface
 from nbapredict.predict import predict
 from nbapredict.scrapers import scraper
-# from configuration import Config
 from nbapredict.configuration import Config
 
 
 def run_all():
     """Run the entire NBA_bet project."""
-    db = Database()
-    year = 2019
+    db = DBInterface()
+    year = Config.get_property("league_year")
     session = Session(bind=db.engine)
 
     scraper.scrape_all(db, session, year)
