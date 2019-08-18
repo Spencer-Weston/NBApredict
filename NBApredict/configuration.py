@@ -62,7 +62,11 @@ def graphs_directory():
 class Configuration:
     """Read and write configuration settings from settings.yaml
 
+    Warning:
+        Configuration cannot handle duplicate keys even if keys are of a different depth
+
     Attributes:
+        _file: the source file of the Configuration instance
         _config: a dictionary of settings
         _key_order: each key in _config with values listing keys above the specified key
     """
@@ -73,11 +77,11 @@ class Configuration:
         self._key_order = self._generate_config_keys(settings)
         self._config = NestedDict(settings)
 
-    def _generate_config_keys(self, config_dict, path=[], result={}, depth=0, ):
-        """Return a dictionary with each key, of any depth, in self._raw_config.
+    def _generate_config_keys(self, config_dict, path=None, result=None, depth=0, ):
+        """Return a dictionary with each key, of any depth, in self._config.
 
-        Each key's value is an ordered list of the keys/nodes above the key in self._config. A key in the fourth level
-        of config [0,1,2,3] will be: {key: [node1, node2, node3]}
+        Each key's value is an ordered list of the nodes above the key and the key itself in self._config. A key in the
+        fourth level of config will be: {key: [node1, node2, node3, key]}.
 
         Args:
             config_dict: A dictionary of configuration options
@@ -85,16 +89,23 @@ class Configuration:
             result: A dictionary which store results
             depth: The current depth of the recursion
         """
+        # Initialize path and result. We avoid defaults so path and result are reset on each call
+        if path is None:
+            path = []
+        if result is None:
+            result = {}
         for key, value in config_dict.items():
             if depth == 0:  # Reset path each time the function reaches a top-level key in the dictionary
-                path = []
+                path = [key]
             if type(value) is dict:
+                if key not in path:
+                    path.append(key)
                 if key not in result.keys():
                     result.update({key: path[:]})  # Create a new list to store path's current state
-                path.append(key)
                 result = self._generate_config_keys(value, path, result, depth=depth + 1)
             else:
                 result.update({key: path[:]})
+                result[key].append(key)
 
         return result
 
@@ -112,18 +123,18 @@ class Configuration:
             return self._config[self._key_order[property_key]]
 
     def _set_property(self, property_key, value):
-        """Private function for modifying key:value pairs in self._config"""
-        keys = self._key_order[property_key]
+        """Private function for modifying key:value pairs in self._config.
+
+        Additionally, rewrites self._key_order in order to store changes"""
+        if property_key not in self._key_order.keys():
+            raise KeyError("'{}' not in Config. Manually modify the settings.yaml file if you wish to add new"
+                           " settings.".format(property_key))
+        keys = [i for i in self._key_order[property_key]]
         self._config[keys] = value
-        #self._key_order = self._generate_config_keys(self._config.dict)
+        self._key_order = self._generate_config_keys(self._config.dict)
 
     def _write(self):
         """Private function for over-writing self._config to the settings file"""
-
-
-def create_configuration(file, config_settings):
-    """Return an instantiated Configuration class."""
-    return Configuration(file, config_settings)
 
 
 class NestedDict:
@@ -149,7 +160,7 @@ class NestedDict:
         # Allows setting top-level item when a single key was provided
         if not isinstance(keys, tuple):
             if len(keys) < 2:
-                keys = (keys,)
+                keys = (*keys,)
             else:
                 keys = tuple(keys)
 
@@ -161,15 +172,39 @@ class NestedDict:
         branch[keys[-1]] = value
 
 
+def create_configuration(file, config_settings):
+    """Return an instantiated Configuration class."""
+    return Configuration(file, config_settings)
+
+
+def check_paths(config, comp_dict):
+    no_match = {}
+    for k, v in comp_dict.items():
+        if config.get_property(k) != v:
+            no_match[k] = v
+    return no_match
+
+
+def set_paths(config, change_dict):
+    for k, v in change_dict.items():
+        config._set_property(k, v)
+    return config
+
+
 with open(settings_file(), "r") as file:
-    config_settings = yaml.load(file)
+    config_settings = yaml.safe_load(file)
 
 Config = create_configuration(settings_file(), config_settings)
 
+paths = {"directory": project_directory(), "database": database_file(os.getcwd()), "graphs": graphs_directory(),
+         "settings": settings_file()}
+
+change_paths = check_paths(Config, paths)
+set_paths(Config, change_paths)
 # noinspection PyProtectedMember
 Config._set_property("four_factor_regression", "something_else")
 
-test = Config.get_property("models")
+test = Config.get_property("settings")
 test2 = Config.get_property("four_factor_regression")
 test3 = Config.get_property("league_year")
 test4 = Config.get_property("database")

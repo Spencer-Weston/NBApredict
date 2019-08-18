@@ -1,10 +1,16 @@
 paths:
-    directory: NBA_bet
-    database: test
+    directory: NBA
+    database: db_path
+    graphs: graph_path
+    settings: settings path
+
+prediction:
+    predict_lines: False
 
 models:
-    regression:
-        four_factor_regression:
-            settings: test
+    four_factor_regression:
+        options:
+            graph: False
+            console_out: False
 
 league_year: 2019
