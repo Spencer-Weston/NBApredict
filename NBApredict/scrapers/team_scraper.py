@@ -21,13 +21,12 @@ from nbapredict.helpers.br_references import data_stat_headers as headers
 from nbapredict.helpers import type
 
 
-def team_statistics(league_year, tbl_name):
+def team_statistics(tbl_name):
     """Build a URL for the specified year and return team statistics for the specified table on that page.
 
     Performance not guaranteed for tables that are not "misc_stats"
 
     Args:
-        league_year: The league year of the stats to be returned
         tbl_name: The name of the table to be returned
 
     Returns:
@@ -36,7 +35,7 @@ def team_statistics(league_year, tbl_name):
 
     url = '{BASE_URL}/leagues/NBA_{year}.html'.format(
         BASE_URL=BASE_URL,  # imported from br_references.py
-        year=league_year
+        year=Config.get_property("league_year")
     )
 
     response = requests.get(url=url, allow_redirects=False)
@@ -104,17 +103,16 @@ def clean_team_name(team_names):
     return new_team_names
 
 
-def scrape(database, league_year=2019, tbl_name="misc_stats"):
+def scrape(database, tbl_name="misc_stats"):
     """Scrape a basketball_reference table of team stats, parse the table, and write it to a database
 
     Args:
         database: An instantiated DBInterface object from database.database for database interactions
-        league_year: The league year to scrape data from (i.e. 2018-2019 season is 2019)
         tbl_name: The name of the table to scrape on basketballreference.com
     """
 
     # Get tbl_dictionary from basketball reference
-    tbl_dict = team_statistics(league_year, tbl_name)
+    tbl_dict = team_statistics(tbl_name)
     tbl_dict["team_name"] = clean_team_name(tbl_dict["team_name"])
 
     data = DataManipulator(tbl_dict)
@@ -122,7 +120,7 @@ def scrape(database, league_year=2019, tbl_name="misc_stats"):
     sql_types = data.get_sql_type()
 
     # Initial tbl_name is for scraping basketball reference; Year is added to disambiguate tables
-    tbl_name = '{}_{}'.format(tbl_name, league_year)
+    tbl_name = '{}_{}'.format(tbl_name, Config.get_property("league_year"))
 
     if database.table_exists(tbl_name):  # Table needs to be completely reset each run
         database.drop_table(tbl_name)
@@ -141,5 +139,6 @@ def scrape(database, league_year=2019, tbl_name="misc_stats"):
 
 
 if __name__ == "__main__":
-    db =
-    scrape(Config.get_property("league_year"))
+    from nbapredict.database.dbinterface import DBInterface
+    db = DBInterface()
+    scrape(db)

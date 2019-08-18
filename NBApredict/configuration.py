@@ -203,7 +203,7 @@ paths = {"directory": project_directory(), "database": database_file(os.getcwd()
 change_paths = check_paths(Config, paths)
 set_paths(Config, change_paths)
 # noinspection PyProtectedMember
-Config._set_property("four_factor_regression", "something_else")
+# Config._set_property("four_factor_regression", "something_else")
 
 
 t = 2
