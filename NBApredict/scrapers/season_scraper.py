@@ -12,6 +12,7 @@ from sqlalchemy import UniqueConstraint, func
 # Local Imports
 from nbapredict.br_web_scraper import client
 from nbapredict.database.manipulator import DataManipulator
+from nbapredict.configuration import Config
 
 
 def br_enum_to_string(season):
@@ -111,7 +112,7 @@ def add_rows(session, schedule, rows):
     session.add_all(new_row_objects)
 
 
-def scrape(database, session, league_year=2019):
+def scrape(database, session):
     """Scrape basketball reference for games in a season, parse the output, and write the output to a database.
 
     If the specified year has been completed, it will return every game in the season. If the season is ongoing, it will
@@ -122,6 +123,7 @@ def scrape(database, session, league_year=2019):
         session: A SQLalchemy session object
         league_year (2019): The league year of the desired season
     """
+    league_year = Config.get_property("league_year")
     tbl_name = "sched_{}".format(league_year)
 
     # Create table
@@ -139,3 +141,11 @@ def scrape(database, session, league_year=2019):
             add_rows(session, schedule, data.data)  # Add new rows not in database
 
     return True
+
+
+if __name__ == '__main__':
+    from nbapredict.database.dbinterface import DBInterface
+    from sqlalchemy.orm import Session
+    db = DBInterface()
+    session = Session(db.engine)
+    scrape(db, session)
