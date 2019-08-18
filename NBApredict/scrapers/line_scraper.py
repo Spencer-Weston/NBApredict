@@ -9,11 +9,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, relationship
 
 # Local Imports
+from nbapredict.configuration import Config
 from nbapredict.database.manipulator import DataManipulator
 from nbapredict.database import getters
 from nbapredict.database.reconcile import reconcile
 
 
+def bovada_json_request(url):
+    response = requests.get(url, allow_redirects=False).json()
+    if not len(response):
+        return None
+    return response
 
 
 def odds_for_today(games_query):
@@ -29,14 +35,20 @@ def odds_for_today(games_query):
 
     # The specific URL that needs to be scraped (need a way to differentiate playoffs and non-playoffs)
     # url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba"  # Regular Season
-    url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba-playoffs"  # Playoffs
+    # url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba-playoffs"  # Playoffs
 
-    response = requests.get(url=url, allow_redirects=False).json()
     scrape_time = datetime.now()
 
+    # Check for response from Bovada
+    url = Config.get_property("regularURL")
+    response = bovada_json_request(url)
+    if not response:
+        url = Config.get_property("playoffURL")
+        response = bovada_json_request(url)
+        if not response:
+            return None
+
     # Move down tree towards games
-    if not len(response):
-        return None
     events = response[0]["events"]
 
     # Get the game dictionaries (which hold a bunch of random data) stripped from the events object
@@ -44,10 +56,14 @@ def odds_for_today(games_query):
     for game in games_query:
         game_descriptions.append("{} @ {}".format(game.away_team, game.home_team).lower())
     bovada_games = [game_dict for game_dict in events if game_dict["description"].lower() in game_descriptions]
+    if not bovada_games:
+        return None
 
+    # Set-up the line dictionary which stores data in the correct table format
     lines = {"home_team": [], "away_team": [], "start_time": [], "spread": [], "home_spread_price": [],
              "away_spread_price": [], "home_moneyline": [], "away_moneyline": [], "scrape_time": []}
 
+    # Iterate through each game returned by bovada and store its information
     for game in bovada_games:
         home_team, away_team = parse_teams(game["competitors"])
 
@@ -55,12 +71,14 @@ def odds_for_today(games_query):
         betting_info = game["displayGroups"][0]["markets"]
         full_match_bets = [bet for bet in betting_info if bet["period"]["description"] == "Match"]
 
+        # Find the game in games_query that matches the current game in bovada_games
         game_tbl = [game for game in games_query if
                     game.home_team == home_team.upper() and game.away_team == away_team.upper()]
         if len(game_tbl) > 1:
             raise Exception("Multiple games returned. Unexpected query result")
         start_datetime = game_tbl[0].start_time
 
+        # Extract the betting data associated with the game
         money_lines = False
         for bet in full_match_bets:
             if bet["description"] == "Moneyline":
@@ -167,9 +185,8 @@ def create_odds_table(database, data, tbl_name, sched_tbl):
     constraint = {UniqueConstraint: ["home_team", "away_team", "start_time"]}
 
     database.map_table(tbl_name, sql_types, constraint)  # Maps the odds table
-    # odds_tbl_map = database.metadata.tables[tbl_name]
-    # odds_tbl_map.schedule = relationship(sched_tbl_name, back_populates=sched_tbl_name)
 
+    # Establish relationship if it does not exist
     if "odds" not in sched_tbl.__mapper__.relationships.keys():
         sched_tbl.odds = relationship(database.Template)
 
@@ -222,16 +239,14 @@ def update_odds_table(odds_table, sched_tbl, rows, session):
                 continue
 
 
-def scrape(database, session, league_year=2019):
+def scrape(database, session):
     """Scrapes betting line information from bovada and adds it to the session
 
     Args:
         database: An instantiated DBInterface object from database.database for database interactions
         session: An instance of a sqlalchemy Session class bound to the database's engine
-        league_year: The desired league year to scrape. In all likelihood, this will always be the current league year as
-        Bovada, the scraped site, displays only day-of or future date betting lines.
     """
-
+    league_year = Config.get_property("league_year")
     schedule = database.get_table_mappings("sched_{}".format(league_year))
     date = datetime.date(datetime.now())
     games = getters.get_games_on_day(schedule, session, date)
@@ -252,8 +267,9 @@ def scrape(database, session, league_year=2019):
     tbl_exists = database.table_exists(tbl_name)
     if not tbl_exists:
         create_odds_table(database, line_data, tbl_name, schedule)
+        tbl_exists = database.table_exists(tbl_name)
 
-    elif line_data.validate_data_length() and tbl_exists:
+    if line_data.validate_data_length() and tbl_exists:
         # All values in line_data are expected to be be unique from values in the database. A possible place for errors
         # to occur
         odds_table = database.get_table_mappings([tbl_name])
@@ -269,9 +285,8 @@ def scrape(database, session, league_year=2019):
 
 
 if __name__ == "__main__":
-    pass
-#    from database.database import DBInterface
-#     db = DBInterface()
-#     year = 2019
-#     session = Session(bind=db.engine)
-#     scrape(db, session, year)
+    from nbapredict.database.dbinterface import DBInterface
+    db = DBInterface()
+    year = 2019
+    session = Session(bind=db.engine)
+    scrape(db, session)

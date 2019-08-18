@@ -4,6 +4,10 @@ paths:
     graphs: graph_path
     settings: settings path
 
+Bovada:
+    regularURL: https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba
+    playoffURL: https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba-playoffs
+
 prediction:
     predict_lines: False
 
