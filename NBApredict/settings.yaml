@@ -1,7 +1,7 @@
 paths:
     directory: NBA
     database: db_path
-    graphs: graph_path
+    graph_dir: graph_path
     settings: settings path
 
 Bovada:
@@ -14,7 +14,7 @@ prediction:
 models:
     four_factor_regression:
         options:
-            graph: False
-            console_out: False
+            graph: True
+            console_out: True
 
 league_year: 2019

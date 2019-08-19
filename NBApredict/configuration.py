@@ -197,7 +197,7 @@ with open(settings_file(), "r") as file:
 
 Config = create_configuration(settings_file(), config_settings)
 
-paths = {"directory": project_directory(), "database": database_file(os.getcwd()), "graphs": graphs_directory(),
+paths = {"directory": project_directory(), "database": database_file(os.getcwd()), "graph_dir": graphs_directory(),
          "settings": settings_file()}
 
 change_paths = check_paths(Config, paths)

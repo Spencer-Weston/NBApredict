@@ -26,7 +26,7 @@ from nbapredict.database import getters
 from nbapredict.database.dbinterface import DBInterface
 from nbapredict.helpers import br_references as br
 from nbapredict.models import graphing
-from nbapredict import configuration
+from nbapredict.configuration import Config
 
 
 class LinearRegression:
@@ -129,7 +129,8 @@ class LinearRegression:
 def create_ff_regression_df(ff_df, sched_df, ff_list):
     """Create and return a regression data frame of the four factors (ff) for each team in a matchup.
 
-    Pd.concat presents a performance issue
+    To-do:
+        Pd.concat presents a performance issue
 
     Args:
         ff_df: four factors Pandas data frame (read from SQL table)
@@ -254,19 +255,19 @@ def four_factors_list():
     return ff_list
 
 
-def main(database, session, year=2019, graph=False):
+def main(database, session, graph=False):
     """Create a regression data frame, run a regression through the LinearRegression class, and return the class
 
     Args:
         database: An instantiated DBInterface object from dbinterface.py
         session: An instantiated Session object from sqlalchemy
-        year: The year to run the regression for
         graph: A boolean that creates graphs if true
 
     Returns:
         A LinearRegression class
     """
-    graph_dir = configuration.graphs_directory()
+    league_year = Config.get_property("league_year")
+    graph_dir = Config.get_property("graph_dir")
     if not os.path.exists(graph_dir) and graph:
         os.mkdir(graph_dir)
 
@@ -274,8 +275,8 @@ def main(database, session, year=2019, graph=False):
     ff_list = four_factors_list()
 
     # Convert database tables to pandas
-    ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
-    sched_df = getters.get_pandas_df_from_table(database, session, "sched_{}".format(year),
+    ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(league_year), ff_list)
+    sched_df = getters.get_pandas_df_from_table(database, session, "sched_{}".format(league_year),
                                                 lambda df: df.away_team_score > 0)
 
     # Combines four factors and seasons df's and separates them into X (predictors) and y (target)
@@ -287,13 +288,13 @@ def main(database, session, year=2019, graph=False):
 
     # Note that on Windows graphs will not appear to be updated
     # To change that, go to folder properties -> customize -> optimize for: Documents
-    if graph:
-        ff_reg.predicted_vs_actual(out_path=os.path.join(graph_dir, "pred_vs_actual_{}.png".format(year)))
-        ff_reg.residuals_vs_fitted(out_path=os.path.join(graph_dir, "residuals_vs_fitted_{}.png".format(year)))
-        ff_reg.qqplot(out_path=os.path.join(graph_dir, "qqplot_{}.png".format(year)))
-        ff_reg.influence_plot(out_path=os.path.join(graph_dir, "influence_{}.png".format(year)))
-        ff_reg.cooks_distance(out_path=os.path.join(graph_dir, "cooks_distance_{}.png".format(year)))
-        ff_reg.residual_independence(out_path=os.path.join(graph_dir, "resid_independence_{}.png".format(year)))
+    if Config.get_property("graph"):
+        ff_reg.predicted_vs_actual(out_path=os.path.join(graph_dir, "pred_vs_actual_{}.png".format(league_year)))
+        ff_reg.residuals_vs_fitted(out_path=os.path.join(graph_dir, "residuals_vs_fitted_{}.png".format(league_year)))
+        ff_reg.qqplot(out_path=os.path.join(graph_dir, "qqplot_{}.png".format(league_year)))
+        ff_reg.influence_plot(out_path=os.path.join(graph_dir, "influence_{}.png".format(league_year)))
+        ff_reg.cooks_distance(out_path=os.path.join(graph_dir, "cooks_distance_{}.png".format(league_year)))
+        ff_reg.residual_independence(out_path=os.path.join(graph_dir, "resid_independence_{}.png".format(league_year)))
 
     # Multicollinearity
     # vif_df = ff_reg.vif()
@@ -305,4 +306,4 @@ def main(database, session, year=2019, graph=False):
 if __name__ == "__main__":
     database = DBInterface()
     session = Session(database.engine)
-    main(database, session, 2019, graph=True)
+    main(database, session, graph=True)
