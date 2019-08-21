@@ -1,5 +1,5 @@
 """
-predict contains functions organized around generating game predictions
+Predict.odds contains functions organized around comparing predictions to odds
 
 ToDo:
     In theory, the module will allow multiple model inputs. Thus, we can pass it a linear, bayesian, ML, etc. model,
@@ -18,14 +18,13 @@ from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint, or_
 from sqlalchemy.exc import IntegrityError
 
 # Local imports
+from nbapredict.configuration import Config
 from nbapredict.helpers import br_references
 from nbapredict.database.dbinterface import DBInterface
 from nbapredict.database.manipulator import DataManipulator
 from nbapredict.database.reconcile import reconcile
 from nbapredict.database import getters
-
 from nbapredict.models import four_factor_regression as lm
-from nbapredict import configuration
 
 
 def get_prediction(reg, pred_df):
@@ -142,7 +141,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
 
 
-def create_prediction_table(database, data, tbl_name):
+def create_odds_table(database, data, tbl_name):
     """Create a prediction table from the data and with the table name in the database.
 
     Args:
@@ -483,7 +482,7 @@ def predict_games_on_date(database, session, league_year, date, console_out):
     prediction_tbl = "predictions_{}".format(league_year)
     data = DataManipulator(results)
     if not database.table_exists(prediction_tbl):
-        create_prediction_table(database, data, prediction_tbl)
+        create_odds_table(database, data, prediction_tbl)
 
     sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
     pred_tbl = database.get_table_mappings("predictions_{}".format(league_year))
@@ -500,18 +499,19 @@ def predict_games_on_date(database, session, league_year, date, console_out):
         session.close()
 
 
-def predict_all(database, session, league_year):
+def predict_all(database, session):
     """Generate and store predictions for all games available in the odds table.
 
     Checks if the table exists. If it doesn't, generate a table in the database.
     """
-    regression = lm.main(database=database, session=session, year=league_year)
+    league_year = Config.get_property("league_year")
+    regression = lm.main(database=database, session=session)
     pred_tbl_name = "predictions_{}".format(league_year)
 
     odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
     if not database.table_exists(pred_tbl_name):
         data = get_sample_prediction(database, odds_tbl, session, regression)
-        create_prediction_table(database, data, pred_tbl_name)
+        create_odds_table(database, data, pred_tbl_name)
 
     results = predict_games_in_odds(database, session, regression, league_year)
     pred_tbl = database.get_table_mappings(pred_tbl_name)
@@ -529,8 +529,7 @@ def predict_all(database, session, league_year):
 
 
 if __name__ == "__main__":
-    db_path = configuration.database_file(os.path.dirname(__file__))
-    database = DBInterface(db_path)
+    database = DBInterface()
     year = 2019
     session = Session(bind=database.engine)
     predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019, console_out=True)

@@ -13,4 +13,4 @@ graphs
 scratch*
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
-
+*test_regression

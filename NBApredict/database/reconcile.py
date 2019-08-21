@@ -11,7 +11,7 @@ def reconcile(ref_tbl, change_tbl, column, ref_key, change_key, session):
     Args:
         ref_tbl: The reference table which contains the values to be changed in change_tbl
         change_tbl: The table to be changed with values from reference table
-        column: The column to evaluate for changes. Columns must be present in both tables.
+        column: The column to evaluate for changes. Column must be present in both tables.
         ref_key: The key in the reference table to join the tables by
         change_key: The key in the change table to join the tables by
         session: An instance of a sqlalchemy Session class bound to the database's engine

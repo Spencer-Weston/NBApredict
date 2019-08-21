@@ -306,4 +306,5 @@ def main(database, session, graph=False):
 if __name__ == "__main__":
     database = DBInterface()
     session = Session(database.engine)
-    main(database, session, graph=True)
+    test = main(database, session, graph=True)
+    t=2
