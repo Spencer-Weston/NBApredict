@@ -286,7 +286,7 @@ def main(database, session, graph=False):
 
     ff_reg = LinearRegression(target, predictors)
 
-    # Note that on Windows graphs will not appear to be updated
+    # Note: On Windows, graphs will not appear to update
     # To change that, go to folder properties -> customize -> optimize for: Documents
     if Config.get_property("graph"):
         ff_reg.predicted_vs_actual(out_path=os.path.join(graph_dir, "pred_vs_actual_{}.png".format(league_year)))

@@ -10,7 +10,6 @@ ToDo:
 
 from datetime import datetime
 import numpy as np
-import os
 import pandas as pd
 import scipy.stats as stats
 from sqlalchemy.orm import Session, relationship
@@ -40,7 +39,7 @@ def get_prediction(reg, pred_df):
 
 
 def get_team_name(team):
-    """Match team to a standard team name (not cap-sensitive) and return the br_references standard team name."""
+    """Match team to a standard team name and return the br_references standard team name."""
     for team_name in br_references.Team:
         if team.lower() == team_name.value.lower():
             return team_name.value
@@ -411,16 +410,16 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
             "prediction": prediction, "probability": probability, "function": function}
 
 
-def predict_games_in_odds(database, session, regression, league_year):
+def predict_games_in_odds(database, session, regression):
     """Generate and return predictions for all games with odds in the odds_tbl
 
     Args:
         database: An instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
         regression: A linear regression object generated from four_factor_regression
-        league_year: The desired league year for predictions
+
     """
-    odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
+    odds_tbl = database.get_table_mappings("odds_{}".format(Config.get_property("league_year")))
     all_odds = session.query(odds_tbl).all()
     predictions = []
     for odds in all_odds:

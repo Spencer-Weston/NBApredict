@@ -4,6 +4,29 @@ from sqlalchemy import Integer, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Session, relationship
 
 
+def get_sample_prediction(database, session, sched_tbl, regression):
+    """Generate and return a sample prediction to create a prediction table from.
+
+    Args:
+        database: An initialized DBInterface class from database.dbinterface.py
+        session: A SQLalchemy session object
+        sched_tbl: A mapped schedule table
+        regression: A regression object from four_factor_regression.py
+
+    Returns:
+        A DataManipulator object initialized with a prediction from regression
+    """
+    first_game_odds = session.query(sched_tbl).order_by(sched_tbl.start_time).first()
+
+    home_tm = first_game_odds.home_team
+    away_tm = first_game_odds.away_team
+    start_time = first_game_odds.start_time
+    line = first_game_odds.spread
+
+    sample_prediction = predict_game(database, session, regression, home_tm, away_tm, start_time, line)
+    data = DataManipulator(sample_prediction)
+    return data
+
 def create_prediction_table(database, data, tbl_name):
     """Create a prediction table from the data and with the table name in the database.
 

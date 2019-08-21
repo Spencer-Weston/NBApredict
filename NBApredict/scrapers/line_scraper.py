@@ -51,7 +51,7 @@ def odds_for_today(games_query):
     # Move down tree towards games
     events = response[0]["events"]
 
-    # Get the game dictionaries (which hold a bunch of random data) stripped from the events object
+    # Strip the game dictionaries from the 'event's object (which holds a bunch of random information)
     game_descriptions = []
     for game in games_query:
         game_descriptions.append("{} @ {}".format(game.away_team, game.home_team).lower())
