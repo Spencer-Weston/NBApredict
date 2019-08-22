@@ -1,5 +1,7 @@
 # NBA_bet
 
+Warning: Predictions currently don't work in the offseason when betting odds are not available. Fix is in progress.
+
 NBA_bet is a package for predicting NBA games against betting lines. It has two main behaviors: 
 1. Scrape and store team statistics, game results, and betting lines.
 2. Generate predictions for each NBA game, compare the prediction to the betting line, and store the results.
