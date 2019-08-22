@@ -7,7 +7,7 @@ from nbapredict.database.manipulator import DataManipulator
 import nbapredict.database.getters as getters
 
 
-def get_sample_prediction(database, session, ref_tbl, regression, **cols):
+def sample_prediction(database, session, ref_tbl, regression):
     """Generate and return a one row sample prediction created from the first row of the reference table.
 
     Args:
@@ -15,7 +15,6 @@ def get_sample_prediction(database, session, ref_tbl, regression, **cols):
         session: A SQLalchemy session object
         ref_tbl: A mapped odds table
         regression: A regression object from four_factor_regression.py
-        **cols:
 
     Returns:
         A DataManipulator object initialized with a prediction from regression
@@ -25,16 +24,13 @@ def get_sample_prediction(database, session, ref_tbl, regression, **cols):
     home_tm = first_game_odds.home_team
     away_tm = first_game_odds.away_team
     start_time = first_game_odds.start_time
-    for k,v in cols:
-        k = first_game_odds.__getattr__(v)
-    line = first_game_odds.spread
 
-    sample_prediction = predict_game(database, session, regression, home_tm, away_tm, start_time, line)
+    sample_prediction = game_prediction(database, session, regression, home_tm, away_tm, start_time)
     data = DataManipulator(sample_prediction)
     return data
 
 
-def predict_game(database, session, regression, home_tm, away_tm, start_time, year=2019, console_out=False):
+def game_prediction(database, session, regression, home_tm, away_tm, start_time, year=2019, console_out=False):
     """Predict a game versus the line, and return the information in a dictionary.
 
     Use console out for human readable output if desired.Cdf is a cumulative density function. SF is a survival
@@ -52,25 +48,25 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, ye
         year: The year to use stats from in predicting the game
         console_out: If true, print the prediction results. Ignore otherwise
     """
-    home_tm = get_team_name(home_tm)
-    away_tm = get_team_name(away_tm)
+    home_tm = team_name(home_tm)
+    away_tm = team_name(away_tm)
 
     # Get Misc stats for year
     ff_list = lm.four_factors_list()
     ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
 
-    pred_df = create_prediction_df(home_tm, away_tm, ff_df)
-    prediction = get_prediction(regression, pred_df)
+    pred_df = prediction_df(home_tm, away_tm, ff_df)
+    pred = prediction(regression, pred_df)
     # probability, function = line_probability(prediction, line, np.std(regression.residuals))
 
     #if console_out:
     #    prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
 
     return {"start_time": start_time, "home_team": home_tm, "away_team": away_tm, "line": line,
-            "prediction": prediction, "probability": probability, "function": function}
+            "prediction": pred, "probability": probability, "function": function}
 
 
-def get_prediction(reg, pred_df):
+def prediction(reg, pred_df):
     """Generate and return a prediction for the observations in the pred_df.
 
     Args:
@@ -82,7 +78,7 @@ def get_prediction(reg, pred_df):
     return reg.results.predict(pred_df).values[0]
 
 
-def prediction_result_console_output(home_tm, away_tm, line, prediction, probability):
+def console_output(home_tm, away_tm, line, prediction, probability):
     """Generate human readable printout comparing the model's predictions, the line, and the p_value of the line.
 
     Args:
@@ -110,7 +106,7 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
                   "be realized {}% of the time".format(line, probability))
 
 
-def create_prediction_df(home_tm, away_tm, ff_df):
+def prediction_df(home_tm, away_tm, ff_df):
     """Create and return a dataframe that merges the four factors for the home and away team.
 
     Args:
@@ -121,8 +117,8 @@ def create_prediction_df(home_tm, away_tm, ff_df):
     Returns:
         A single row four factors data frame of the home and away team's four factors
     """
-    home_ff = get_team_ff(home_tm, ff_df, home=True)
-    away_ff = get_team_ff(away_tm, ff_df, home=False)
+    home_ff = team_ff(home_tm, ff_df, home=True)
+    away_ff = team_ff(away_tm, ff_df, home=False)
     home_ff["key"] = 1
     home_ff["const"] = 1.0  # sm.add_const does not add a constant for whatever reason
     away_ff["key"] = 1
@@ -132,7 +128,7 @@ def create_prediction_df(home_tm, away_tm, ff_df):
     return merged
 
 
-def get_team_ff(team, ff_df, home):
+def team_ff(team, ff_df, home):
     """Create and return a data frame of the four factors for the specified team.
 
     Args:
@@ -152,7 +148,7 @@ def get_team_ff(team, ff_df, home):
     return team_ff
 
 
-def get_team_name(team):
+def team_name(team):
     """Match team to a standard team name (not cap-sensitive) and return the br_references standard team name."""
     for team_name in br_references.Team:
         if team.lower() == team_name.value.lower():

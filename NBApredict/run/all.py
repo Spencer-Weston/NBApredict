@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 # Local Imports
 from nbapredict.database.dbinterface import DBInterface
-from nbapredict.predict import odds
+from nbapredict.predict import bets
 from nbapredict.scrapers import scraper
 from nbapredict.configuration import Config
 
@@ -24,7 +24,7 @@ def run_all():
     scraper.scrape_all(db, session, year)
     session.commit()
 
-    odds.predict_all(db, session, year)
+    bets.predict_all(db, session, year)
     session.commit()
     session.close()
 

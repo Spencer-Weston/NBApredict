@@ -3,6 +3,12 @@
 from sqlalchemy import Integer, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Session, relationship
 
+# Local Imports
+from . import get
+from nbapredict.configuration import Config
+import nbapredict.models.four_factor_regression as lm
+import nbapredict.database.dbinterface as dbinterface
+
 
 def get_sample_prediction(database, session, sched_tbl, regression):
     """Generate and return a sample prediction to create a prediction table from.
@@ -57,6 +63,16 @@ def create_prediction_table(database, data, tbl_name):
         sched_tbl.predictions = relationship(database.Template)
 
     database.create_tables()
+
+def main():
+    db = dbinterface.DBInterface()
+    session = Session(bind=db.engine)
+
+    regression = lm.main(db, session)
+    sched_tbl = db.get_table_mappings("sched_{}".format(Config.get_property("league_year")))
+
+    if not db.table_exists("pred")
+
 
 
 if __name__ == "__main__":
