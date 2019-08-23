@@ -11,7 +11,7 @@ from sqlalchemy.orm import mapper, clear_mappers
 from sqlalchemy.ext.automap import automap_base
 
 # Local Imports
-from nbapredict import configuration
+from nbapredict.configuration import Config
 
 
 class DBInterface:
@@ -38,7 +38,7 @@ class DBInterface:
         A session will allow interaction with the DB."""
         if not url:
             file_path = os.getcwd()
-            self.path = configuration.database_file(file_path)
+            self.path = Config.get_property("database")
         else:
             self.path = url
         self.engine = create_engine(self.path, pool_pre_ping=True)

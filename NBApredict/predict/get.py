@@ -7,14 +7,16 @@ from nbapredict.database.manipulator import DataManipulator
 import nbapredict.database.getters as getters
 
 
-def sample_prediction(database, session, ref_tbl, regression):
+def sample_prediction(database, session, ref_tbl, model):
     """Generate and return a one row sample prediction created from the first row of the reference table.
+
+    ToDo: Change function to take any model
 
     Args:
         database: An initialized DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
         ref_tbl: A mapped odds table
-        regression: A regression object from four_factor_regression.py
+        model: A regression object from four_factor_regression.py
 
     Returns:
         A DataManipulator object initialized with a prediction from regression
@@ -25,7 +27,7 @@ def sample_prediction(database, session, ref_tbl, regression):
     away_tm = first_game_odds.away_team
     start_time = first_game_odds.start_time
 
-    sample_prediction = game_prediction(database, session, regression, home_tm, away_tm, start_time)
+    sample_prediction = game_prediction(database, session, model, home_tm, away_tm, start_time)
     data = DataManipulator(sample_prediction)
     return data
 
@@ -62,8 +64,7 @@ def game_prediction(database, session, regression, home_tm, away_tm, start_time,
     #if console_out:
     #    prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
 
-    return {"start_time": start_time, "home_team": home_tm, "away_team": away_tm, "line": line,
-            "prediction": pred, "probability": probability, "function": function}
+    return {"start_time": start_time, "home_team": home_tm, "away_team": away_tm, "prediction": pred}
 
 
 def prediction(reg, pred_df):

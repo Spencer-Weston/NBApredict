@@ -174,6 +174,7 @@ def create_odds_table(database, data, tbl_name):
         odds_tbl.predictions = relationship(database.Template)
 
     database.create_tables()
+    database.clear_mappers()
 
 
 def get_sample_prediction(database, odds_tbl, session, regression):
@@ -509,7 +510,7 @@ def predict_all(database, session):
 
     odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
     if not database.table_exists(pred_tbl_name):
-        data = get_sample_prediction(database, odds_tbl, session, regression)
+        data = get_sample_prediction(database, odds_tbl, session, regression)  # Returns a data manipulator class
         create_odds_table(database, data, pred_tbl_name)
 
     results = predict_games_in_odds(database, session, regression, league_year)

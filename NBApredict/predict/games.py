@@ -4,34 +4,11 @@ from sqlalchemy import Integer, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Session, relationship
 
 # Local Imports
-from . import get
+import nbapredict.predict.get as get
 from nbapredict.configuration import Config
 import nbapredict.models.four_factor_regression as lm
 import nbapredict.database.dbinterface as dbinterface
 
-
-def get_sample_prediction(database, session, sched_tbl, regression):
-    """Generate and return a sample prediction to create a prediction table from.
-
-    Args:
-        database: An initialized DBInterface class from database.dbinterface.py
-        session: A SQLalchemy session object
-        sched_tbl: A mapped schedule table
-        regression: A regression object from four_factor_regression.py
-
-    Returns:
-        A DataManipulator object initialized with a prediction from regression
-    """
-    first_game_odds = session.query(sched_tbl).order_by(sched_tbl.start_time).first()
-
-    home_tm = first_game_odds.home_team
-    away_tm = first_game_odds.away_team
-    start_time = first_game_odds.start_time
-    line = first_game_odds.spread
-
-    sample_prediction = predict_game(database, session, regression, home_tm, away_tm, start_time, line)
-    data = DataManipulator(sample_prediction)
-    return data
 
 def create_prediction_table(database, data, tbl_name):
     """Create a prediction table from the data and with the table name in the database.
@@ -46,9 +23,7 @@ def create_prediction_table(database, data, tbl_name):
     # Add new columns
     year = tbl_name[-4:]
     schedule_name = "sched_{}".format(year)
-    additional_cols = [{'game_id': [Integer, ForeignKey(schedule_name + ".id")]},
-                       {"home_team_score": Integer},
-                       {"away_team_score": Integer}]
+    additional_cols = [{'game_id': [Integer, ForeignKey(schedule_name + ".id")]}, {"MOV": Integer}]
     for col in additional_cols:
         sql_types.update(col)
     constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
@@ -59,21 +34,27 @@ def create_prediction_table(database, data, tbl_name):
     sched_tbl = database.get_table_mappings(schedule_name)
 
     # Create Relationships
-    if "predictions" not in sched_tbl.__mapper__.relationships.keys():
+    if "game_preds_{}".format(year) not in sched_tbl.__mapper__.relationships.keys():
         sched_tbl.predictions = relationship(database.Template)
 
     database.create_tables()
+    database.clear_mappers()
+
 
 def main():
     db = dbinterface.DBInterface()
     session = Session(bind=db.engine)
+    league_year = Config.get_property("league_year")
 
     regression = lm.main(db, session)
-    sched_tbl = db.get_table_mappings("sched_{}".format(Config.get_property("league_year")))
+    sched_tbl = db.get_table_mappings("sched_{}".format(league_year))
 
-    if not db.table_exists("pred")
+    if not db.table_exists("pred"):
+        # Returns a data manipulator class
+        sample = get.sample_prediction(db, session, ref_tbl=sched_tbl, model=regression)
+        create_prediction_table(db, sample, "game_pred_{}".format(league_year))
 
 
 
 if __name__ == "__main__":
-    pass
+    main()
