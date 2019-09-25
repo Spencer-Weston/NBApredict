@@ -1,6 +1,7 @@
 """
 Path contains function which return file and folder paths for the project
 """
+print("here")
 import os
 import yaml
 
@@ -21,8 +22,15 @@ def output_directory():
 
 
 def rreplace(string, old, new, count):
+    """Replace old with new in a string in reverse order
+    Args:
+        string: String to modify
+        old: Sub-string to replace
+        new: Sub-string to replace old
+        count: The number old sub-strings to be replaced"""
     li = string.rsplit(old, count)
     return new.join(li)
+
 
 def database_file(calling_file_path):
     """Return the database file path with the path modified in relation to the path the function is called from.
@@ -31,11 +39,16 @@ def database_file(calling_file_path):
     path by inserting ..// to the front of the base path. So a file nested one level below the root directory becomes
     r"sqlite:///..//outputs//nba_db.db"
     """
-    #global modified_path
     head_path = project_directory()
     head_folder = os.path.split(head_path)[1]
 
+    if os.path.realpath(calling_file_path) in head_path:
+        # If NBApredict is imported from outside the project, replace calling_file_path with head_path
+        #
+        calling_file_path = head_path
+
     calling_file_path = calling_file_path.replace("\\", "/")
+    print("Calling_file_path:", calling_file_path)
     sub_dirs = []
     split_path = os.path.split(calling_file_path)
     path = split_path[0]
@@ -50,7 +63,6 @@ def database_file(calling_file_path):
         modified_path = calling_file_path
         for folder in sub_dirs:
             modified_path = rreplace(modified_path, folder, "..", 1)
-            #modified_path = calling_file_path.replace(folder, "..")
 
         path_addin = modified_path.split(head_folder)[1]
         path_addin = path_addin.replace("/", "//")
@@ -202,13 +214,18 @@ def set_paths(config, change_dict):
 with open(settings_file(), "r") as file:
     config_settings = yaml.safe_load(file)
 
+print('here2')
 Config = create_configuration(settings_file(), config_settings)
-
+print('here3')
 paths = {"directory": project_directory(), "database": database_file(os.getcwd()), "graph_dir": graphs_directory(),
          "settings": settings_file()}
-
+paths = {"directory": project_directory()}
+print(project_directory())
+paths.update({"database": database_file(os.getcwd())})
 change_paths = check_paths(Config, paths)
+print('here5')
 set_paths(Config, change_paths)
+
 # noinspection PyProtectedMember
 # Config._set_property("four_factor_regression", "something_else")
 
