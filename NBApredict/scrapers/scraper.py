@@ -28,8 +28,8 @@ def scrape_all(database, session, league_year):
     if not os.path.isdir(configuration.output_directory()):
         os.mkdir(configuration.output_directory())
 
-    team_scrape = team_scraper.scrape(database=database, league_year=league_year)
-    season_scrape = season_scraper.scrape(database=database, session=session, league_year=league_year)
+    team_scrape = team_scraper.scrape(database=database)
+    season_scrape = season_scraper.scrape(database=database, session=session)
     line_scrape = line_scraper.scrape(database=database, session=session)
 
 

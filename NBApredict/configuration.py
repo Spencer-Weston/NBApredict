@@ -1,7 +1,8 @@
 """
 Path contains function which return file and folder paths for the project
+ToDo: Research os.environ for setting variables. These may still be stored in Config, but they may offer a default
+ToDo: or a different way to set variables, particularly for file pathes.
 """
-print("here")
 import os
 import yaml
 

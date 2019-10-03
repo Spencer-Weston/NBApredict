@@ -121,7 +121,6 @@ def scrape(database, session):
     Args:
         database: An instantiated DBInterface object from database.database for database interactions
         session: A SQLalchemy session object
-        league_year (2019): The league year of the desired season
     """
     league_year = Config.get_property("league_year")
     tbl_name = "sched_{}".format(league_year)
