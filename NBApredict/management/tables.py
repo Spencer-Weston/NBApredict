@@ -25,9 +25,6 @@ def create_team_stats_table(db, team_stats_data, team_tbl, tbl_name):
     db.create_tables()
     db.clear_mappers()
 
-def update_team_stats_table(db, session):
-    pass
-
 
 def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
     """Return values from child data that exist in the foreign_tbl transformed into foreign key values
@@ -49,9 +46,8 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
 
 def main(db, session):
     year = Config.get_property("league_year")
-    team_dict = team_scraper.scrape(database=db)  # ToDo: Reformat team_scraper to not need DB
+    team_dict = team_scraper.scrape()
     teams_data = DataOperator({"team_name": team_dict["team_name"]})
-
 
     teams_tbl_name = "teams_{}".format(year)
     if not db.table_exists(teams_tbl_name):
@@ -74,9 +70,11 @@ def main(db, session):
         session.add_all([team_stats_tbl(**row) for row in team_stats_data.rows])
         session.commit()
     else:
+        # The following inserts new rows into the database if the current data was scraped on a later date than the
+        # last insert into the database.
         team_stats_tbl = db.table_mappings[team_stats_tbl_name]
-        last_insert_scrape_time = session.query(team_stats_tbl.scrape_time).order_by(team_stats_tbl.scrape_time.desc()).\
-            first().scrape_time
+        last_insert_scrape_time = session.query(team_stats_tbl.scrape_time).\
+            order_by(team_stats_tbl.scrape_time.desc()).first().scrape_time
         last_insert_date = datetime.date(last_insert_scrape_time)
         current_scrape_date = datetime.date(datetime.now())
         if last_insert_date < current_scrape_date:
