@@ -18,7 +18,6 @@ import requests
 
 # Local imports.
 from nbapredict.configuration import Config
-from datatotable.data import DataOperator
 from nbapredict.helpers.br_references import BASE_URL
 from nbapredict.helpers.br_references import data_stat_headers as headers
 from nbapredict.helpers import type
