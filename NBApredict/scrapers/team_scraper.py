@@ -106,7 +106,7 @@ def clean_team_name(team_names):
     return new_team_names
 
 
-def scrape(database, tbl_name="misc_stats"):
+def scrape(tbl_name="misc_stats"):
     """Scrape a basketball_reference table of team stats, parse the table, and write it to a database
 
     Args:
@@ -123,4 +123,4 @@ def scrape(database, tbl_name="misc_stats"):
 if __name__ == "__main__":
     from nbapredict.database.dbinterface import DBInterface
     db = DBInterface()
-    scrape(db)
+    scrape()
