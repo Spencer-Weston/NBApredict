@@ -4,18 +4,21 @@ team_scraper scrapes and stores team stats from basketball reference.
 By default, it scrapes miscellaneous stats from 2019. Alternate years and tables may be scraped though functionality is
 not yet guaranteed. The scraped tables are written to the specified database.
 
-To-Do:
+ToDo:
     1. Create a method for stripping extraneous characters from team-names. If querying a historical season (<2001),
     the teams that made the playoffs have a '*' appended that we want to strip from the team-name
+    2. Change so that only data is returned and no database operations are performed
+    3. Change to include the scrape time for the data
 """
 
 from bs4 import BeautifulSoup  # Requires lxml to be installed as well
+from datetime import datetime
 import re
 import requests
 
 # Local imports.
 from nbapredict.configuration import Config
-from nbapredict.database.manipulator import DataManipulator
+from datatotable.data import DataOperator
 from nbapredict.helpers.br_references import BASE_URL
 from nbapredict.helpers.br_references import data_stat_headers as headers
 from nbapredict.helpers import type
@@ -39,14 +42,14 @@ def team_statistics(tbl_name):
     )
 
     response = requests.get(url=url, allow_redirects=False)
-
     if 200 <= response.status_code < 300:
-        return parse_table(response.content, tbl_name)  # Note that this uses the .content attribute
+        scrape_time = datetime.now()
+        return parse_table(response.content, tbl_name, scrape_time)  # Note that this uses the .content attribute
 
     raise Exception("Could not connect to URL")
 
 
-def parse_table(page, tbl_name):
+def parse_table(page, tbl_name, scrape_time):
     """Parse the specified table on the specified page and return the data as a dictionary
 
      Args:
@@ -63,7 +66,8 @@ def parse_table(page, tbl_name):
     keys = data_dict.keys()
     for key in keys:
         data_dict[key] = type.set_type(data_dict[key])
-
+    # Add a scrape time for each row in the dictionary
+    data_dict['scrape_time'] = [scrape_time for i in range(len(data_dict[key]))]
     return data_dict
 
 
@@ -114,28 +118,7 @@ def scrape(database, tbl_name="misc_stats"):
     # Get tbl_dictionary from basketball reference
     tbl_dict = team_statistics(tbl_name)
     tbl_dict["team_name"] = clean_team_name(tbl_dict["team_name"])
-
-    data = DataManipulator(tbl_dict)
-    rows = data.dict_to_rows()
-    sql_types = data.get_sql_type()
-
-    # Initial tbl_name is for scraping basketball reference; Year is added to disambiguate tables
-    tbl_name = '{}_{}'.format(tbl_name, Config.get_property("league_year"))
-
-    if database.table_exists(tbl_name):  # Table needs to be completely reset each run
-        database.drop_table(tbl_name)
-
-    database.map_table(tbl_name, sql_types)
-    database.create_tables()
-
-    if data.validate_data_length():
-        database.insert_rows(tbl_name, rows)
-    else:
-        # A possible scenario that we want to break on.
-        raise Exception("tbl_dict rows are not equivalent length")
-
-    database.clear_mappers()  # if mappers aren't cleared, others scripts won't be able to use Template
-    return True
+    return tbl_dict
 
 
 if __name__ == "__main__":
