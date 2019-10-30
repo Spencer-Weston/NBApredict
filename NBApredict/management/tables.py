@@ -7,6 +7,13 @@ from sqlalchemy import ForeignKey, UniqueConstraint
 
 
 def create_team_table(db, teams_data, tbl_name):
+    """Create a table in DB named tbl_name with the columns in teams_data
+
+    Args:
+        db: a datotable.database.Database object connected to a database
+        teams_data: A datatotable.data.DataOperator object with data on NBA teams
+        tbl_name: The desired name of the table
+    """
     columns = teams_data.columns
     columns["team_name"].append({"unique": True})
     db.map_table(tbl_name=tbl_name, column_types=columns)
@@ -15,8 +22,15 @@ def create_team_table(db, teams_data, tbl_name):
 
 
 def create_team_stats_table(db, team_stats_data, team_tbl, tbl_name):
-    """
+    """Create a table of team stats in a database with appropriate foreign keys and constraints.
+
+    Args:
+        db: a datotable.database.Database object connected to a database
+        team_stats_data: A datatotable.data.DataOperator object with data on NBA team stats
+        team_tbl: A mapped table object of the teams table
+        tbl_name: The desired table name
     ToDo: Change Unique Constraint to use new format once datatotable update is incorporated
+    ToDo: Currently allows duplicate rows if those values are on different days. Solve with a constraint
     """
     columns = team_stats_data.columns
     columns['team_id'].append(ForeignKey("{}.id".format(team_tbl.__table__.fullname)))
@@ -24,6 +38,35 @@ def create_team_stats_table(db, team_stats_data, team_tbl, tbl_name):
     db.map_table(tbl_name=tbl_name, column_types=columns, constraints=constraints)
     db.create_tables()
     db.clear_mappers()
+
+
+def update_team_stats_table(db, session, team_stats_tbl, team_stats_data):
+    """Insert new data into the team_stats_tbl.
+
+    Args:
+        db: a datotable.database.Database object connected to a database
+        session: An instantiated SQLalchemy session object
+        team_stats_tbl: A mapped team stats table object
+        team_stats_data: A datatotable.data.DataOperator object with data on NBA team stats
+    """
+    last_insert_scrape_time = session.query(team_stats_tbl.scrape_time). \
+        order_by(team_stats_tbl.scrape_time.desc()).first().scrape_time
+    last_insert_date = datetime.date(last_insert_scrape_time)
+    current_scrape_date = datetime.date(datetime.now())
+    if last_insert_date < current_scrape_date:
+        session.add_all([team_stats_tbl(**row) for row in team_stats_data.rows])
+        session.commit()
+
+
+def create_season_table(database, season_data, tbl_name, team_tbl, team_stats_tbl):
+
+    # Use sets so as
+    season_data.data["home_team_id"] = values_to_foreign_key(team_tbl, "id", "team_name",
+                                                             set(season_data.data.pop("home_team")))
+    season_data.data["away_team_id"] = values_to_foreign_key(team_tbl, "id", "team_name",
+                                                             set(season_data.data.pop("away_team")))
+    season_data.data["home_stats_id"] = values_to_foreign_key(team_stats_tbl, "id", "team_id",
+                                                              season_data.data["home_team_id"])
 
 
 def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
@@ -73,13 +116,13 @@ def main(db, session):
         # The following inserts new rows into the database if the current data was scraped on a later date than the
         # last insert into the database.
         team_stats_tbl = db.table_mappings[team_stats_tbl_name]
-        last_insert_scrape_time = session.query(team_stats_tbl.scrape_time).\
-            order_by(team_stats_tbl.scrape_time.desc()).first().scrape_time
-        last_insert_date = datetime.date(last_insert_scrape_time)
-        current_scrape_date = datetime.date(datetime.now())
-        if last_insert_date < current_scrape_date:
-            session.add_all([team_stats_tbl(**row) for row in team_stats_data.rows])
-            session.commit()
+        update_team_stats_table(db, session, team_stats_tbl, team_stats_data)
+
+
+    schedule_dict = season_scraper.scrape()
+    schedule_data = DataOperator(schedule_dict)
+    schedule_tbl_name = "schedule_{}".format(year)
+    create_season_table(db, schedule_data, schedule_tbl_name, teams_tbl, team_stats_tbl)
 
 
 if __name__ == "__main__":
