@@ -6,12 +6,12 @@ database. The table is automatically named 'sched' for schedule with the year ap
 """
 
 from datetime import datetime
+from datatotable.data import DataOperator
 import pandas
 from sqlalchemy import UniqueConstraint, func
 
 # Local Imports
 from nbapredict.br_web_scraper import client
-from nbapredict.database.manipulator import DataManipulator
 from nbapredict.configuration import Config
 
 
@@ -44,7 +44,7 @@ def create_season_table(database, data, tbl_name):
 
     Args:
         database: An instantiated DBInterface object from database.database for database interactions.
-        data: A DataManipulator object from database.manipulator that holds the data to add.
+        data: A DataOperator object from database.manipulator that holds the data to add.
         tbl_name: The name of the table to create.
     """
     sql_types = data.get_sql_type()
@@ -112,7 +112,7 @@ def add_rows(session, schedule, rows):
     session.add_all(new_row_objects)
 
 
-def scrape(database, session):
+def scrape():
     """Scrape basketball reference for games in a season, parse the output, and write the output to a database.
 
     If the specified year has been completed, it will return every game in the season. If the season is ongoing, it will
@@ -128,7 +128,10 @@ def scrape(database, session):
     # Create table
     season_data = client.season_schedule(league_year)
     season_data = br_enum_to_string(season_data)
-    data = DataManipulator(season_data)
+    return season_data
+
+
+    data = DataOperator(season_data)
 
     if not database.table_exists(tbl_name):  # Creates database
         create_season_table(database, data, tbl_name)
