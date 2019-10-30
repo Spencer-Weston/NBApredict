@@ -3,7 +3,8 @@ from datatotable.database import Database
 from datatotable.data import DataOperator
 from nbapredict.scrapers import team_scraper, line_scraper, season_scraper
 from nbapredict.configuration import Config
-from sqlalchemy import ForeignKey, UniqueConstraint
+from sqlalchemy import ForeignKey, UniqueConstraint, func
+import sqlalchemy.sql.selectable
 
 
 def create_team_table(db, teams_data, tbl_name):
@@ -58,15 +59,46 @@ def update_team_stats_table(db, session, team_stats_tbl, team_stats_data):
         session.commit()
 
 
-def create_season_table(database, season_data, tbl_name, team_tbl, team_stats_tbl):
+def format_schedule_data(schedule_data, team_tbl, team_stats_tbl):
+    """Format and return schedule data to match the database schema.
 
-    # Use sets so as
-    season_data.data["home_team_id"] = values_to_foreign_key(team_tbl, "id", "team_name",
-                                                             set(season_data.data.pop("home_team")))
-    season_data.data["away_team_id"] = values_to_foreign_key(team_tbl, "id", "team_name",
-                                                             set(season_data.data.pop("away_team")))
-    season_data.data["home_stats_id"] = values_to_foreign_key(team_stats_tbl, "id", "team_id",
-                                                              season_data.data["home_team_id"])
+    Adds a Margin of Victory column and adds/modifies foreign key columns
+
+    Args:
+        schedule_data: A DataOperator object with schedule data
+        team_tbl: A mapped instance of the team_tbl
+        team_stats_tbl: A mapped instance of the team_stats_tbl
+    """
+    schedule_data.data['MOV'] = [0]  # Adds a 'MOV' an integer column
+    schedule_data.fill('MOV', None)
+    schedule_data.data["home_team_id"] = values_to_foreign_key(team_tbl, "id", "team_name",
+                                                               schedule_data.data.pop("home_team"))
+    schedule_data.data["away_team_id"] = values_to_foreign_key(team_tbl, "id", "team_name",
+                                                               schedule_data.data.pop("away_team"))
+
+    today = datetime.date(datetime.now())
+    subquery = session.query(team_stats_tbl.id, team_stats_tbl.team_id, func.max(team_stats_tbl.scrape_time)). \
+        filter(team_stats_tbl.scrape_time < today).group_by(team_stats_tbl.team_id).subquery()
+    schedule_data.data['home_stats_id'] = values_to_foreign_key(subquery, 'id', 'team_id',
+                                                                schedule_data.data['home_team_id'])
+    schedule_data.data['away_stats_id'] = values_to_foreign_key(subquery, 'id', 'team_id',
+                                                                schedule_data.data['away_team_id'])
+
+    return schedule_data
+
+
+def create_schedule_table(db, schedule_data, tbl_name, team_tbl, team_stats_tbl):
+
+    columns = schedule_data.columns
+    team_tbl_name = team_tbl.__table__.fullname
+    team_stats_tbl_name = team_stats_tbl.__table__.fullname
+    columns['home_team_id'].append(ForeignKey("{}.id".format(team_tbl_name)))
+    columns['away_team_id'].append(ForeignKey("{}.id".format(team_tbl_name)))
+    columns['home_stats_id'].append(ForeignKey("{}.id".format(team_stats_tbl_name)))
+    columns['away_stats_id'].append(ForeignKey("{}.id".format(team_stats_tbl_name)))
+    db.map_table(tbl_name=tbl_name, columns=columns)
+    db.create_tables()
+    db.clear_mappers()
 
 
 def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
@@ -81,10 +113,41 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
     Returns:
          A list of values from the foreign key column that correspond to child data's relationship to the foreign values
     """
-    rows = session.query(getattr(foreign_tbl, foreign_key), getattr(foreign_tbl, foreign_value)).\
-        filter(getattr(foreign_tbl, foreign_value).in_(child_data)).all()
-    conversion_dict = {getattr(row, foreign_value): getattr(row, foreign_key) for row in rows}
+    # past 999 the SQLite backend raises a "too many variables warning". Here, we presume we don't have >999 unique
+    # observations in child_data. Rather, presume we have < 999 unique observations and take a set of the data.
+    set_data = set()
+    if len(child_data) > 999:
+        set_data = set(child_data)
+    if type(foreign_tbl) == sqlalchemy.sql.selectable.Alias:
+        conversion_dict = _values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, set_data or child_data)
+    else:
+        rows = session.query(getattr(foreign_tbl, foreign_key), getattr(foreign_tbl, foreign_value)).\
+            filter(getattr(foreign_tbl, foreign_value).in_(set_data or child_data)).all()
+        conversion_dict = {getattr(row, foreign_value): getattr(row, foreign_key) for row in rows}
     return [conversion_dict[i] for i in child_data]
+
+
+def _values_to_foreign_key(foreign_subquery, foreign_key, foreign_value, child_data):
+    """Return values from child data that exist in the foreign_subquery transformed into foreign key values
+
+    This function performs the same query as values_to_foreign_key() except it can take a subquery, which has
+    different syntax, as input rather than a table. The function presumes child_data has already been modified if
+    necessary.
+
+    Args:
+        foreign_subquery: A subquery which is an Alias class in sqlalchemy. These classes are created when subquery()
+        is appended to a sqlalchemy query statement
+        foreign_key: The name of the column containing foreign key values
+        foreign_value: The name of the column containing values to match with child data
+        child_data: A list of data with values contained in foreign value
+
+    Returns:
+         A conversion dict that maps child_data to foreign keys
+    """
+    rows = session.query(getattr(foreign_subquery.c, foreign_key), getattr(foreign_subquery.c, foreign_value)). \
+        filter(getattr(foreign_subquery.c, foreign_value).in_(child_data)).all()
+    conversion_dict = {getattr(row, foreign_value): getattr(row, foreign_key) for row in rows}
+    return conversion_dict
 
 
 def main(db, session):
@@ -121,8 +184,16 @@ def main(db, session):
 
     schedule_dict = season_scraper.scrape()
     schedule_data = DataOperator(schedule_dict)
+    schedule_data = format_schedule_data(schedule_data, teams_tbl, team_stats_tbl)
     schedule_tbl_name = "schedule_{}".format(year)
-    create_season_table(db, schedule_data, schedule_tbl_name, teams_tbl, team_stats_tbl)
+    if not db.table_exists(schedule_tbl_name):
+        create_schedule_table(db, schedule_data, schedule_tbl_name, teams_tbl, team_stats_tbl)
+        schedule_tbl = db.table_mappings[schedule_tbl_name]
+    else:
+        schedule_tbl = db.table_mappings[schedule_tbl_name]
+        session.add_all([schedule_tbl(**row) for row in schedule_data.rows])
+        # update_schedule_table()
+    t=2
 
 
 if __name__ == "__main__":
