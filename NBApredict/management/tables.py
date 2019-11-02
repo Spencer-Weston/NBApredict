@@ -133,6 +133,8 @@ def update_schedule_scores(session, schedule_data, schedule_tbl):
     # if update_query.count() == 0:
     #     return
     rows = update_query.all()
+    if len(rows) == 0:
+        return []
     first_game_time = rows[0].start_time
     last_game_time = rows[len(rows) - 1].start_time
 
