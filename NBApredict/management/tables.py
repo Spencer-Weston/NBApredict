@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from datatotable.database import Database
 from datatotable.data import DataOperator
 from nbapredict.scrapers import team_scraper, line_scraper, season_scraper
@@ -28,7 +28,6 @@ def create_team_stats_table(db, team_stats_data, tbl_name):
     Args:
         db: a datotable.database.Database object connected to a database
         team_stats_data: A datatotable.data.DataOperator object with data on NBA team stats
-        team_tbl: A mapped table object of the teams table
         tbl_name: The desired table name
     ToDo: Change Unique Constraint to use new format once datatotable update is incorporated
     ToDo: Currently allows duplicate rows if those values are on different days. Solve with a constraint
@@ -71,7 +70,7 @@ def format_schedule_data(schedule_data, team_tbl, team_stats_tbl):
     """
     h_score = schedule_data.data['home_team_score']
     a_score = schedule_data.data['away_team_score']
-    schedule_data.data['MOV'] = [h_score[i]-a_score[i] for i in range(schedule_data.num_rows())]
+    schedule_data.data['MOV'] = [h_score[i] - a_score[i] for i in range(schedule_data.num_rows())]
     schedule_data.data['playoffs'] = ['']
     schedule_data.fill('playoffs', None)
 
@@ -81,12 +80,19 @@ def format_schedule_data(schedule_data, team_tbl, team_stats_tbl):
                                                                schedule_data.data.pop("away_team"))
 
     today = datetime.date(datetime.now())
+    tomorrow = today + timedelta(days=1)
+    for idx in range(len(schedule_data.data['start_time'])):
+        if schedule_data.data['start_time'][idx].date() >= tomorrow:
+            tmrw_idx = idx
+            break
     subquery = session.query(team_stats_tbl.id, team_stats_tbl.team_id, func.max(team_stats_tbl.scrape_time)). \
         filter(team_stats_tbl.scrape_date <= today).group_by(team_stats_tbl.team_id).subquery()
     schedule_data.data['home_stats_id'] = values_to_foreign_key(subquery, 'id', 'team_id',
-                                                                schedule_data.data['home_team_id'])
+                                                                schedule_data.data['home_team_id'][:tmrw_idx])
     schedule_data.data['away_stats_id'] = values_to_foreign_key(subquery, 'id', 'team_id',
-                                                                schedule_data.data['away_team_id'])
+                                                                schedule_data.data['away_team_id'][:tmrw_idx])
+    schedule_data.fill('home_stats_id', None)
+    schedule_data.fill('away_stats_id', None)
 
     return schedule_data
 
@@ -112,6 +118,44 @@ def create_schedule_table(db, schedule_data, tbl_name, team_tbl, team_stats_tbl)
     db.clear_mappers()
 
 
+def update_schedule_table(db, session, schedule_data, schedule_tbl):
+    score_updates = update_schedule_scores(session, schedule_data, schedule_tbl)
+    stats_updates = update_schedule_stats()
+
+    return score_updates  # Temporary test
+
+
+def update_schedule_scores(session, schedule_data, schedule_tbl):
+    date = datetime.date(datetime.now())
+    update_query = session.query(schedule_tbl).filter(schedule_tbl.start_time < date,
+                                                      schedule_tbl.home_team_score == 0).\
+        order_by(schedule_tbl.start_time)
+    # if update_query.count() == 0:
+    #     return
+    rows = update_query.all()
+    first_game_time = rows[0].start_time
+    last_game_time = rows[len(rows) - 1].start_time
+
+    sched_df = schedule_data.dataframe
+    sched_df["start_time"] = sched_df["start_time"].dt.tz_localize(None)
+    update_df = sched_df.loc[(sched_df.start_time >= first_game_time) & (sched_df.start_time <= last_game_time)]
+
+    update_rows = []
+    for row in rows:
+        game = update_df.loc[(update_df.home_team_id == row.home_team_id) & (update_df.away_team_id == row.away_team_id)
+                             & (update_df.start_time.dt.date == datetime.date(row.start_time))]
+        row.home_team_score = int(game.home_team_score)
+        row.away_team_score = int(game.away_team_score)
+        row.MOV = row.home_team_score - row.away_team_score
+        row.start_time = game.start_time.dt.to_pydatetime()[0]  # Convert Pandas TimeStamp to datetime
+        update_rows.append(row)
+    return update_rows
+
+
+def update_schedule_stats():
+    pass
+
+
 def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
     """Return values from child data that exist in the foreign_tbl transformed into foreign key values
 
@@ -132,7 +176,7 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
     if type(foreign_tbl) == sqlalchemy.sql.selectable.Alias:
         conversion_dict = _values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, set_data or child_data)
     else:
-        rows = session.query(getattr(foreign_tbl, foreign_key), getattr(foreign_tbl, foreign_value)).\
+        rows = session.query(getattr(foreign_tbl, foreign_key), getattr(foreign_tbl, foreign_value)). \
             filter(getattr(foreign_tbl, foreign_value).in_(set_data or child_data)).all()
         conversion_dict = {getattr(row, foreign_value): getattr(row, foreign_key) for row in rows}
     return [conversion_dict[i] for i in child_data]
@@ -194,8 +238,6 @@ def main(db, session):
         session.add_all([team_stats_tbl(**row) for row in team_stats_data.rows])
         session.commit()
     else:
-        # The following inserts new rows into the database if the current data was scraped on a later date than the
-        # last insert into the database.
         team_stats_tbl = db.table_mappings[team_stats_tbl_name]
         update_team_stats_table(db, session, team_stats_tbl, team_stats_data)
 
@@ -207,16 +249,18 @@ def main(db, session):
     schedule_tbl_name = "schedule_{}".format(year)
     if not db.table_exists(schedule_tbl_name):
         create_schedule_table(db, schedule_data, schedule_tbl_name, teams_tbl, team_stats_tbl)
-        # schedule_tbl = db.table_mappings[schedule_tbl_name]
-    else:
         schedule_tbl = db.table_mappings[schedule_tbl_name]
         session.add_all([schedule_tbl(**row) for row in schedule_data.rows])
         session.commit()
-        # update_schedule_table()
-    schedule_tbl = db.table_mappings[schedule_tbl_name]
-    session.add_all([schedule_tbl(**row) for row in schedule_data.rows])
-    session.commit()
-    t=2
+        # schedule_tbl = db.table_mappings[schedule_tbl_name]
+    else:
+        schedule_tbl = db.table_mappings[schedule_tbl_name]
+        # session.add_all([schedule_tbl(**row) for row in schedule_data.rows])
+        # session.commit()
+        update_rows = update_schedule_table(db, session, schedule_data, schedule_tbl)
+        session.add_all(update_rows)
+        session.commit()
+    t = 2
 
 
 if __name__ == "__main__":
