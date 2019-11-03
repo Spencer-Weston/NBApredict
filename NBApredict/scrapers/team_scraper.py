@@ -7,8 +7,6 @@ not yet guaranteed. The scraped tables are written to the specified database.
 ToDo:
     1. Create a method for stripping extraneous characters from team-names. If querying a historical season (<2001),
     the teams that made the playoffs have a '*' appended that we want to strip from the team-name
-    2. Change so that only data is returned and no database operations are performed
-    3. Change to include the scrape time for the data
 """
 
 from bs4 import BeautifulSoup  # Requires lxml to be installed as well
@@ -121,6 +119,4 @@ def scrape(tbl_name="misc_stats"):
 
 
 if __name__ == "__main__":
-    from nbapredict.database.dbinterface import DBInterface
-    db = DBInterface()
     scrape()

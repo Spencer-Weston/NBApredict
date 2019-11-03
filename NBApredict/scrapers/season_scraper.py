@@ -67,13 +67,13 @@ def update_season_table(session, sched_tbl, season_df):
         season_df: A pandas Dataframe version of the season as returned from br_web_scraper
     """
     date = datetime.date(datetime.now())
-    update_rows = session.query(sched_tbl).filter(sched_tbl.start_time < date,
+    update_query = session.query(sched_tbl).filter(sched_tbl.start_time < date,
                                                   sched_tbl.home_team_score == 0).order_by(sched_tbl.start_time)
-    if update_rows.count() == 0:
+    if update_query.count() == 0:
         # print("Season is up to date; Returning without performing an update.") Test/logging statement
         return
 
-    all_update_rows = update_rows.all()
+    all_update_rows = update_query.all()
     first_game_time = all_update_rows[0].start_time
     last_game_time = all_update_rows[len(all_update_rows) - 1].start_time
 
@@ -123,7 +123,6 @@ def scrape():
         session: A SQLalchemy session object
     """
     league_year = Config.get_property("league_year")
-    tbl_name = "sched_{}".format(league_year)
 
     # Create table
     season_data = client.season_schedule(league_year)
@@ -131,23 +130,5 @@ def scrape():
     return season_data
 
 
-    data = DataOperator(season_data)
-
-    if not database.table_exists(tbl_name):  # Creates database
-        create_season_table(database, data, tbl_name)
-
-    else:  # Updates database
-        schedule = database.get_table_mappings([tbl_name])
-        update_season_table(session, schedule, pandas.DataFrame(season_data))  # Update rows with new data
-        if len(data.data) > session.query(schedule).count():
-            add_rows(session, schedule, data.data)  # Add new rows not in database
-
-    return True
-
-
 if __name__ == '__main__':
-    from nbapredict.database.dbinterface import DBInterface
-    from sqlalchemy.orm import Session
-    db = DBInterface()
-    session = Session(db.engine)
-    scrape(db, session)
+    scrape()
