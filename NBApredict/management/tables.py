@@ -4,6 +4,7 @@ from datatotable.data import DataOperator
 from nbapredict.scrapers import team_scraper, line_scraper, season_scraper
 from nbapredict.configuration import Config
 from sqlalchemy import ForeignKey, UniqueConstraint, func
+from sqlalchemy.orm import aliased
 import sqlalchemy.sql.selectable
 
 
@@ -118,17 +119,18 @@ def create_schedule_table(db, schedule_data, tbl_name, team_tbl, team_stats_tbl)
     db.clear_mappers()
 
 
-def update_schedule_table(db, session, schedule_data, schedule_tbl):
+def update_schedule_table(session, schedule_data, schedule_tbl, team_stats_tbl):
     score_updates = update_schedule_scores(session, schedule_data, schedule_tbl)
-    stats_updates = update_schedule_stats()
+    stats_updates = update_schedule_stats(session, schedule_tbl, team_stats_tbl)
 
-    return score_updates  # Temporary test
+    # Some rows may be updated for scores and stats. Use a set to remove duplicates
+    return set(score_updates + stats_updates)
 
 
-def update_schedule_scores(session, schedule_data, schedule_tbl):
+def update_schedule_scores(session, schedule_data, schedule_tbl) -> list:
     date = datetime.date(datetime.now())
     update_query = session.query(schedule_tbl).filter(schedule_tbl.start_time < date,
-                                                      schedule_tbl.home_team_score == 0).\
+                                                      schedule_tbl.home_team_score == 0). \
         order_by(schedule_tbl.start_time)
     # if update_query.count() == 0:
     #     return
@@ -154,8 +156,36 @@ def update_schedule_scores(session, schedule_data, schedule_tbl):
     return update_rows
 
 
-def update_schedule_stats():
-    pass
+def update_schedule_stats(session, schedule_tbl, team_stats_tbl) -> list:
+    tomorrow = datetime.date(datetime.now()) + timedelta(days=1)
+
+    d_time = session.query(func.min(schedule_tbl.start_time)).filter(schedule_tbl.home_stats_id == None).all()[0][0]
+    date = datetime.date(d_time)
+    date_ranges = []
+    while date < tomorrow:
+        next_day = date + timedelta(days=1)
+        date_ranges.append((date, next_day))
+        date = next_day
+
+    update_rows = []
+    for d in date_ranges:
+        # Get the team stats with the greatest scrape_time before the end date of the range (31 obs, all teams + L. AVG)
+        stats_q = session.query(team_stats_tbl.id, team_stats_tbl.team_id,
+                                    func.max(team_stats_tbl.scrape_time).label('s_time')). \
+            filter(team_stats_tbl.scrape_time < d[1]).group_by(team_stats_tbl.team_id).subquery()
+        home_stats = aliased(stats_q, 'home_stats')
+        away_stats = aliased(stats_q, 'away_stats')
+
+        sched_rows = session.query(schedule_tbl, home_stats.c.id.label('h_s_id'), away_stats.c.id.label('a_s_id')).\
+            filter(schedule_tbl.home_stats_id == None, schedule_tbl.start_time > d[0], schedule_tbl.start_time < d[1]).\
+            join(home_stats, schedule_tbl.home_team_id == home_stats.c.team_id).\
+            join(away_stats, schedule_tbl.away_team_id == away_stats.c.team_id).all()
+
+        for row in sched_rows:
+            row.schedule_2020.home_stats_id = row.a_s_id
+            row.schedule_2020.away_stats_id = row.h_s_id
+            update_rows.append(row.schedule_2020)
+    return update_rows
 
 
 def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
@@ -171,7 +201,7 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
          A list of values from the foreign key column that correspond to child data's relationship to the foreign values
     """
     # past 999 the SQLite backend raises a "too many variables warning". Here, we presume we don't have >999 unique
-    # observations in child_data. Rather, presume we have < 999 unique observations and take a set of the data.
+    # values in child_data. Rather, presume we have < 999 unique values and take a set of the data.
     set_data = set()
     if len(child_data) > 999:
         set_data = set(child_data)
@@ -259,10 +289,10 @@ def main(db, session):
         schedule_tbl = db.table_mappings[schedule_tbl_name]
         # session.add_all([schedule_tbl(**row) for row in schedule_data.rows])
         # session.commit()
-        update_rows = update_schedule_table(db, session, schedule_data, schedule_tbl)
+        update_rows = update_schedule_table(session, schedule_data, schedule_tbl, team_stats_tbl)
         session.add_all(update_rows)
         session.commit()
-    t = 2
+
 
 
 if __name__ == "__main__":
