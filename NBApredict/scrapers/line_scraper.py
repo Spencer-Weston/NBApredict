@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, relationship
 
 # Local Imports
 from nbapredict.configuration import Config
-from nbapredict.database.manipulator import DataManipulator
+from nbapredict.database.manipulator import DataOperator
 from nbapredict.database import getters
 from nbapredict.database.reconcile import reconcile
 
@@ -32,11 +32,6 @@ def odds_for_today(games_query):
     Returns:
         A dictionary where the column keys lists of values
     """
-
-    # The specific URL that needs to be scraped (need a way to differentiate playoffs and non-playoffs)
-    # url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba"  # Regular Season
-    # url = "https://www.bovada.lv/services/sports/event/v2/events/A/description/basketball/nba-playoffs"  # Playoffs
-
     scrape_time = datetime.now()
 
     # Check for response from Bovada
@@ -51,16 +46,13 @@ def odds_for_today(games_query):
     # Move down tree towards games
     events = response[0]["events"]
 
-    # Strip the game dictionaries from the 'event's object (which holds a bunch of random information)
-    game_descriptions = []
-    for game in games_query:
-        game_descriptions.append("{} @ {}".format(game.away_team, game.home_team).lower())
-    bovada_games = [game_dict for game_dict in events if game_dict["description"].lower() in game_descriptions]
+    # Strip games from the 'event's object (which holds a bunch of random information)
+    bovada_games = [e for e in events if e['description'].count('@') > 0 and e['type'] == 'GAMEEVENT']
     if not bovada_games:
         return None
 
     # Set-up the line dictionary which stores data in the correct table format
-    lines = {"home_team": [], "away_team": [], "start_time": [], "spread": [], "home_spread_price": [],
+    lines = {"home_team_id": [], "away_team_id": [], "spread": [], "home_spread_price": [],
              "away_spread_price": [], "home_moneyline": [], "away_moneyline": [], "scrape_time": []}
 
     # Iterate through each game returned by bovada and store its information
@@ -90,10 +82,11 @@ def odds_for_today(games_query):
             home_moneyline = None
             away_moneyline = None
         try:
-            game_lines = [home_team, away_team, start_datetime, spread, home_spread_price, away_spread_price,
+            game_lines = [home_team, away_team, spread, home_spread_price, away_spread_price,
                           home_moneyline, away_moneyline, scrape_time]
         except NameError:
             if datetime.now() > start_datetime:
+                # An ongoing game will not have the correct betting data. We don't want to store this information
                 print("The game between {} and {} at {} is either ongoing or completed. Not scraping".format(
                     home_team, away_team, start_datetime))
                 continue
@@ -173,7 +166,7 @@ def create_odds_table(database, data, tbl_name, sched_tbl):
 
     Args:
         database: An instance of the DBInterface class from database/DBInterface.py
-        data: A DataManipulator object from database/manipulator which holds the data and
+        data: A DataOperator object from database/manipulator which holds the data and
         tbl_name:
         sched_tbl: The schedule table which will contain the game_id for the odds_table and which will be given a
         relationship to the odds table
@@ -247,11 +240,11 @@ def scrape(database, session):
         session: An instance of a sqlalchemy Session class bound to the database's engine
     """
     league_year = Config.get_property("league_year")
-    schedule = database.get_table_mappings("sched_{}".format(league_year))
+    schedule = database.table_mappings['schedule_{}'.format(league_year)]
     date = datetime.date(datetime.now())
     games = getters.get_games_on_day(schedule, session, date)
 
-    # If there's no games today, search for games up to 10 days past the current date
+    # If there are no games today, search for games up to 10 days past the current date
     i = 1
     while len(games.all()) < 1 and i <= 10:
         date = date + timedelta(days=i)
@@ -261,7 +254,9 @@ def scrape(database, session):
     lines = odds_for_today(games)
     if not lines:
         return False
-    line_data = DataManipulator(lines)
+    return lines
+
+    line_data = DataOperator(lines)
 
     tbl_name = "odds_{}".format(league_year)
     tbl_exists = database.table_exists(tbl_name)
@@ -285,8 +280,7 @@ def scrape(database, session):
 
 
 if __name__ == "__main__":
-    from nbapredict.database.dbinterface import DBInterface
-    db = DBInterface()
+
     year = 2019
     session = Session(bind=db.engine)
     scrape(db, session)
