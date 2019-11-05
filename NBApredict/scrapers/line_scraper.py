@@ -52,7 +52,7 @@ def odds_for_today():
         return None
 
     # Set-up the line dictionary which stores data in the correct table format
-    lines = {"home_team_id": [], "away_team_id": [], 'start_time': [], "spread": [], "home_spread_price": [],
+    lines = {"home_team": [], "away_team": [], 'start_time': [], "spread": [], "home_spread_price": [],
              "away_spread_price": [], "home_moneyline": [], "away_moneyline": [], "scrape_time": []}
 
     # Iterate through each game returned by bovada and store its information
