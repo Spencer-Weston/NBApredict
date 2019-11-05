@@ -188,6 +188,16 @@ def update_schedule_stats(session, schedule_tbl, team_stats_tbl) -> list:
     return update_rows
 
 
+def format_odds_data(odds_dict, team_tbl, schedule_tbl):
+    """a thing"""
+    odds_dict['home_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict['home_team'])
+    odds_dict['away_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict['away_team'])
+    # the columns that uniquely identify a game in the schedule table
+    val_cols = ['home_team_id', 'start_time']
+    uID = {k: odds_dict[k] for k in val_cols}
+    odds_dict['game_id'] = values_to_foreign_key(schedule_tbl, "id", val_cols, uID)
+
+
 def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
     """Return values from child data that exist in the foreign_tbl transformed into foreign key values
 
@@ -241,8 +251,9 @@ def main(db, session):
     year = Config.get_property("league_year")
     team_dict = team_scraper.scrape()
     teams_data = DataOperator({"team_name": team_dict["team_name"]})
-
+    # ~~~~~~~~~~~~~
     # Teams
+    # ~~~~~~~~~~~~~
     teams_tbl_name = "teams_{}".format(year)
     if not db.table_exists(teams_tbl_name):
         create_team_table(db=db, teams_data=teams_data, tbl_name=teams_tbl_name)
@@ -251,7 +262,9 @@ def main(db, session):
         session.commit()
         del teams_tbl
 
+    # ~~~~~~~~~~~~~
     # Team Stats
+    # ~~~~~~~~~~~~~
     team_stats_tbl_name = "team_stats_{}".format(year)
     teams_tbl = db.table_mappings[teams_tbl_name]
     team_dict['team_id'] = team_dict.pop('team_name')
@@ -265,7 +278,6 @@ def main(db, session):
     team_stats_data = DataOperator(team_dict)
     if not db.table_exists(team_stats_tbl_name):
         create_team_stats_table(db=db, team_stats_data=team_stats_data, tbl_name=team_stats_tbl_name)
-
         team_stats_tbl = db.table_mappings[team_stats_tbl_name]
         session.add_all([team_stats_tbl(**row) for row in team_stats_data.rows])
         session.commit()
@@ -273,7 +285,9 @@ def main(db, session):
         team_stats_tbl = db.table_mappings[team_stats_tbl_name]
         update_team_stats_table(db, session, team_stats_tbl, team_stats_data)
 
+    # ~~~~~~~~~~~~~
     # Schedule
+    # ~~~~~~~~~~~~~
     schedule_dict = season_scraper.scrape()
     schedule_data = DataOperator(schedule_dict)
     teams_tbl = db.table_mappings['teams_{}'.format(year)]
@@ -284,15 +298,19 @@ def main(db, session):
         schedule_tbl = db.table_mappings[schedule_tbl_name]
         session.add_all([schedule_tbl(**row) for row in schedule_data.rows])
         session.commit()
-        # schedule_tbl = db.table_mappings[schedule_tbl_name]
     else:
         schedule_tbl = db.table_mappings[schedule_tbl_name]
-        # session.add_all([schedule_tbl(**row) for row in schedule_data.rows])
-        # session.commit()
         update_rows = update_schedule_table(session, schedule_data, schedule_tbl, team_stats_tbl)
         session.add_all(update_rows)
         session.commit()
 
+    # ~~~~~~~~~~~~~
+    # Odds
+    # ~~~~~~~~~~~~~
+    odds_dict = line_scraper.scrape(db, session)
+    if odds_dict:
+        odds_data = format_odds_data(odds_dict)
+    t=2
 
 
 if __name__ == "__main__":
