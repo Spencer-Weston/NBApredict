@@ -249,11 +249,12 @@ def _values_to_foreign_key(foreign_subquery, foreign_key, foreign_value, child_d
 
 def main(db, session):
     year = Config.get_property("league_year")
-    team_dict = team_scraper.scrape()
-    teams_data = DataOperator({"team_name": team_dict["team_name"]})
+
     # ~~~~~~~~~~~~~
     # Teams
     # ~~~~~~~~~~~~~
+    team_dict = team_scraper.scrape()
+    teams_data = DataOperator({"team_name": team_dict["team_name"]})
     teams_tbl_name = "teams_{}".format(year)
     if not db.table_exists(teams_tbl_name):
         create_team_table(db=db, teams_data=teams_data, tbl_name=teams_tbl_name)
@@ -307,9 +308,9 @@ def main(db, session):
     # ~~~~~~~~~~~~~
     # Odds
     # ~~~~~~~~~~~~~
-    odds_dict = line_scraper.scrape(db, session)
+    odds_dict = line_scraper.scrape()
     if odds_dict:
-        odds_data = format_odds_data(odds_dict)
+        odds_data = format_odds_data(odds_dict, teams_tbl, schedule_tbl)
     t=2
 
 
