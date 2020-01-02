@@ -1,13 +1,13 @@
 """
-manipulator holds the DataManipulator class which coerces raw_data into SQLalchemy compatible formats.
+manipulator holds the DataOperator class which coerces raw_data into SQLalchemy compatible formats.
 """
 from datetime import datetime
 from nbapredict.helpers import type
 from sqlalchemy import Integer, Float, String, DateTime, Boolean
 
 
-class DataManipulator:
-    """DataManipulator takes scraped data in init, and uses its member functions to return manipulations of that data"""
+class DataOperator:
+    """DataOperator takes scraped data in init, and uses its member functions to return manipulations of that data"""
 
     def __init__(self, data):
         """Stores the data dictionary passed to it

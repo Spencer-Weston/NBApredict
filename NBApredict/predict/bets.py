@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from nbapredict.configuration import Config
 from nbapredict.helpers import br_references
 from nbapredict.database.dbinterface import DBInterface
-from nbapredict.database.manipulator import DataManipulator
+from nbapredict.database.manipulator import DataOperator
 from nbapredict.database.reconcile import reconcile
 from nbapredict.database import getters
 from nbapredict.models import four_factor_regression as lm
@@ -145,7 +145,7 @@ def create_odds_table(database, data, tbl_name):
 
     Args:
         database: An initialized DBInterface class from database.dbinterface.py
-        data: An initialized DataManipulator object, from database.manipulator, with prediction data
+        data: An initialized DataOperator object, from database.manipulator, with prediction data
         tbl_name: The desired table name (with year as the last four characters)
     """
     # Create columns from data
@@ -187,7 +187,7 @@ def get_sample_prediction(database, odds_tbl, session, regression):
         regression: A regression object from four_factor_regression.py
 
     Returns:
-        A DataManipulator object initialized with a prediction from regression
+        A DataOperator object initialized with a prediction from regression
     """
     first_game_odds = session.query(odds_tbl).order_by(odds_tbl.start_time).first()
 
@@ -197,7 +197,7 @@ def get_sample_prediction(database, odds_tbl, session, regression):
     line = first_game_odds.spread
 
     sample_prediction = predict_game(database, session, regression, home_tm, away_tm, start_time, line)
-    data = DataManipulator(sample_prediction)
+    data = DataOperator(sample_prediction)
     return data
 
 
@@ -480,14 +480,14 @@ def predict_games_on_date(database, session, league_year, date, console_out):
     results = predict_games_on_day(database, session, game_spreads, console_out=console_out)
 
     prediction_tbl = "predictions_{}".format(league_year)
-    data = DataManipulator(results)
+    data = DataOperator(results)
     if not database.table_exists(prediction_tbl):
         create_odds_table(database, data, prediction_tbl)
 
     sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
     pred_tbl = database.get_table_mappings("predictions_{}".format(league_year))
 
-    # Results are sent to DataManipulator in row format, so just pass data.data instead of data.dict_to_rows()
+    # Results are sent to DataOperator in row format, so just pass data.data instead of data.dict_to_rows()
     try:
         insert_predictions(data.data, session, pred_tbl, sched_tbl, odds_tbl)
         session.commit()

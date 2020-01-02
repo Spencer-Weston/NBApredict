@@ -23,7 +23,7 @@ def output_directory():
 
 
 def rreplace(string, old, new, count):
-    """Replace old with new in a string in reverse order
+    """Replace old with new in a string in reverse order.
     Args:
         string: String to modify
         old: Sub-string to replace
@@ -45,11 +45,10 @@ def database_file(calling_file_path):
 
     if os.path.realpath(calling_file_path) in head_path:
         # If NBApredict is imported from outside the project, replace calling_file_path with head_path
-        #
         calling_file_path = head_path
 
     calling_file_path = calling_file_path.replace("\\", "/")
-    print("Calling_file_path:", calling_file_path)
+    #print("Calling_file_path:", calling_file_path)
     sub_dirs = []
     split_path = os.path.split(calling_file_path)
     path = split_path[0]
@@ -107,7 +106,7 @@ class Configuration:
         Args:
             config_dict: A dictionary of configuration options
             path: A list of keys above the current key in the dictionary
-            result: A dictionary which store results
+            result: A dictionary which stores results
             depth: The current depth of the recursion
         """
         # Initialize path and result. We avoid defaults so path and result are reset on each call
@@ -165,7 +164,7 @@ class NestedDict:
     def __getitem__(self, keys):
         # Allows getting top-level branch when a single key was provided
         if not isinstance(keys, tuple):
-            if isinstance(keys, str):  # Handles single item lists or strings
+            if isinstance(keys, str) or isinstance(keys, int):  # Handles single item lists or strings
                 keys = (keys,)
             else:
                 keys = tuple(keys)
@@ -187,7 +186,7 @@ class NestedDict:
 
         branch = self.dict
         for key in keys[:-1]:
-            if not key in branch:
+            if key not in branch:
                 branch[key] = {}
             branch = branch[key]
         branch[keys[-1]] = value
@@ -215,16 +214,16 @@ def set_paths(config, change_dict):
 with open(settings_file(), "r") as file:
     config_settings = yaml.safe_load(file)
 
-print('here2')
+#print('here2')
 Config = create_configuration(settings_file(), config_settings)
-print('here3')
+#print('here3')
 paths = {"directory": project_directory(), "database": database_file(os.getcwd()), "graph_dir": graphs_directory(),
          "settings": settings_file()}
 paths = {"directory": project_directory()}
-print(project_directory())
+#print(project_directory())
 paths.update({"database": database_file(os.getcwd())})
 change_paths = check_paths(Config, paths)
-print('here5')
+#print('here5')
 set_paths(Config, change_paths)
 
 # noinspection PyProtectedMember

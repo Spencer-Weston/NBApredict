@@ -15,7 +15,7 @@ def create_prediction_table(database, data, tbl_name):
 
     Args:
         database: An initialized DBInterface class from database.dbinterface.py
-        data: An initialized DataManipulator object, from database.manipulator, with prediction data
+        data: An initialized DataOperator object, from database.manipulator, with prediction data
         tbl_name: The desired table name (with year as the last four characters)
     """
     # Create columns from data

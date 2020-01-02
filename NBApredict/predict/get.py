@@ -3,7 +3,7 @@ import pandas as pd
 
 import nbapredict.models.four_factor_regression as lm
 import nbapredict.helpers.br_references as br_references
-from nbapredict.database.manipulator import DataManipulator
+from nbapredict.database.manipulator import DataOperator
 import nbapredict.database.getters as getters
 
 
@@ -19,7 +19,7 @@ def sample_prediction(database, session, ref_tbl, model):
         model: A regression object from four_factor_regression.py
 
     Returns:
-        A DataManipulator object initialized with a prediction from regression
+        A DataOperator object initialized with a prediction from regression
     """
     first_game_odds = session.query(ref_tbl).order_by(ref_tbl.start_time).first()
 
@@ -28,7 +28,7 @@ def sample_prediction(database, session, ref_tbl, model):
     start_time = first_game_odds.start_time
 
     sample_prediction = game_prediction(database, session, model, home_tm, away_tm, start_time)
-    data = DataManipulator(sample_prediction)
+    data = DataOperator(sample_prediction)
     return data
 
 

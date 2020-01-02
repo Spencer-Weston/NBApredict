@@ -16,5 +16,9 @@ models:
         options:
             graph: True
             console_out: True
+    Bayesian_model:
+        settings:
+    ML_model:
+        settings:
 
-league_year: 2019
+league_year: 2020

@@ -182,7 +182,6 @@ def create_ff_regression_df(ff_df, sched_df, ff_list):
     regression_df = regression_df.drop(["key"], axis=1)
     regression_df = regression_df[ordered_cols]
 
-
     return regression_df
 
 
