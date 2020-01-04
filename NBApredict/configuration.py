@@ -5,6 +5,7 @@ ToDo: or a different way to set variables, particularly for file pathes.
 """
 import os
 import yaml
+from nbapredict.helpers.classes import NestedDict
 
 
 def project_directory():
@@ -157,41 +158,6 @@ class Configuration:
         """Private function for over-writing self._config to the settings file"""
 
 
-class NestedDict:
-    def __init__(self, *args, **kwargs):
-        self.dict = dict(*args, **kwargs)
-
-    def __getitem__(self, keys):
-        # Allows getting top-level branch when a single key was provided
-        if not isinstance(keys, tuple):
-            if isinstance(keys, str) or isinstance(keys, int):  # Handles single item lists or strings
-                keys = (keys,)
-            else:
-                keys = tuple(keys)
-
-        branch = self.dict
-        for key in keys:
-            branch = branch[key]
-
-        # If we return a branch, and not a leaf value, we wrap it into a NestedDict
-        return NestedDict(branch).dict if isinstance(branch, dict) else branch
-
-    def __setitem__(self, keys, value):
-        # Allows setting top-level item when a single key was provided
-        if not isinstance(keys, tuple):
-            if len(keys) < 2:
-                keys = (*keys,)
-            else:
-                keys = tuple(keys)
-
-        branch = self.dict
-        for key in keys[:-1]:
-            if key not in branch:
-                branch[key] = {}
-            branch = branch[key]
-        branch[keys[-1]] = value
-
-
 def create_configuration(file, config_settings):
     """Return an instantiated Configuration class."""
     return Configuration(file, config_settings)
@@ -214,16 +180,12 @@ def set_paths(config, change_dict):
 with open(settings_file(), "r") as file:
     config_settings = yaml.safe_load(file)
 
-#print('here2')
 Config = create_configuration(settings_file(), config_settings)
-#print('here3')
 paths = {"directory": project_directory(), "database": database_file(os.getcwd()), "graph_dir": graphs_directory(),
          "settings": settings_file()}
 paths = {"directory": project_directory()}
-#print(project_directory())
 paths.update({"database": database_file(os.getcwd())})
 change_paths = check_paths(Config, paths)
-#print('here5')
 set_paths(Config, change_paths)
 
 # noinspection PyProtectedMember
