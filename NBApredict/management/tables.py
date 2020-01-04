@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
 from datatotable.database import Database
 from datatotable.data import DataOperator
-from nbapredict.scrapers import team_scraper, line_scraper, season_scraper
 from nbapredict.configuration import Config
+from nbapredict.helpers.classes import NestedDict
+from nbapredict.scrapers import team_scraper, line_scraper, season_scraper
+import pandas
 from sqlalchemy import ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import aliased
 import sqlalchemy.sql.selectable
@@ -171,14 +173,14 @@ def update_schedule_stats(session, schedule_tbl, team_stats_tbl) -> list:
     for d in date_ranges:
         # Get the team stats with the greatest scrape_time before the end date of the range (31 obs, all teams + L. AVG)
         stats_q = session.query(team_stats_tbl.id, team_stats_tbl.team_id,
-                                    func.max(team_stats_tbl.scrape_time).label('s_time')). \
+                                func.max(team_stats_tbl.scrape_time).label('s_time')). \
             filter(team_stats_tbl.scrape_time < d[1]).group_by(team_stats_tbl.team_id).subquery()
         home_stats = aliased(stats_q, 'home_stats')
         away_stats = aliased(stats_q, 'away_stats')
 
-        sched_rows = session.query(schedule_tbl, home_stats.c.id.label('h_s_id'), away_stats.c.id.label('a_s_id')).\
-            filter(schedule_tbl.home_stats_id == None, schedule_tbl.start_time > d[0], schedule_tbl.start_time < d[1]).\
-            join(home_stats, schedule_tbl.home_team_id == home_stats.c.team_id).\
+        sched_rows = session.query(schedule_tbl, home_stats.c.id.label('h_s_id'), away_stats.c.id.label('a_s_id')). \
+            filter(schedule_tbl.home_stats_id == None, schedule_tbl.start_time > d[0], schedule_tbl.start_time < d[1]). \
+            join(home_stats, schedule_tbl.home_team_id == home_stats.c.team_id). \
             join(away_stats, schedule_tbl.away_team_id == away_stats.c.team_id).all()
 
         for row in sched_rows:
@@ -189,13 +191,20 @@ def update_schedule_stats(session, schedule_tbl, team_stats_tbl) -> list:
 
 
 def format_odds_data(odds_dict, team_tbl, schedule_tbl):
-    """a thing"""
-    odds_dict['home_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict['home_team'])
-    odds_dict['away_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict['away_team'])
+    """a thing
+
+    Tempnote: The basic problem here is that the information that uniquely identifies a game in schedule is held in two
+    columns. Values_to_Foreign_key() can only utilize a single uID, so we need an implementation that can handle more
+    columns.
+    """
+    odds_dict['home_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict.pop('home_team'))
+    odds_dict['away_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict.pop('away_team'))
     # the columns that uniquely identify a game in the schedule table
     val_cols = ['home_team_id', 'start_time']
-    uID = {k: odds_dict[k] for k in val_cols}
+    uID = {k: odds_dict[k] for k in val_cols}  # Home team + start_time form a unique identifier for a game in schedule
+    del odds_dict['start_time']
     odds_dict['game_id'] = values_to_foreign_key(schedule_tbl, "id", val_cols, uID)
+    return odds_dict
 
 
 def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
@@ -217,11 +226,38 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
         set_data = set(child_data)
     if type(foreign_tbl) == sqlalchemy.sql.selectable.Alias:
         conversion_dict = _values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, set_data or child_data)
+        return [conversion_dict[i] for i in child_data]
     else:
-        rows = session.query(getattr(foreign_tbl, foreign_key), getattr(foreign_tbl, foreign_value)). \
-            filter(getattr(foreign_tbl, foreign_value).in_(set_data or child_data)).all()
-        conversion_dict = {getattr(row, foreign_value): getattr(row, foreign_key) for row in rows}
-    return [conversion_dict[i] for i in child_data]
+        key_column = [getattr(foreign_tbl, foreign_key)]
+        if isinstance(child_data, dict):
+            composite_fd = True  # Composite foreign dependency, two columns required to identify unique key
+            value_columns = [getattr(foreign_tbl, val) for val in child_data.keys()]
+            keys = list(child_data.keys())
+            filters = [value_columns[i].in_(child_data[keys[i]]) for i in range(len(keys))]
+        else:
+            composite_fd = False
+            value_columns = [getattr(foreign_tbl, foreign_value)]
+            filters = [value_columns[0].in_(set_data or child_data)]
+
+        rows = session.query(*key_column, *value_columns).distinct().filter(*filters).all()
+        # rows = session.query(getattr(foreign_tbl, foreign_key), getattr(foreign_tbl, foreign_value)). \
+        # filter(getattr(foreign_tbl, foreign_value).in_(set_data or child_data)).all()
+        if composite_fd:
+            l = len(rows[0])  # num. columns
+            d = NestedDict()
+            for r in rows:
+                d[[col for col in r[1:]]] = r[0]  # multi-valued key with the foreign key as the value
+
+            # Convert to df to facilitate row selection
+            df = pandas.DataFrame(child_data)
+            multi_keys = []
+            for i in range(len(df)):
+                row = df.iloc[i]
+                multi_keys.append([i for i in row])
+            return [d[keys] for keys in multi_keys]
+        else:
+            conversion_dict = {getattr(row, foreign_value): getattr(row, foreign_key) for row in rows}
+            return [conversion_dict[i] for i in child_data]
 
 
 def _values_to_foreign_key(foreign_subquery, foreign_key, foreign_value, child_data):
@@ -229,7 +265,7 @@ def _values_to_foreign_key(foreign_subquery, foreign_key, foreign_value, child_d
 
     This function performs the same query as values_to_foreign_key() except it can take a subquery, which has
     different syntax, as input rather than a table. The function presumes child_data has already been modified if
-    necessary.
+    necessary. NOTE: this does not support multi-column conversions of child_data to foreign key.
 
     Args:
         foreign_subquery: A subquery which is an Alias class in sqlalchemy. These classes are created when subquery()
@@ -310,8 +346,10 @@ def main(db, session):
     # ~~~~~~~~~~~~~
     odds_dict = line_scraper.scrape()
     if odds_dict:
-        odds_data = format_odds_data(odds_dict, teams_tbl, schedule_tbl)
-    t=2
+        odds_dict = format_odds_data(odds_dict, teams_tbl, schedule_tbl)
+        odds_data = DataOperator(odds_dict)
+
+    t = 2
 
 
 if __name__ == "__main__":

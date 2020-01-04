@@ -259,7 +259,8 @@ def scrape():
 
 
 if __name__ == "__main__":
-
+    from datatotable.database import Database
+    db = Database("test", Config.get_property("outputs"))
     year = 2019
     session = Session(bind=db.engine)
     scrape(db, session)
