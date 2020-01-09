@@ -62,6 +62,8 @@ def odds_for_today():
         start_time = ''.join(str_time)
         start_time = datetime.strptime(start_time, "%Y%m%d%H%M")
         if datetime.now() > start_time:
+            #ToDo: Home/away team variables may not be found by this point and raise an error
+
             # An ongoing game will not have the correct betting data. We don't want to store this information
             print("The game between {} and {} at {} is either ongoing or completed. Not scraping".format(
                 home_team, away_team, start_time))

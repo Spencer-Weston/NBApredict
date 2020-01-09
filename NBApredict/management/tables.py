@@ -1,3 +1,5 @@
+"""ToDo: Add a global session maker"""
+
 from datetime import datetime, timedelta
 from datatotable.database import Database
 from datatotable.data import DataOperator
@@ -32,7 +34,6 @@ def create_team_stats_table(db, team_stats_data, tbl_name):
         db: a datotable.database.Database object connected to a database
         team_stats_data: A datatotable.data.DataOperator object with data on NBA team stats
         tbl_name: The desired table name
-    ToDo: Change Unique Constraint to use new format once datatotable update is incorporated
     ToDo: Currently allows duplicate rows if those values are on different days. Solve with a constraint
     """
     columns = team_stats_data.columns
@@ -191,20 +192,38 @@ def update_schedule_stats(session, schedule_tbl, team_stats_tbl) -> list:
 
 
 def format_odds_data(odds_dict, team_tbl, schedule_tbl):
-    """a thing
+    """From the odds_dict, strip extraneous dictionary keys, add a 'game_id' FK, and return the odds_dict
 
-    Tempnote: The basic problem here is that the information that uniquely identifies a game in schedule is held in two
-    columns. Values_to_Foreign_key() can only utilize a single uID, so we need an implementation that can handle more
-    columns.
+    Args:
+        odds_dict: A dictionary of data returned by line_scraper
+        team_tbl: A mapped team table
+        schedule_tbl: A mapped schedule table
+
+    Returns:
+        odds_dict formatted with foreign keys (mainly a FK for games in the schedule tbl)
     """
     odds_dict['home_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict.pop('home_team'))
-    odds_dict['away_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict.pop('away_team'))
     # the columns that uniquely identify a game in the schedule table
     val_cols = ['home_team_id', 'start_time']
     uID = {k: odds_dict[k] for k in val_cols}  # Home team + start_time form a unique identifier for a game in schedule
-    del odds_dict['start_time']
     odds_dict['game_id'] = values_to_foreign_key(schedule_tbl, "id", val_cols, uID)
+
+    # Each of these columns is held in the schedule table in the row game_id references
+    del odds_dict['start_time']
+    del odds_dict['away_team']
+    del odds_dict['home_team_id']
+
     return odds_dict
+
+
+def create_odds_table(db, tbl_name, odds_data, schedule_tbl):
+    """Create a table of odds in the database"""
+    columns = odds_data.columns
+    schedule_tbl_name = schedule_tbl.__table__.fullname
+    columns['game_id'].append(ForeignKey("{}.id".format(schedule_tbl_name)))
+    db.map_table(tbl_name=tbl_name, columns=columns)
+    db.create_tables()
+    db.clear_mappers()
 
 
 def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
@@ -348,7 +367,10 @@ def main(db, session):
     if odds_dict:
         odds_dict = format_odds_data(odds_dict, teams_tbl, schedule_tbl)
         odds_data = DataOperator(odds_dict)
-
+    # Evaluate if you have the correct columns in odds_data (i.e. home\away team id's)
+    odds_tbl_name = "odds_{}".format(year)
+    if not db.table_exists(odds_tbl_name):
+        create_odds_table(db, odds_tbl_name, odds_data, schedule_tbl)
     t = 2
 
 
