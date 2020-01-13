@@ -57,16 +57,14 @@ def odds_for_today():
 
     # Iterate through each game returned by bovada and store its information
     for game in bovada_games:
-        link = game['link']
+        link = game['link'].split('-')
+        link = link[len(link)-1]
         str_time = re.findall('[0-9]', link)
         start_time = ''.join(str_time)
         start_time = datetime.strptime(start_time, "%Y%m%d%H%M")
         if datetime.now() > start_time:
-            #ToDo: Home/away team variables may not be found by this point and raise an error
-
             # An ongoing game will not have the correct betting data. We don't want to store this information
-            print("The game between {} and {} at {} is either ongoing or completed. Not scraping".format(
-                home_team, away_team, start_time))
+            print("This game ({}) is either ongoing or completed. Not scraping".format(game['description']))
             continue
 
         home_team, away_team = parse_teams(game["competitors"])

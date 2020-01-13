@@ -6,6 +6,7 @@ from datatotable.data import DataOperator
 from nbapredict.configuration import Config
 from nbapredict.helpers.classes import NestedDict
 from nbapredict.scrapers import team_scraper, line_scraper, season_scraper
+import numpy as np
 import pandas
 from sqlalchemy import ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import aliased
@@ -208,7 +209,7 @@ def format_odds_data(odds_dict, team_tbl, schedule_tbl):
     uID = {k: odds_dict[k] for k in val_cols}  # Home team + start_time form a unique identifier for a game in schedule
     odds_dict['game_id'] = values_to_foreign_key(schedule_tbl, "id", val_cols, uID)
 
-    # Each of these columns is held in the schedule table in the row game_id references
+    # Each of these columns is held in the schedule table
     del odds_dict['start_time']
     del odds_dict['away_team']
     del odds_dict['home_team_id']
@@ -249,7 +250,7 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
     else:
         key_column = [getattr(foreign_tbl, foreign_key)]
         if isinstance(child_data, dict):
-            composite_fd = True  # Composite foreign dependency, two columns required to identify unique key
+            composite_fd = True  # Composite functional dependency, two+ columns required to identify unique key
             value_columns = [getattr(foreign_tbl, val) for val in child_data.keys()]
             keys = list(child_data.keys())
             filters = [value_columns[i].in_(child_data[keys[i]]) for i in range(len(keys))]
@@ -259,21 +260,20 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
             filters = [value_columns[0].in_(set_data or child_data)]
 
         rows = session.query(*key_column, *value_columns).distinct().filter(*filters).all()
-        # rows = session.query(getattr(foreign_tbl, foreign_key), getattr(foreign_tbl, foreign_value)). \
-        # filter(getattr(foreign_tbl, foreign_value).in_(set_data or child_data)).all()
-        if composite_fd:
-            l = len(rows[0])  # num. columns
-            d = NestedDict()
-            for r in rows:
-                d[[col for col in r[1:]]] = r[0]  # multi-valued key with the foreign key as the value
 
-            # Convert to df to facilitate row selection
-            df = pandas.DataFrame(child_data)
-            multi_keys = []
-            for i in range(len(df)):
-                row = df.iloc[i]
-                multi_keys.append([i for i in row])
-            return [d[keys] for keys in multi_keys]
+        if composite_fd:
+            nested_conversion_dict = NestedDict()
+            for r in rows:
+                # multi-valued key with the foreign key as the value
+                nested_conversion_dict[[col for col in r[1:]]] = r[0]
+
+            # Generate a list of lists with the values in each row of child data
+            # These values form keys for the foreign keys stored in the nested_conversion_dict which is returned
+            conversion_keys = []
+            l = len(child_data[list(child_data.keys())[0]])
+            for i in range(l):
+                conversion_keys.append([child_data[k][i] for k in child_data.keys()])
+            return [nested_conversion_dict[k] for k in conversion_keys]
         else:
             conversion_dict = {getattr(row, foreign_value): getattr(row, foreign_key) for row in rows}
             return [conversion_dict[i] for i in child_data]
@@ -364,13 +364,22 @@ def main(db, session):
     # Odds
     # ~~~~~~~~~~~~~
     odds_dict = line_scraper.scrape()
+    odds_data = None
     if odds_dict:
         odds_dict = format_odds_data(odds_dict, teams_tbl, schedule_tbl)
         odds_data = DataOperator(odds_dict)
     # Evaluate if you have the correct columns in odds_data (i.e. home\away team id's)
     odds_tbl_name = "odds_{}".format(year)
-    if not db.table_exists(odds_tbl_name):
+    if not db.table_exists(odds_tbl_name) and odds_data:
         create_odds_table(db, odds_tbl_name, odds_data, schedule_tbl)
+        odds_tbl = db.table_mappings[odds_tbl_name]
+        session.add_all(odds_tbl(**row) for row in odds_data.rows)
+        session.commit()
+    elif odds_data:
+        odds_tbl = db.table_mappings[odds_tbl_name]
+        session.add_all(odds_tbl(**row) for row in odds_data.rows)
+        session.commit()
+
     t = 2
 
 
