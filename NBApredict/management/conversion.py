@@ -4,10 +4,12 @@ values_to_foreign_key function."""
 from nbapredict.helpers.classes import NestedDict
 import sqlalchemy
 
+
 def values_to_foreign_key(session, foreign_tbl, foreign_key, foreign_value, child_data):
     """Return values from child data that exist in the foreign_tbl transformed into foreign key values
 
     Args:
+        session: A sqlalchemy session
         foreign_tbl: The foreign table mapping child data references
         foreign_key: The name of the column containing foreign key values
         foreign_value: The name of the column containing values to match with child data
@@ -22,7 +24,8 @@ def values_to_foreign_key(session, foreign_tbl, foreign_key, foreign_value, chil
     if len(child_data) > 999:
         set_data = set(child_data)
     if type(foreign_tbl) == sqlalchemy.sql.selectable.Alias:
-        conversion_dict = _values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, set_data or child_data)
+        conversion_dict = _values_to_foreign_key(session, foreign_tbl, foreign_key, foreign_value,
+                                                 set_data or child_data)
         return [conversion_dict[i] for i in child_data]
     else:
         key_column = [getattr(foreign_tbl, foreign_key)]
@@ -47,8 +50,8 @@ def values_to_foreign_key(session, foreign_tbl, foreign_key, foreign_value, chil
             # Generate a list of lists with the values in each row of child data
             # These values form keys for the foreign keys stored in the nested_conversion_dict which is returned
             conversion_keys = []
-            l = len(child_data[list(child_data.keys())[0]])
-            for i in range(l):
+            length = len(child_data[list(child_data.keys())[0]])
+            for i in range(length):
                 conversion_keys.append([child_data[k][i] for k in child_data.keys()])
             return [nested_conversion_dict[k] for k in conversion_keys]
         else:

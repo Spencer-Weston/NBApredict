@@ -5,6 +5,7 @@ from datatotable.database import Database
 from datatotable.data import DataOperator
 from nbapredict.configuration import Config
 from nbapredict.helpers.classes import NestedDict
+import nbapredict.management.tables as tables
 from nbapredict.scrapers import team_scraper, line_scraper, season_scraper
 import numpy as np
 import pandas
@@ -45,7 +46,7 @@ def create_team_stats_table(db, team_stats_data, tbl_name):
     db.clear_mappers()
 
 
-def update_team_stats_table(db, session, team_stats_tbl, team_stats_data):
+def insert_team_stats_table(session, team_stats_tbl, team_stats_data):
     """Insert new data into the team_stats_tbl.
 
     Args:
@@ -339,7 +340,7 @@ def main(db, session):
         session.commit()
     else:
         team_stats_tbl = db.table_mappings[team_stats_tbl_name]
-        update_team_stats_table(db, session, team_stats_tbl, team_stats_data)
+        insert_team_stats_table(session, team_stats_tbl, team_stats_data)
 
     # ~~~~~~~~~~~~~
     # Schedule

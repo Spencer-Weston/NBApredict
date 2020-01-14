@@ -108,7 +108,6 @@ def scrape(tbl_name="misc_stats"):
     """Scrape a basketball_reference table of team stats, parse the table, and write it to a database
 
     Args:
-        database: An instantiated DBInterface object from database.database for database interactions
         tbl_name: The name of the table to scrape on basketballreference.com
     """
 
