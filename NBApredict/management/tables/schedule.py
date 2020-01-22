@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, func
 from sqlalchemy.orm import aliased
 
 
-def format_schedule_data(schedule_data, team_tbl, team_stats_tbl):
+def format_schedule_data(session, schedule_data, team_tbl, team_stats_tbl):
     """Format and return schedule data to match the database schema.
 
     Adds a Margin of Victory column and adds/modifies foreign key columns
@@ -22,22 +22,27 @@ def format_schedule_data(schedule_data, team_tbl, team_stats_tbl):
     schedule_data.data['playoffs'] = ['']
     schedule_data.fill('playoffs', None)
 
-    schedule_data.data["home_team_id"] = convert.values_to_foreign_key(team_tbl, "id", "team_name",
-                                                                       schedule_data.data.pop("home_team"))
-    schedule_data.data["away_team_id"] = convert.values_to_foreign_key(team_tbl, "id", "team_name",
-                                                                       schedule_data.data.pop("away_team"))
+    schedule_data.data["home_team_id"] = convert.values_to_foreign_key(session, foreign_tbl=team_tbl, foreign_key="id",
+                                                                       foreign_value="team_name",
+                                                                       child_data=schedule_data.data.pop("home_team"))
+    schedule_data.data["away_team_id"] = convert.values_to_foreign_key(session, foreign_tbl=team_tbl, foreign_key="id",
+                                                                       foreign_value="team_name",
+                                                                       child_data=schedule_data.data.pop("away_team"))
 
     today = datetime.date(datetime.now())
     tomorrow = today + timedelta(days=1)
+    tmrw_idx = 0
     for idx in range(len(schedule_data.data['start_time'])):
         if schedule_data.data['start_time'][idx].date() >= tomorrow:
             tmrw_idx = idx
             break
+    if not tmrw_idx:
+        raise ValueError("tmrw_idx was not found")
     subquery = session.query(team_stats_tbl.id, team_stats_tbl.team_id, func.max(team_stats_tbl.scrape_time)). \
         filter(team_stats_tbl.scrape_date <= today).group_by(team_stats_tbl.team_id).subquery()
-    schedule_data.data['home_stats_id'] = convert.values_to_foreign_key(subquery, 'id', 'team_id',
+    schedule_data.data['home_stats_id'] = convert.values_to_foreign_key(session, subquery, 'id', 'team_id',
                                                                         schedule_data.data['home_team_id'][:tmrw_idx])
-    schedule_data.data['away_stats_id'] = convert.values_to_foreign_key(subquery, 'id', 'team_id',
+    schedule_data.data['away_stats_id'] = convert.values_to_foreign_key(session, subquery, 'id', 'team_id',
                                                                         schedule_data.data['away_team_id'][:tmrw_idx])
     schedule_data.fill('home_stats_id', None)
     schedule_data.fill('away_stats_id', None)
