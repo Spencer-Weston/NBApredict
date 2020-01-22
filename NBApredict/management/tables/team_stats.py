@@ -5,7 +5,7 @@ from nbapredict.configuration import Config
 from sqlalchemy import ForeignKey, UniqueConstraint
 
 
-def create_team_stats_table(db, team_stats_data, tbl_name):
+def create_table(db, team_stats_data, tbl_name):
     """Create a table of team stats in a database with appropriate foreign keys and constraints.
 
     Args:
@@ -22,7 +22,7 @@ def create_team_stats_table(db, team_stats_data, tbl_name):
     db.clear_mappers()
 
 
-def insert_team_stats_table(session, team_stats_tbl, team_stats_data):
+def insert(session, team_stats_tbl, team_stats_data):
     """Insert new data into the team_stats_tbl.
 
     Args:

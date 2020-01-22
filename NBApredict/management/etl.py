@@ -1,30 +1,28 @@
-"""ToDo: Add a global session maker"""
+""" ETL (Extract Transform Load) manages data scraping, modification, table creation, and data loading.
+
+Main() calls the necessary ETL functions from scrapers and management.tables for all tables.
+
+Tables:
+    teams
+    schedule
+    odds
+    team_stats
+
+"""
 
 from datetime import datetime, timedelta
 from datatotable.database import Database
 from datatotable.data import DataOperator
 from nbapredict.configuration import Config
 from nbapredict.helpers.classes import NestedDict
-import nbapredict.management.tables as tables
+import nbapredict.management
+import nbapredict.management.conversion as convert
+from nbapredict.management.tables import teams, team_stats, odds, schedule
 from nbapredict.scrapers import team_scraper, line_scraper, season_scraper
 from sqlalchemy import ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import aliased
 import sqlalchemy.sql.selectable
 
-
-def create_team_table(db, teams_data, tbl_name):
-    """Create a table in DB named tbl_name with the columns in teams_data
-
-    Args:
-        db: a datotable.database.Database object connected to a database
-        teams_data: A datatotable.data.DataOperator object with data on NBA teams
-        tbl_name: The desired name of the table
-    """
-    columns = teams_data.columns
-    columns["team_name"].append({"unique": True})
-    db.map_table(tbl_name=tbl_name, columns=columns)
-    db.create_tables()
-    db.clear_mappers()
 
 
 def create_team_stats_table(db, team_stats_data, tbl_name):
@@ -48,7 +46,6 @@ def insert_team_stats_table(session, team_stats_tbl, team_stats_data):
     """Insert new data into the team_stats_tbl.
 
     Args:
-        db: a datotable.database.Database object connected to a database
         session: An instantiated SQLalchemy session object
         team_stats_tbl: A mapped team stats table object
         team_stats_data: A datatotable.data.DataOperator object with data on NBA team stats
@@ -62,7 +59,7 @@ def insert_team_stats_table(session, team_stats_tbl, team_stats_data):
         session.commit()
 
 
-def format_schedule_data(schedule_data, team_tbl, team_stats_tbl):
+def format_schedule_data(session, schedule_data, team_tbl, team_stats_tbl):
     """Format and return schedule data to match the database schema.
 
     Adds a Margin of Victory column and adds/modifies foreign key columns
@@ -78,22 +75,27 @@ def format_schedule_data(schedule_data, team_tbl, team_stats_tbl):
     schedule_data.data['playoffs'] = ['']
     schedule_data.fill('playoffs', None)
 
-    schedule_data.data["home_team_id"] = values_to_foreign_key(team_tbl, "id", "team_name",
-                                                               schedule_data.data.pop("home_team"))
-    schedule_data.data["away_team_id"] = values_to_foreign_key(team_tbl, "id", "team_name",
-                                                               schedule_data.data.pop("away_team"))
+    schedule_data.data["home_team_id"] = values_to_foreign_key(session, foreign_tbl=team_tbl, foreign_key="id",
+                                                               foreign_value="team_name",
+                                                               child_data=schedule_data.data.pop("home_team"))
+    schedule_data.data["away_team_id"] = values_to_foreign_key(session, foreign_tbl=team_tbl, foreign_key="id",
+                                                               foreign_value="team_name",
+                                                               child_data=schedule_data.data.pop("away_team"))
 
     today = datetime.date(datetime.now())
     tomorrow = today + timedelta(days=1)
+    tmrw_idx = 0
     for idx in range(len(schedule_data.data['start_time'])):
         if schedule_data.data['start_time'][idx].date() >= tomorrow:
             tmrw_idx = idx
             break
+    if not tmrw_idx:
+        raise ValueError("tmrw_idx was not found")
     subquery = session.query(team_stats_tbl.id, team_stats_tbl.team_id, func.max(team_stats_tbl.scrape_time)). \
         filter(team_stats_tbl.scrape_date <= today).group_by(team_stats_tbl.team_id).subquery()
-    schedule_data.data['home_stats_id'] = values_to_foreign_key(subquery, 'id', 'team_id',
+    schedule_data.data['home_stats_id'] = values_to_foreign_key(session, subquery, 'id', 'team_id',
                                                                 schedule_data.data['home_team_id'][:tmrw_idx])
-    schedule_data.data['away_stats_id'] = values_to_foreign_key(subquery, 'id', 'team_id',
+    schedule_data.data['away_stats_id'] = values_to_foreign_key(session, subquery, 'id', 'team_id',
                                                                 schedule_data.data['away_team_id'][:tmrw_idx])
     schedule_data.fill('home_stats_id', None)
     schedule_data.fill('away_stats_id', None)
@@ -191,10 +193,11 @@ def update_schedule_stats(session, schedule_tbl, team_stats_tbl) -> list:
     return update_rows
 
 
-def format_odds_data(odds_dict, team_tbl, schedule_tbl):
+def format_odds_data(session, odds_dict, team_tbl, schedule_tbl):
     """From the odds_dict, strip extraneous dictionary keys, add a 'game_id' FK, and return the odds_dict
 
     Args:
+        session: A SQLalchemy session bound to the db
         odds_dict: A dictionary of data returned by line_scraper
         team_tbl: A mapped team table
         schedule_tbl: A mapped schedule table
@@ -202,11 +205,11 @@ def format_odds_data(odds_dict, team_tbl, schedule_tbl):
     Returns:
         odds_dict formatted with foreign keys (mainly a FK for games in the schedule tbl)
     """
-    odds_dict['home_team_id'] = values_to_foreign_key(team_tbl, "id", 'team_name', odds_dict.pop('home_team'))
+    odds_dict['home_team_id'] = values_to_foreign_key(session, team_tbl, "id", 'team_name', odds_dict.pop('home_team'))
     # the columns that uniquely identify a game in the schedule table
     val_cols = ['home_team_id', 'start_time']
     uID = {k: odds_dict[k] for k in val_cols}  # Home team + start_time form a unique identifier for a game in schedule
-    odds_dict['game_id'] = values_to_foreign_key(schedule_tbl, "id", val_cols, uID)
+    odds_dict['game_id'] = values_to_foreign_key(session, schedule_tbl, "id", val_cols, uID)
 
     # Each of these columns is held in the schedule table
     del odds_dict['start_time']
@@ -226,7 +229,7 @@ def create_odds_table(db, tbl_name, odds_data, schedule_tbl):
     db.clear_mappers()
 
 
-def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
+def values_to_foreign_key(session, foreign_tbl, foreign_key, foreign_value, child_data):
     """Return values from child data that exist in the foreign_tbl transformed into foreign key values
 
     Args:
@@ -244,7 +247,8 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
     if len(child_data) > 999:
         set_data = set(child_data)
     if type(foreign_tbl) == sqlalchemy.sql.selectable.Alias:
-        conversion_dict = _values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, set_data or child_data)
+        conversion_dict = _values_to_foreign_key(session, foreign_tbl, foreign_key, foreign_value,
+                                                 set_data or child_data)
         return [conversion_dict[i] for i in child_data]
     else:
         key_column = [getattr(foreign_tbl, foreign_key)]
@@ -278,7 +282,7 @@ def values_to_foreign_key(foreign_tbl, foreign_key, foreign_value, child_data):
             return [conversion_dict[i] for i in child_data]
 
 
-def _values_to_foreign_key(foreign_subquery, foreign_key, foreign_value, child_data):
+def _values_to_foreign_key(session, foreign_subquery, foreign_key, foreign_value, child_data):
     """Return values from child data that exist in the foreign_subquery transformed into foreign key values
 
     This function performs the same query as values_to_foreign_key() except it can take a subquery, which has
@@ -301,8 +305,9 @@ def _values_to_foreign_key(foreign_subquery, foreign_key, foreign_value, child_d
     return conversion_dict
 
 
-def main(db, session):
+def main(db):
     year = Config.get_property("league_year")
+    session = nbapredict.management.Session(bind=db.engine)
 
     # ~~~~~~~~~~~~~
     # Teams
@@ -311,7 +316,7 @@ def main(db, session):
     teams_data = DataOperator({"team_name": team_dict["team_name"]})
     teams_tbl_name = "teams_{}".format(year)
     if not db.table_exists(teams_tbl_name):
-        create_team_table(db=db, teams_data=teams_data, tbl_name=teams_tbl_name)
+        teams.create_team_table(db=db, teams_data=teams_data, tbl_name=teams_tbl_name)
         teams_tbl = db.table_mappings[teams_tbl_name]
         session.add_all([teams_tbl(**row) for row in teams_data.rows])
         session.commit()
@@ -323,8 +328,8 @@ def main(db, session):
     team_stats_tbl_name = "team_stats_{}".format(year)
     teams_tbl = db.table_mappings[teams_tbl_name]
     team_dict['team_id'] = team_dict.pop('team_name')
-    team_dict['team_id'] = values_to_foreign_key(foreign_tbl=teams_tbl, foreign_key="id", foreign_value="team_name",
-                                                 child_data=team_dict['team_id'])
+    team_dict['team_id'] = convert.values_to_foreign_key(session=session, foreign_tbl=teams_tbl, foreign_key="id",
+                                                         foreign_value="team_name", child_data=team_dict['team_id'])
     # When team_stats_tbl is created, the teams_tbl automap object is changed. The changed format does not follow
     # the expected behavior of an automapped table. I suspect this is because a relationship is established.
     # If we reloaded, teams_tbl works fine. Therefore, delete the variable here for now
@@ -332,13 +337,13 @@ def main(db, session):
     team_dict['scrape_date'] = [datetime.date(s_time) for s_time in team_dict['scrape_time']]
     team_stats_data = DataOperator(team_dict)
     if not db.table_exists(team_stats_tbl_name):
-        create_team_stats_table(db=db, team_stats_data=team_stats_data, tbl_name=team_stats_tbl_name)
+        team_stats.create_table(db=db, team_stats_data=team_stats_data, tbl_name=team_stats_tbl_name)
         team_stats_tbl = db.table_mappings[team_stats_tbl_name]
         session.add_all([team_stats_tbl(**row) for row in team_stats_data.rows])
         session.commit()
     else:
         team_stats_tbl = db.table_mappings[team_stats_tbl_name]
-        insert_team_stats_table(session, team_stats_tbl, team_stats_data)
+        team_stats.insert(session, team_stats_tbl, team_stats_data)
 
     # ~~~~~~~~~~~~~
     # Schedule
@@ -346,16 +351,17 @@ def main(db, session):
     schedule_dict = season_scraper.scrape()
     schedule_data = DataOperator(schedule_dict)
     teams_tbl = db.table_mappings['teams_{}'.format(year)]
-    schedule_data = format_schedule_data(schedule_data, teams_tbl, team_stats_tbl)
+    schedule_data = schedule.format_data(session=session, schedule_data=schedule_data,
+                                         team_tbl=teams_tbl, team_stats_tbl=team_stats_tbl)
     schedule_tbl_name = "schedule_{}".format(year)
     if not db.table_exists(schedule_tbl_name):
-        create_schedule_table(db, schedule_data, schedule_tbl_name, teams_tbl, team_stats_tbl)
+        schedule.create_table(db, schedule_data, schedule_tbl_name, teams_tbl, team_stats_tbl)
         schedule_tbl = db.table_mappings[schedule_tbl_name]
         session.add_all([schedule_tbl(**row) for row in schedule_data.rows])
         session.commit()
     else:
         schedule_tbl = db.table_mappings[schedule_tbl_name]
-        update_rows = update_schedule_table(session, schedule_data, schedule_tbl, team_stats_tbl)
+        update_rows = schedule.update_table(session, schedule_data, schedule_tbl, team_stats_tbl)
         session.add_all(update_rows)
         session.commit()
 
@@ -365,12 +371,12 @@ def main(db, session):
     odds_dict = line_scraper.scrape()
     odds_data = None
     if odds_dict:
-        odds_dict = format_odds_data(odds_dict, teams_tbl, schedule_tbl)
+        odds_dict = odds.format_data(session, odds_dict, teams_tbl, schedule_tbl)
         odds_data = DataOperator(odds_dict)
     # Evaluate if you have the correct columns in odds_data (i.e. home\away team id's)
     odds_tbl_name = "odds_{}".format(year)
     if not db.table_exists(odds_tbl_name) and odds_data:
-        create_odds_table(db, odds_tbl_name, odds_data, schedule_tbl)
+        odds.create_table(db, odds_tbl_name, odds_data, schedule_tbl)
         odds_tbl = db.table_mappings[odds_tbl_name]
         session.add_all(odds_tbl(**row) for row in odds_data.rows)
         session.commit()
@@ -383,9 +389,6 @@ def main(db, session):
 
 
 if __name__ == "__main__":
-    from sqlalchemy.orm import Session
-
     db = Database("test", Config.get_property("outputs"))
-    session = Session(db.engine)
-    main(db, session)
+    main(db)
     t = 2

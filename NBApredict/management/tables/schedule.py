@@ -6,7 +6,7 @@ from sqlalchemy import ForeignKey, func
 from sqlalchemy.orm import aliased
 
 
-def format_schedule_data(session, schedule_data, team_tbl, team_stats_tbl):
+def format_data(session, schedule_data, team_tbl, team_stats_tbl):
     """Format and return schedule data to match the database schema.
 
     Adds a Margin of Victory column and adds/modifies foreign key columns
@@ -50,7 +50,7 @@ def format_schedule_data(session, schedule_data, team_tbl, team_stats_tbl):
     return schedule_data
 
 
-def create_schedule_table(db, schedule_data, tbl_name, team_tbl, team_stats_tbl):
+def create_table(db, schedule_data, tbl_name, team_tbl, team_stats_tbl):
     """Create a table of the NBA schedule in the database.
     Args:
         db: a datotable.database.Database object connected to a database
@@ -71,15 +71,15 @@ def create_schedule_table(db, schedule_data, tbl_name, team_tbl, team_stats_tbl)
     db.clear_mappers()
 
 
-def update_schedule_table(session, schedule_data, schedule_tbl, team_stats_tbl):
-    score_updates = update_schedule_scores(session, schedule_data, schedule_tbl)
-    stats_updates = update_schedule_stats(session, schedule_tbl, team_stats_tbl)
+def update_table(session, schedule_data, schedule_tbl, team_stats_tbl):
+    score_updates = update_scores(session, schedule_data, schedule_tbl)
+    stats_updates = update_stats(session, schedule_tbl, team_stats_tbl)
 
     # Some rows may be updated for scores and stats. Use a set to remove duplicates
     return set(score_updates + stats_updates)
 
 
-def update_schedule_scores(session, schedule_data, schedule_tbl) -> list:
+def update_scores(session, schedule_data, schedule_tbl) -> list:
     date = datetime.date(datetime.now())
     update_query = session.query(schedule_tbl).filter(schedule_tbl.start_time < date,
                                                       schedule_tbl.home_team_score == 0). \
@@ -108,7 +108,7 @@ def update_schedule_scores(session, schedule_data, schedule_tbl) -> list:
     return update_rows
 
 
-def update_schedule_stats(session, schedule_tbl, team_stats_tbl) -> list:
+def update_stats(session, schedule_tbl, team_stats_tbl) -> list:
     tomorrow = datetime.date(datetime.now()) + timedelta(days=1)
 
     d_time = session.query(func.min(schedule_tbl.start_time)).filter(schedule_tbl.home_stats_id == None).all()[0][0]
