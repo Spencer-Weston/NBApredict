@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import nbapredict.management.conversion as convert
 from sqlalchemy import ForeignKey, func
 from sqlalchemy.orm import aliased
+import pandas as pd
 
 
 def format_data(session, schedule_data, team_tbl, team_stats_tbl):
@@ -20,8 +21,8 @@ def format_data(session, schedule_data, team_tbl, team_stats_tbl):
     a_score = schedule_data.data['away_team_score']
     schedule_data.data['MOV'] = [h_score[i] - a_score[i] for i in range(schedule_data.num_rows())]
     schedule_data.data['playoffs'] = ['']
+    schedule_data.data['game_date'] = [datetime.date(t) for t in schedule_data.data['start_time']]
     schedule_data.fill('playoffs', None)
-
     schedule_data.data["home_team_id"] = convert.values_to_foreign_key(session, foreign_tbl=team_tbl, foreign_key="id",
                                                                        foreign_value="team_name",
                                                                        child_data=schedule_data.data.pop("home_team"))
@@ -74,9 +75,10 @@ def create_table(db, schedule_data, tbl_name, team_tbl, team_stats_tbl):
 def update_table(session, schedule_data, schedule_tbl, team_stats_tbl):
     score_updates = update_scores(session, schedule_data, schedule_tbl)
     stats_updates = update_stats(session, schedule_tbl, team_stats_tbl)
+    time_updates = update_start_time(session, schedule_tbl, schedule_data)
 
-    # Some rows may be updated for scores and stats. Use a set to remove duplicates
-    return set(score_updates + stats_updates)
+    # Some rows may be updated in different functions. Use a set to remove duplicates
+    return set(score_updates + stats_updates + time_updates)
 
 
 def update_scores(session, schedule_data, schedule_tbl) -> list:
@@ -133,8 +135,45 @@ def update_stats(session, schedule_tbl, team_stats_tbl) -> list:
             join(home_stats, schedule_tbl.home_team_id == home_stats.c.team_id). \
             join(away_stats, schedule_tbl.away_team_id == away_stats.c.team_id).all()
 
+        # ToDo: remove explicit 2020 references
         for row in sched_rows:
             row.schedule_2020.home_stats_id = row.a_s_id
             row.schedule_2020.away_stats_id = row.h_s_id
             update_rows.append(row.schedule_2020)
+    return update_rows
+
+
+def update_start_time(session, schedule_tbl, schedule_data) -> list:
+    """Return updated rows for any games where the start_time has changed.
+
+    Note this will not check if the date of a game has changed."""
+    today = datetime.date(datetime.now())
+    end_week = datetime.date(datetime.now()) + timedelta(days=7)
+
+    games = session.query(schedule_tbl).filter(schedule_tbl.game_date >= today,
+                                                    schedule_tbl.game_date <= end_week).all()
+
+    df = schedule_data.dataframe[['start_time', 'game_date', 'home_team_id', 'away_team_id']]
+    df.start_time = df.start_time.dt.tz_localize(None)
+    df = df[(df.start_time >= pd.Timestamp(today)) & (df.game_date <= end_week)]
+
+    update_rows = []
+    for game in games:
+        if df[(df.start_time == game.start_time) & (df.home_team_id == game.home_team_id)].empty:
+            date = game.game_date
+            changed_game = df[(df.home_team_id == game.home_team_id) & (df.away_team_id == game.away_team_id) &
+                              (df.game_date == game.game_date)]
+            if changed_game.empty:
+                raise ValueError('Game time for {} @ {} has changed,'
+                                 ' but cannot find the new game time'.format(game.home_team_id,
+                                                                             game.away_team_id))
+            elif len(changed_game) == 1:
+                new_time = changed_game.start_time
+                new_time_timestamp = pd.to_datetime(new_time.values[0])
+                game.start_time = new_time_timestamp
+                update_rows.append(game)
+            else:
+                raise ValueError('Game time for {} @ {} has changed,'
+                                 'but there are multiple replacement values available'.format(game.home_team_id,
+                                                                                              game.away_team_id))
     return update_rows
