@@ -1,8 +1,9 @@
 """schedule.py contains function to create the schedule table in the database"""
 
 from datetime import datetime, timedelta
+import math
 import nbapredict.management.conversion as convert
-from sqlalchemy import ForeignKey, func
+from sqlalchemy import ForeignKey, func, tuple_
 from sqlalchemy.orm import aliased
 import pandas as pd
 
@@ -73,7 +74,10 @@ def create_table(db, schedule_data, tbl_name, team_tbl, team_stats_tbl):
 
 
 def update_table(session, schedule_data, schedule_tbl, team_stats_tbl):
-    score_updates = update_scores(session, schedule_data, schedule_tbl)
+    """Wrap and run update functions for the schedule_tbl."""
+
+    update_games(session, schedule_tbl, schedule_data)
+    score_updates = update_scores(session, schedule_tbl, schedule_data)
     stats_updates = update_stats(session, schedule_tbl, team_stats_tbl)
     time_updates = update_start_time(session, schedule_tbl, schedule_data)
 
@@ -81,7 +85,7 @@ def update_table(session, schedule_data, schedule_tbl, team_stats_tbl):
     return set(score_updates + stats_updates + time_updates)
 
 
-def update_scores(session, schedule_data, schedule_tbl) -> list:
+def update_scores(session, schedule_tbl, schedule_data) -> list:
     date = datetime.date(datetime.now())
     update_query = session.query(schedule_tbl).filter(schedule_tbl.start_time < date,
                                                       schedule_tbl.home_team_score == 0). \
@@ -177,3 +181,38 @@ def update_start_time(session, schedule_tbl, schedule_data) -> list:
                                  'but there are multiple replacement values available'.format(game.home_team_id,
                                                                                               game.away_team_id))
     return update_rows
+
+
+def update_games(session, schedule_tbl, schedule_data):
+    """Check if any games have been removed or added from the schedule and add that change to the database.
+
+    ToDo: Add check for new games (i.e. when Clippers-Lakers gets rescheduled)
+    ToDo: This should work for playoff games too, right?
+    ToDo: Iterating through indices potentially slow, though great alternatives don't seem to exist
+    """
+
+    data_len = len(schedule_data.data['start_time'])
+    tbl_len = session.query(schedule_tbl).count()
+    if data_len < tbl_len:
+        data_df = pd.DataFrame({'home_team_id': schedule_data.data['home_team_id'],
+                                'game_date': schedule_data.data['game_date']})
+
+        tbl_id_dates = session.query(schedule_tbl.home_team_id, schedule_tbl.game_date).all()
+        id_dates_dict = {'home_team_id': [r.home_team_id for r in tbl_id_dates],
+                         'game_date': [r.game_date for r in tbl_id_dates]}
+        tbl_df = pd.DataFrame(id_dates_dict)
+
+        # Outer join for all rows, indicator for diff column
+        comp = data_df.merge(tbl_df, how='outer', indicator=True)
+        tbl_only = comp[comp['_merge'] == 'right_only']
+        ids = tbl_only['home_team_id'].values.tolist()
+        dates = tbl_only['game_date'].values.tolist()
+        cancelled_games = [(ids[i], dates[i]) for i in range(len(ids))]
+
+        delete_rows = session.query(schedule_tbl).filter(tuple_(schedule_tbl.home_team_id, schedule_tbl.game_date).
+                                                         in_(cancelled_games))
+        if delete_rows.count() > 0:
+            for row in delete_rows:
+                session.delete(row)
+
+
