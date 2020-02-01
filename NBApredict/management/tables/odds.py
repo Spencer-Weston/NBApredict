@@ -39,3 +39,22 @@ def create_table(db, tbl_name, odds_data, schedule_tbl):
     db.map_table(tbl_name=tbl_name, columns=columns)
     db.create_tables()
     db.clear_mappers()
+
+
+def update_table(session, odds_tbl, odds_data):
+    """Return a list of rows to update in the odds table.
+
+    This function wraps updated rows from any number of functions that perform updates on different criteria."""
+    line_updates = update_lines(session, odds_tbl, odds_data)
+
+    return line_updates
+
+
+def update_lines(session, odds_tbl, odds_data):
+    """Update odds_tbl rows that are missing betting data present in the odds_data"""
+
+    game_ids = odds_data.data['game_id']
+    rows = session.query(odds_tbl).filter(odds_tbl.home_spread_price == None or odds_tbl.away_spread_price == None or
+                                          odds_tbl.home_moneyline == None or odds_tbl.away_moneyline == None).filter(
+                                          odds_tbl.game_id.in_(game_ids))
+

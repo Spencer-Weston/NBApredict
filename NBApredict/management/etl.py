@@ -99,6 +99,7 @@ def main(db):
         odds_tbl = db.table_mappings[odds_tbl_name]
         session.add_all(odds_tbl(**row) for row in odds_data.rows)
         session.commit()
+        odds.update_table(session, odds_tbl, odds_data)
 
     t = 2
 
