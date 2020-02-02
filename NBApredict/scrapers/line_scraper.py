@@ -78,6 +78,10 @@ def odds_for_today():
         for bet in full_match_bets:
             if bet["description"] == "Moneyline":
                 home_moneyline, away_moneyline = parse_moneyline(bet)
+                if home_moneyline == "":
+                    home_moneyline = None
+                if away_moneyline == "":
+                    away_moneyline = None
                 money_lines = True
             elif bet["description"] == "Point Spread":
                 spread, home_spread_price, away_spread_price = parse_spread(bet)
