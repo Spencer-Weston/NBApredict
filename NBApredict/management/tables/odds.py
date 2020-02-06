@@ -3,6 +3,7 @@
 import nbapredict.management.conversion as convert
 from sqlalchemy import ForeignKey, or_
 from datetime import timedelta
+import math
 
 
 def format_data(session, odds_dict, team_tbl, schedule_tbl):
@@ -39,7 +40,7 @@ def check_gametimes(session, schedule_tbl, odds_dict):
 
     Some games in Bovada do not have the same time as those in the official schedule. For example a Bovada game may
     start at 9:05 whereas the official game time is 9:00. """
-    first_gametime = min(odds_dict['start_time'])
+    first_gametime = min(odds_dict['start_time']) - timedelta(hours=12)
     last_gametime = max(odds_dict['start_time']) + timedelta(days=1)
     sched_times = session.query(schedule_tbl.start_time).filter(
         schedule_tbl.home_team_id.in_(odds_dict['home_team_id']),
@@ -61,8 +62,10 @@ def check_gametimes(session, schedule_tbl, odds_dict):
                 break
             elif (i[1] - j) in sched_times:
                 odds_dict['start_time'][i[0]] = i[1] - j
+                break
 
     return odds_dict
+
 
 def create_table(db, tbl_name, odds_data, schedule_tbl):
     """Create a table of odds in the database"""
@@ -79,7 +82,6 @@ def update_table(session, odds_tbl, odds_data):
 
     This function wraps updated rows from any number of functions that perform updates on different criteria."""
     line_updates = update_lines(session, odds_tbl, odds_data)
-
     return line_updates
 
 
@@ -93,3 +95,20 @@ def update_lines(session, odds_tbl, odds_data):
     if rows.count() > 0:
         rows = rows.all()
         data_df = odds_data.dataframe
+        update_rows = []
+        bet_cols = ['home_spread_price', 'away_spread_price', 'home_moneyline', 'away_moneyline', 'spread']
+        for r in rows:
+            data_row = data_df[data_df['game_id'] == r.game_id]
+            updated = False
+            for c in bet_cols:
+                data_val = data_row[c].to_numpy()[0]
+                if math.isnan(data_val):
+                    data_val = None
+                if data_val != getattr(r, c):
+                    setattr(r, c, data_val)
+                    updated = True
+            if updated:
+                update_rows.append(r)
+    else:
+        update_rows = []
+    return(update_rows)
