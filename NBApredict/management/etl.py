@@ -7,7 +7,6 @@ Tables:
     schedule
     odds
     team_stats
-
 """
 
 from datetime import datetime
@@ -103,10 +102,7 @@ def main(db):
         session.commit()
         odds.delete(session, odds_tbl)
 
-    t = 2
-
 
 if __name__ == "__main__":
     db = Database("test", Config.get_property("outputs"))
     main(db)
-    t = 2

@@ -1,5 +1,6 @@
 """
 manipulator holds the DataOperator class which coerces raw_data into SQLalchemy compatible formats.
+ToDo: Remove
 """
 from datetime import datetime
 from nbapredict.helpers import type
