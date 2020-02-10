@@ -100,6 +100,8 @@ def main(db):
         session.add_all(odds_tbl(**row) for row in odds_data.rows)
         session.commit()
         odds.update_table(session, odds_tbl, odds_data)
+        session.commit()
+        odds.delete(session, odds_tbl)
 
     t = 2
 

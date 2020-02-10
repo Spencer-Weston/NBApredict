@@ -1,7 +1,8 @@
 """odds.py contains function to create the odds table in the database"""
 
 import nbapredict.management.conversion as convert
-from sqlalchemy import ForeignKey, or_
+from sqlalchemy import ForeignKey, or_, func
+from sqlalchemy.orm import aliased
 from datetime import timedelta
 import math
 
@@ -111,4 +112,33 @@ def update_lines(session, odds_tbl, odds_data):
                 update_rows.append(r)
     else:
         update_rows = []
-    return(update_rows)
+    return update_rows
+
+
+def delete(session, odds_tbl):
+    """Wraps odds functions that delete rows"""
+    delete_duplicates(session, odds_tbl)
+
+
+def delete_duplicates(session, odds_tbl):
+    """Delete odds rows where multiple copies exist for a game but the betting information does not change"""
+    l = aliased(odds_tbl)  # left odds
+    r = aliased(odds_tbl)  # right odds
+    # Rows that hold the same information
+    join = session.query(l).join(r, l.game_id == r.game_id, isouter=True). \
+        filter(l.id != r.id, l.spread == r.spread, l.home_spread_price == r.home_spread_price,
+               l.home_moneyline == r.home_moneyline, l.away_moneyline == r.away_moneyline).distinct().subquery()
+
+    # join = session.query(l). \
+    #     filter(l.id != r.id, l.spread == r.spread, l.home_spread_price == r.home_spread_price,
+    #            l.home_moneyline == r.home_moneyline, l.away_moneyline == r.away_moneyline).distinct().subquery()
+
+    min_ids = session.query(func.min(join.c['id']).label('id')).group_by(join.c['game_id']).order_by(join.c['id']) \
+        .subquery()
+
+    delete = session.query(join).filter(join.c['id'].notin_(min_ids)).subquery()
+    delete_alias = aliased(odds_tbl, delete)
+    delete_rows = session.query(delete_alias).all()
+    if len(delete_rows) > 0:
+        for i in delete_rows:
+            session.delete(i)
