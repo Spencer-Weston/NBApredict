@@ -102,6 +102,7 @@ def main(db):
         session.commit()
         odds.delete(session, odds_tbl)
 
+    session.close()
 
 if __name__ == "__main__":
     db = Database("test", Config.get_property("outputs"))
