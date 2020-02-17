@@ -11,6 +11,7 @@ def sample_prediction(database, session, ref_tbl, model):
     """Generate and return a one row sample prediction created from the first row of the reference table.
 
     ToDo: Change function to take any model
+    ToDo: Change docstring to reference new classes, perhaps drop DB arg
 
     Args:
         database: An initialized DBInterface class from database.dbinterface.py
@@ -35,9 +36,11 @@ def sample_prediction(database, session, ref_tbl, model):
 def game_prediction(database, session, regression, home_tm, away_tm, start_time, year=2019, console_out=False):
     """Predict a game versus the line, and return the information in a dictionary.
 
-    Use console out for human readable output if desired.Cdf is a cumulative density function. SF is a survival
+    Use console out for human readable output if desired. Cdf is a cumulative density function. SF is a survival
     function. CDF is calculated when the betting line's prediction is below the model's prediction. SF is calculated
     when the betting line's prediction is above the model's prediction.
+
+    ToDO: Modify to use new database
 
     Args:
         database: an instantiated DBInterface class from database.dbinterface.py

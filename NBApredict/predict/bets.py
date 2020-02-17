@@ -19,9 +19,11 @@ from sqlalchemy.exc import IntegrityError
 # Local imports
 from nbapredict.configuration import Config
 from nbapredict.helpers import br_references
-from nbapredict.database.dbinterface import DBInterface
-from nbapredict.database.manipulator import DataOperator
-from nbapredict.database.reconcile import reconcile
+from datatotable.database import Database
+from datatotable.data import DataOperator
+#from nbapredict.database.dbinterface import DBInterface
+#from nbapredict.database.manipulator import DataOperator
+#from nbapredict.database.reconcile import reconcile
 from nbapredict.database import getters
 from nbapredict.models import four_factor_regression as lm
 
@@ -101,6 +103,7 @@ def line_probability(prediction, line, std):
     Returns:
         The survival function or cumulative density function for the line in relation to the prediction
     """
+    # ToDo: T-Distribution?
     dist = stats.norm(loc=prediction, scale=std)
     line_prediction = -1 * line
 
@@ -139,47 +142,48 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
             print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
                   "be realized {}% of the time".format(line, probability))
 
-
-def create_odds_table(database, data, tbl_name):
-    """Create a prediction table from the data and with the table name in the database.
-
-    Args:
-        database: An initialized DBInterface class from database.dbinterface.py
-        data: An initialized DataOperator object, from database.manipulator, with prediction data
-        tbl_name: The desired table name (with year as the last four characters)
-    """
-    # Create columns from data
-    sql_types = data.get_sql_type()
-    # Add new columns
-    year = tbl_name[-4:]
-    schedule_name = "sched_{}".format(year)
-    additional_cols = [{'game_id': [Integer, ForeignKey(schedule_name + ".id")]},
-                       {"odds_id": [Integer, ForeignKey("odds_{}.id".format(year))]},
-                       {"home_team_score": Integer},
-                       {"away_team_score": Integer},
-                       {"bet_result": String}]
-    for col in additional_cols:
-        sql_types.update(col)
-    constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
-    # Map prediction table
-    database.map_table(tbl_name, sql_types, constraint)
-
-    # Get tables for relationships
-    sched_tbl = database.get_table_mappings(schedule_name)
-    odds_tbl = database.get_table_mappings("odds_{}".format(year))
-    # Create Relationships
-    if "predictions" not in sched_tbl.__mapper__.relationships.keys():
-        sched_tbl.predictions = relationship(database.Template)
-    if "predictions" not in odds_tbl.__mapper__.relationships.keys():
-        odds_tbl.predictions = relationship(database.Template)
-
-    database.create_tables()
-    database.clear_mappers()
+# ToDo: Delete
+# def create_odds_table(database, data, tbl_name):
+#     """Create a prediction table from the data and with the table name in the database.
+#
+#     Args:
+#         database: An initialized DBInterface class from database.dbinterface.py
+#         data: An initialized DataOperator object, from database.manipulator, with prediction data
+#         tbl_name: The desired table name (with year as the last four characters)
+#     """
+#     # Create columns from data
+#     sql_types = data.get_sql_type()
+#     # Add new columns
+#     year = tbl_name[-4:]
+#     schedule_name = "sched_{}".format(year)
+#     additional_cols = [{'game_id': [Integer, ForeignKey(schedule_name + ".id")]},
+#                        {"odds_id": [Integer, ForeignKey("odds_{}.id".format(year))]},
+#                        {"home_team_score": Integer},
+#                        {"away_team_score": Integer},
+#                        {"bet_result": String}]
+#     for col in additional_cols:
+#         sql_types.update(col)
+#     constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
+#     # Map prediction table
+#     database.map_table(tbl_name, sql_types, constraint)
+#
+#     # Get tables for relationships
+#     sched_tbl = database.get_table_mappings(schedule_name)
+#     odds_tbl = database.get_table_mappings("odds_{}".format(year))
+#     # Create Relationships
+#     if "predictions" not in sched_tbl.__mapper__.relationships.keys():
+#         sched_tbl.predictions = relationship(database.Template)
+#     if "predictions" not in odds_tbl.__mapper__.relationships.keys():
+#         odds_tbl.predictions = relationship(database.Template)
+#
+#     database.create_tables()
+#     database.clear_mappers()
 
 
 def get_sample_prediction(database, odds_tbl, session, regression):
     """Generate and return a sample prediction to create a prediction table from.
 
+    # ToDO: Will need this function, or equivalent, but does not need DB
     Args:
         database: An initialized DBInterface class from database.dbinterface.py
         odds_tbl: A mapped odds table
@@ -204,6 +208,7 @@ def get_sample_prediction(database, odds_tbl, session, regression):
 def insert_predictions(rows, session, pred_tbl, sched_tbl, odds_tbl):
     """Add rows into the prediction table in session with additional information from sched_tbl and odds_tbl.
 
+    # ToDo: Will need equivalent function, but it won't look like this
     Args:
         rows: SQLalchemy compatible rows
         session: A SQLalchemy session object
@@ -226,6 +231,7 @@ def insert_new_predictions(rows, session, pred_tbl, sched_tbl, odds_tbl):
 
     Additional information from sched_tbl and odds_tbl is added to the rows as well.
 
+    # ToDo: Will need significant rewrite (Also note similarities between this function and the one above)
     Args:
         rows: SQLalchemy compatible rows
         session: a SQLalchemy session object
@@ -275,6 +281,7 @@ def update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl):
 def update_bet_results(bet_update_objects):
     """Take bet_update_objects, determine the prediction result, and add the result to each row in bet_update_objects.
 
+    # ToDo: Will need this function, but will require a lot of modification
     Args:
         bet_update_objects: Objects from a query.all() from the prediction table. Objects should have a home and
         away team score.
@@ -296,52 +303,52 @@ def update_bet_results(bet_update_objects):
             row.bet_result = "LOSS"
     return bet_update_objects
 
+# ToDo: Delete
+# def get_game_identifiers(row_objects):
+#     """Return a dictionary of home_team, start_team, and start_time that forms a unique identifier
+#
+#     The unique identifier works for every table in the database as home_team, away_team, and start_time are unique
+#     constrained for every table which involves games in the database
+#
+#     Args:
+#         row_objects: row objects from an .all() query with home_team, away_team, and start_time columns
+#     """
+#     query_dict = {"home_team": [], "away_team": [], "start_time": []}
+#     for row in row_objects:
+#         query_dict["home_team"].append(row.home_team)
+#         query_dict["away_team"].append(row.away_team)
+#         query_dict["start_time"].append(row.start_time)
+#     return query_dict
 
-def get_game_identifiers(row_objects):
-    """Return a dictionary of home_team, start_team, and start_time that forms a unique identifier
-
-    The unique identifier works for every table in the database as home_team, away_team, and start_time are unique
-    constrained for every table which involves games in the database
-
-    Args:
-        row_objects: row objects from an .all() query with home_team, away_team, and start_time columns
-    """
-    query_dict = {"home_team": [], "away_team": [], "start_time": []}
-    for row in row_objects:
-        query_dict["home_team"].append(row.home_team)
-        query_dict["away_team"].append(row.away_team)
-        query_dict["start_time"].append(row.start_time)
-    return query_dict
-
-
-def update_odds_id(row_objects, session, odds_tbl):
-    """Take row_objects, containing games, match them to rows in odds_tbl, and updates the odds_id column in rows.
-
-    Args:
-        row_objects:
-        session:
-        odds_tbl:
-
-    Returns:
-        row_objects updated with an odds_id which corresponds to a game in odds_tbl. If a match can't be made between
-        the row objects and odds_tbl, set odds_id to None.
-    """
-    identifiers = get_game_identifiers(row_objects)
-    odds_query = session.query(odds_tbl).filter(odds_tbl.home_team.in_(identifiers["home_team"]),
-                                                odds_tbl.away_team.in_(identifiers["away_team"]),
-                                                odds_tbl.start_time.in_(identifiers["start_time"])).all()
-    for row in row_objects:
-        id_found = False
-        for odds in odds_query:
-            if row.home_team == odds.home_team and row.away_team == odds.away_team \
-                    and row.start_time == odds.start_time:
-                row.odds_id = odds.id
-                id_found = True
-                break
-        if not id_found:
-            row.odds_id = None
-
-    return row_objects
+# ToDo: Delete
+# def update_odds_id(row_objects, session, odds_tbl):
+#     """Take row_objects, containing games, match them to rows in odds_tbl, and updates the odds_id column in rows.
+#
+#     Args:
+#         row_objects:
+#         session:
+#         odds_tbl:
+#
+#     Returns:
+#         row_objects updated with an odds_id which corresponds to a game in odds_tbl. If a match can't be made between
+#         the row objects and odds_tbl, set odds_id to None.
+#     """
+#     identifiers = get_game_identifiers(row_objects)
+#     odds_query = session.query(odds_tbl).filter(odds_tbl.home_team.in_(identifiers["home_team"]),
+#                                                 odds_tbl.away_team.in_(identifiers["away_team"]),
+#                                                 odds_tbl.start_time.in_(identifiers["start_time"])).all()
+#     for row in row_objects:
+#         id_found = False
+#         for odds in odds_query:
+#             if row.home_team == odds.home_team and row.away_team == odds.away_team \
+#                     and row.start_time == odds.start_time:
+#                 row.odds_id = odds.id
+#                 id_found = True
+#                 break
+#         if not id_found:
+#             row.odds_id = None
+#
+#     return row_objects
 
 
 def update_schedule_attributes(row_objects, session, sched_tbl):
@@ -382,6 +389,7 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
     function. CDF is calculated when the betting line's prediction is below the model's prediction. SF is calculated
     when the betting line's prediction is above the model's prediction.
 
+    ToDo: Take tables instead of DB
     Args:
         database: an instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
@@ -398,6 +406,7 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
 
     # Get Misc stats for year
     ff_list = lm.four_factors_list()
+    # ToDo Pass tables instead of DB (A surprisingly good function, make sure to move out of database.getters folder)
     ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
 
     pred_df = create_prediction_df(home_tm, away_tm, ff_df)
@@ -407,6 +416,7 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
     if console_out:
         prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
 
+    # ToDo Update this to return a dictionary commensurate with the prediction table
     return {"start_time": start_time, "home_team": home_tm, "away_team": away_tm, "line": line,
             "prediction": prediction, "probability": probability, "function": function}
 
@@ -414,6 +424,7 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
 def predict_games_in_odds(database, session, regression):
     """Generate and return predictions for all games with odds in the odds_tbl
 
+    ToDo: Take tables as inputs vs. DB
     Args:
         database: An instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
@@ -435,6 +446,7 @@ def predict_games_in_odds(database, session, regression):
 def predict_games_on_day(database, session, games, console_out=False):
     """Take a SQLalchemy query object of games, and return a prediction for each game.
 
+    ToDO: On day versus on date?
     Args:
         database: an instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
@@ -463,6 +475,7 @@ def predict_games_on_day(database, session, games, console_out=False):
 def predict_games_on_date(database, session, league_year, date, console_out):
     """Predict games on the specified date and write the results to the database
 
+    ToDO: On day versus on date?
     Args:
         database: An instantiated DBInterface class from dbinterface.py
         session: A sqlalchemy session object for queries and writes
@@ -499,15 +512,18 @@ def predict_games_on_date(database, session, league_year, date, console_out):
         session.close()
 
 
-def predict_all(database, session):
+def predict_all(database):
     """Generate and store predictions for all games available in the odds table.
 
     Checks if the table exists. If it doesn't, generate a table in the database.
     """
+    session = Session(bind=db.engine)
     league_year = Config.get_property("league_year")
+    # Reconfigure this to take tables
     regression = lm.main(database=database, session=session)
     pred_tbl_name = "predictions_{}".format(league_year)
 
+    # ToDo: Odds tbl created in ETL. Probably don't need any of this?
     odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
     if not database.table_exists(pred_tbl_name):
         data = get_sample_prediction(database, odds_tbl, session, regression)  # Returns a data manipulator class
@@ -529,9 +545,10 @@ def predict_all(database, session):
 
 
 if __name__ == "__main__":
-    database = DBInterface()
-    year = 2019
-    session = Session(bind=database.engine)
+    # ToDo: Don't need DBInterface; Copy ETL setup?
+    # ToDo: A lot of this probably needs to exist in
+    db = Database('test', "../management")
+    predict_all(db)
     predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019, console_out=True)
     date = datetime(2019, 3, 26)
     predict_games_on_date(database, session, league_year=2019, date=date, console_out=True)

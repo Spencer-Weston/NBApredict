@@ -2,6 +2,7 @@
 values_to_foreign_key function."""
 
 from nbapredict.helpers.classes import NestedDict
+import pandas as pd
 import sqlalchemy
 
 
@@ -80,3 +81,18 @@ def _values_to_foreign_key(session, foreign_subquery, foreign_key, foreign_value
         filter(getattr(foreign_subquery.c, foreign_value).in_(child_data)).all()
     conversion_dict = {getattr(row, foreign_value): getattr(row, foreign_key) for row in rows}
     return conversion_dict
+
+
+def get_pandas_df_from_table(session, tbl, qualifiers=False):
+    """Convert the specified table into a pandas dataframe, modify it according to qualifiers, and return the result
+
+    Args:
+        session: SQLalchemy session object
+        tbl: Table object to convert to dataframe
+        qualifiers: A list of columns or a function to filter rows by
+    """
+    query = session.query(tbl)
+    if qualifiers:
+        return pd.read_sql(query.statement, query.session.bind)[qualifiers]
+    else:
+        return pd.read_sql(query.statement, query.session.bind)

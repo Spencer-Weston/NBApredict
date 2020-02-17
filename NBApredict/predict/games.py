@@ -13,6 +13,8 @@ import nbapredict.database.dbinterface as dbinterface
 def create_prediction_table(database, data, tbl_name):
     """Create a prediction table from the data and with the table name in the database.
 
+    ToDo: This will need a big overhaul
+
     Args:
         database: An initialized DBInterface class from database.dbinterface.py
         data: An initialized DataOperator object, from database.manipulator, with prediction data

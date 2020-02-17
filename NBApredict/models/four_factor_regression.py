@@ -11,19 +11,21 @@ Args (default):
 Returns:
     Returns a LinearRegression class
 """
-
+from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
 import scipy.stats as stats
 from sqlalchemy.orm import Session
+from sqlalchemy import func, alias
+
 import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
 
 # Local Packages
+from datatotable.database import Database
 from nbapredict.database import getters
-from nbapredict.database.dbinterface import DBInterface
 from nbapredict.helpers import br_references as br
 from nbapredict.models import graphing
 from nbapredict.configuration import Config
@@ -126,63 +128,79 @@ class LinearRegression:
         return norm(loc=mu, scale=std)
 
 
-def create_ff_regression_df(ff_df, sched_df, ff_list):
+def create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list):
     """Create and return a regression data frame of the four factors (ff) for each team in a matchup.
 
-    To-do:
-        Pd.concat presents a performance issue
-
     Args:
-        ff_df: four factors Pandas data frame (read from SQL table)
-        sched_df: Schedule data frame (read from SQL table)
+        session: Sqlalchemy session object
+        team_stats_tbl: mapped team stats table object
+        sched_tbl: mapped schedule table object
         ff_list: List of the four factors variable
 
     Returns:
          A data frame with home('_h') and away('_a') stats and the margin of victory (mov). The mov is the target
          for a regression. The '_h' and '_a" stats are the home and away four factors in a specific matchup.
     """
+    # 31 is the ID for league average which we don't want here
+    stats = session.query(team_stats_tbl).filter(team_stats_tbl.team_id != 31).subquery(with_labels=True)
+
+    stats_id = "team_stats_{}_id".format(Config.get_property('league_year'))  # Used b/c with_labels in stats
+    home_sched_stats = session.query(stats, sched_tbl).\
+        join(sched_tbl, stats.c[stats_id] == sched_tbl.home_stats_id).filter(sched_tbl.home_stats_id != None).subquery()
+    # home_sched_stats = alias(home_query, 'home_sched_stats')
+
+    home_away_sched_stats
+    away_query = session.query(stats, sched_tbl).\
+        join(sched_tbl, stats.c[team_id] == sched_tbl.away_team_id).subquery(with_labels=True)
+    away_sched_stats = alias(away_query, 'away_sched_stats')
+
+    schedule_id = "schedule_{}_id".format(Config.get_property('league_year'))
+    sched_stats = session.query(home_sched_stats.label('test'), away_sched_stats).\
+        join(away_sched_stats, away_sched_stats.c[schedule_id] == home_sched_stats.c[schedule_id])
+
+    test = session.query(home_query, away_query).join(away_query, away_query.c[schedule_id] == home_query.c[schedule_id])
     initialized_df = False
-    indices = []
-    abbreviations = br.team_to_team_abbreviation
-    for index, row in sched_df.iterrows():
-        home_tm = row["home_team"]
-        away_tm = row["away_team"]
-        mov = row["home_team_score"] - row["away_team_score"]
+    # indices = []
+    # abbreviations = br.team_to_team_abbreviation
+    # for index, row in sched_df.iterrows():
+    #     home_tm = row["home_team"]
+    #     away_tm = row["away_team"]
+    #     mov = row["home_team_score"] - row["away_team_score"]
+    #
+    #     home_tm_ff = get_team_ff(ff_df, home_tm, ff_list, home=True)
+    #     home_tm_ff["key"] = 1
+    #     home_tm_ff["mov"] = mov
+    #     away_tm_ff = get_team_ff(ff_df, away_tm, ff_list, home=False)
+    #     away_tm_ff["key"] = 1
+    #
+    #     merged = pd.merge(home_tm_ff, away_tm_ff, on="key")
+    #
+    #     # Creates a df index of team abbreviations and the game in series between teams
+    #     # "BOS_WAS", "BOS_WAS2", "BOS_WAS3", etc.
+    #     new_index = "{}_{}".format(abbreviations[home_tm], abbreviations[away_tm])
+    #     new_index = ensure_unique_index(new_index, indices)
+    #
+    #     # Sets the df index to the matchup and stores the value in new_indices to avoid duplicates
+    #     merged["matchup"] = new_index
+    #     merged.set_index("matchup", inplace=True)
+    #     indices.append(new_index)
+    #
+    #     # merged.reindex
+    #     if not initialized_df:
+    #         regression_df = merged.reindex([new_index])
+    #         initialized_df = True
+    #     else:
+    #         regression_df = pd.concat([regression_df, merged], sort=True)
+    #
+    # # Create column list to put columns in correct order
+    # home_cols = home_tm_ff.drop(["key", "mov"], axis=1)
+    # away_cols = away_tm_ff.drop(["key"], axis=1)
+    # ordered_cols = ["mov", *home_cols.columns.to_list(), *away_cols.columns.to_list()]
+    #
+    # regression_df = regression_df.drop(["key"], axis=1)
+    # regression_df = regression_df[ordered_cols]
 
-        home_tm_ff = get_team_ff(ff_df, home_tm, ff_list, home=True)
-        home_tm_ff["key"] = 1
-        home_tm_ff["mov"] = mov
-        away_tm_ff = get_team_ff(ff_df, away_tm, ff_list, home=False)
-        away_tm_ff["key"] = 1
-
-        merged = pd.merge(home_tm_ff, away_tm_ff, on="key")
-
-        # Creates a df index of team abbreviations and the game in series between teams
-        # "BOS_WAS", "BOS_WAS2", "BOS_WAS3", etc.
-        new_index = "{}_{}".format(abbreviations[home_tm], abbreviations[away_tm])
-        new_index = ensure_unique_index(new_index, indices)
-
-        # Sets the df index to the matchup and stores the value in new_indices to avoid duplicates
-        merged["matchup"] = new_index
-        merged.set_index("matchup", inplace=True)
-        indices.append(new_index)
-
-        # merged.reindex
-        if not initialized_df:
-            regression_df = merged.reindex([new_index])
-            initialized_df = True
-        else:
-            regression_df = pd.concat([regression_df, merged], sort=True)
-
-    # Create column list to put columns in correct order
-    home_cols = home_tm_ff.drop(["key", "mov"], axis=1)
-    away_cols = away_tm_ff.drop(["key"], axis=1)
-    ordered_cols = ["mov", *home_cols.columns.to_list(), *away_cols.columns.to_list()]
-
-    regression_df = regression_df.drop(["key"], axis=1)
-    regression_df = regression_df[ordered_cols]
-
-    return regression_df
+    return 2 #regression_df
 
 
 def get_team_ff(ff_df, team, ff_list, home):
@@ -274,9 +292,12 @@ def main(database, session, graph=False):
     ff_list = four_factors_list()
 
     # Convert database tables to pandas
-    ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(league_year), ff_list)
-    sched_df = getters.get_pandas_df_from_table(database, session, "sched_{}".format(league_year),
-                                                lambda df: df.away_team_score > 0)
+    team_stats_tbl = db.table_mappings['team_stats_{}'.format(league_year)]
+    sched_tbl = db.table_mappings['schedule_{}'.format(league_year)]
+    regression_df = create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
+
+    ff_df = getters.get_pandas_df_from_table(session, "misc_stats_{}".format(league_year), ff_list)
+    sched_df = getters.get_pandas_df_from_table(session, sched_tbl, lambda df: df.away_team_score > 0)
 
     # Combines four factors and seasons df's and separates them into X (predictors) and y (target)
     regression_df = create_ff_regression_df(ff_df, sched_df, br.four_factors)
@@ -303,7 +324,7 @@ def main(database, session, graph=False):
 
 
 if __name__ == "__main__":
-    database = DBInterface()
-    session = Session(database.engine)
-    test = main(database, session, graph=True)
+    db = Database('test', "../management")
+    session = Session(db.engine)
+    test = main(db, session, graph=True)
     t=2
