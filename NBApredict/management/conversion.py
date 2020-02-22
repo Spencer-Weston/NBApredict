@@ -83,16 +83,16 @@ def _values_to_foreign_key(session, foreign_subquery, foreign_key, foreign_value
     return conversion_dict
 
 
-def get_pandas_df_from_table(session, tbl, qualifiers=False):
+def convert_sql_statement_to_table(session, sql_statement, qualifiers=False):
     """Convert the specified table into a pandas dataframe, modify it according to qualifiers, and return the result
 
     Args:
         session: SQLalchemy session object
-        tbl: Table object to convert to dataframe
+        sql_statement: A sql_statement. Typically, this is the statement property of an object returned by a query such
+        as session.query(tbl).statement
         qualifiers: A list of columns or a function to filter rows by
     """
-    query = session.query(tbl)
     if qualifiers:
-        return pd.read_sql(query.statement, query.session.bind)[qualifiers]
+        return pd.read_sql(sql_statement, session.bind)[qualifiers]
     else:
-        return pd.read_sql(query.statement, query.session.bind)
+        return pd.read_sql(sql_statement, session.bind)

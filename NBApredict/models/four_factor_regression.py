@@ -27,6 +27,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor as vi
 from datatotable.database import Database
 from nbapredict.database import getters
 from nbapredict.helpers import br_references as br
+from nbapredict.management import conversion
 from nbapredict.models import graphing
 from nbapredict.configuration import Config
 
@@ -141,67 +142,38 @@ def create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list):
          A data frame with home('_h') and away('_a') stats and the margin of victory (mov). The mov is the target
          for a regression. The '_h' and '_a" stats are the home and away four factors in a specific matchup.
     """
-    # 31 is the ID for league average which we don't want here
-    stats = session.query(team_stats_tbl).filter(team_stats_tbl.team_id != 31).subquery(with_labels=True)
+    home_stats = alias(team_stats_tbl, name='home')
+    away_stats = alias(team_stats_tbl, name='away')
+    sched = alias(sched_tbl, name='sched')
+    home_stat_ff = [getattr(home_stats.c, col) for col in ff_list if col in home_stats.c.keys()]
+    away_stat_ff = [getattr(away_stats.c, col) for col in ff_list if col in away_stats.c.keys()]
+    sched_stats_query = session.query(sched, *home_stat_ff, *away_stat_ff).filter(sched.c['home_team_score'] > 0).\
+        join(home_stats, home_stats.c['id'] == sched.c['home_stats_id']).\
+        join(away_stats, away_stats.c['id'] == sched.c['away_stats_id']).subquery(with_labels=True)
+    sched_stats = session.query(sched_stats_query)
 
-    stats_id = "team_stats_{}_id".format(Config.get_property('league_year'))  # Used b/c with_labels in stats
-    home_sched_stats = session.query(stats, sched_tbl).\
-        join(sched_tbl, stats.c[stats_id] == sched_tbl.home_stats_id).filter(sched_tbl.home_stats_id != None).subquery()
-    # home_sched_stats = alias(home_query, 'home_sched_stats')
+    df = conversion.convert_sql_statement_to_table(session, sched_stats.statement)
+    return df
 
-    home_away_sched_stats
-    away_query = session.query(stats, sched_tbl).\
-        join(sched_tbl, stats.c[team_id] == sched_tbl.away_team_id).subquery(with_labels=True)
-    away_sched_stats = alias(away_query, 'away_sched_stats')
 
-    schedule_id = "schedule_{}_id".format(Config.get_property('league_year'))
-    sched_stats = session.query(home_sched_stats.label('test'), away_sched_stats).\
-        join(away_sched_stats, away_sched_stats.c[schedule_id] == home_sched_stats.c[schedule_id])
+def alt_regression_df(session, team_stats_tbl, sched_tbl, ff_list):
+    """Alternate regression df where the latest team_stats are applied to all games in schedule"""
+    team_stats = session.query(team_stats_tbl).group_by(team_stats_tbl.team_id).having(func.max(team_stats_tbl.id)).\
+        subquery()
+    home_stats = alias(team_stats, name='home')
+    away_stats = alias(team_stats, name='away')
+    sched = alias(sched_tbl, name='sched')
+    home_stat_ff = [getattr(home_stats.c, col) for col in ff_list if col in home_stats.c.keys()]
+    away_stat_ff = [getattr(away_stats.c, col) for col in ff_list if col in away_stats.c.keys()]
 
-    test = session.query(home_query, away_query).join(away_query, away_query.c[schedule_id] == home_query.c[schedule_id])
-    initialized_df = False
-    # indices = []
-    # abbreviations = br.team_to_team_abbreviation
-    # for index, row in sched_df.iterrows():
-    #     home_tm = row["home_team"]
-    #     away_tm = row["away_team"]
-    #     mov = row["home_team_score"] - row["away_team_score"]
-    #
-    #     home_tm_ff = get_team_ff(ff_df, home_tm, ff_list, home=True)
-    #     home_tm_ff["key"] = 1
-    #     home_tm_ff["mov"] = mov
-    #     away_tm_ff = get_team_ff(ff_df, away_tm, ff_list, home=False)
-    #     away_tm_ff["key"] = 1
-    #
-    #     merged = pd.merge(home_tm_ff, away_tm_ff, on="key")
-    #
-    #     # Creates a df index of team abbreviations and the game in series between teams
-    #     # "BOS_WAS", "BOS_WAS2", "BOS_WAS3", etc.
-    #     new_index = "{}_{}".format(abbreviations[home_tm], abbreviations[away_tm])
-    #     new_index = ensure_unique_index(new_index, indices)
-    #
-    #     # Sets the df index to the matchup and stores the value in new_indices to avoid duplicates
-    #     merged["matchup"] = new_index
-    #     merged.set_index("matchup", inplace=True)
-    #     indices.append(new_index)
-    #
-    #     # merged.reindex
-    #     if not initialized_df:
-    #         regression_df = merged.reindex([new_index])
-    #         initialized_df = True
-    #     else:
-    #         regression_df = pd.concat([regression_df, merged], sort=True)
-    #
-    # # Create column list to put columns in correct order
-    # home_cols = home_tm_ff.drop(["key", "mov"], axis=1)
-    # away_cols = away_tm_ff.drop(["key"], axis=1)
-    # ordered_cols = ["mov", *home_cols.columns.to_list(), *away_cols.columns.to_list()]
-    #
-    # regression_df = regression_df.drop(["key"], axis=1)
-    # regression_df = regression_df[ordered_cols]
+    sched_stats_query = session.query(sched, *home_stat_ff, *away_stat_ff).filter(sched.c['home_team_score'] > 0).\
+        join(home_stats, home_stats.c['team_id'] == sched.c['home_team_id']).\
+        join(away_stats, away_stats.c['team_id'] == sched.c['away_team_id']).subquery(with_labels=True)
 
-    return 2 #regression_df
+    sched_stats = session.query(sched_stats_query)
 
+    df = conversion.convert_sql_statement_to_table(session, sched_stats.statement)
+    return(df)
 
 def get_team_ff(ff_df, team, ff_list, home):
     """Extract the four factors for a specific team from the ff_df and return the result.
@@ -264,15 +236,10 @@ def four_factors_list():
     """Create a four factor(ff) list and identifying information and return it."""
     # Import and specify a list of factors to extract from database
     ff_list = br.four_factors.copy()
-
-    ff_list.insert(0, "team_name")
-    ff_list.append("wins")
-    ff_list.append("losses")
-    ff_list.append("mov")
     return ff_list
 
 
-def main(database, session, graph=False):
+def main(session, graph=False):
     """Create a regression data frame, run a regression through the LinearRegression class, and return the class
 
     Args:
@@ -294,15 +261,12 @@ def main(database, session, graph=False):
     # Convert database tables to pandas
     team_stats_tbl = db.table_mappings['team_stats_{}'.format(league_year)]
     sched_tbl = db.table_mappings['schedule_{}'.format(league_year)]
-    regression_df = create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
+    #regression_df = create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
+    regression_df = alt_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
 
-    ff_df = getters.get_pandas_df_from_table(session, "misc_stats_{}".format(league_year), ff_list)
-    sched_df = getters.get_pandas_df_from_table(session, sched_tbl, lambda df: df.away_team_score > 0)
-
-    # Combines four factors and seasons df's and separates them into X (predictors) and y (target)
-    regression_df = create_ff_regression_df(ff_df, sched_df, br.four_factors)
-    predictors = regression_df.loc[:, regression_df.columns != 'mov']
-    target = regression_df["mov"]
+    # Separate DF's into them into X (predictors) and y (target)
+    predictors = regression_df[regression_df.columns.drop(list(regression_df.filter(regex='sched')))]
+    target = regression_df["sched_MOV"]
 
     ff_reg = LinearRegression(target, predictors)
 
@@ -326,5 +290,5 @@ def main(database, session, graph=False):
 if __name__ == "__main__":
     db = Database('test', "../management")
     session = Session(db.engine)
-    test = main(db, session, graph=True)
+    test = main(session, graph=True)
     t=2
