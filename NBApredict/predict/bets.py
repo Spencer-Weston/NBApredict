@@ -12,8 +12,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from sqlalchemy.orm import Session, relationship
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint, or_
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 # Local imports
@@ -21,11 +21,10 @@ from nbapredict.configuration import Config
 from nbapredict.helpers import br_references
 from datatotable.database import Database
 from datatotable.data import DataOperator
-#from nbapredict.database.dbinterface import DBInterface
-#from nbapredict.database.manipulator import DataOperator
-#from nbapredict.database.reconcile import reconcile
 from nbapredict.database import getters
-from nbapredict.models import four_factor_regression as lm
+from nbapredict.management import conversion
+from nbapredict.management.tables import predictions
+from nbapredict.models import four_factor_regression as ff_reg
 
 
 def get_prediction(reg, pred_df):
@@ -49,6 +48,7 @@ def get_team_name(team):
 
 def create_prediction_df(home_tm, away_tm, ff_df):
     """Create and return a dataframe that merges the four factors for the home and away team.
+    TODO: Replace with ff_reg.alt_regression_df/getregression_df
 
     Args:
         home_tm: The home team
@@ -83,9 +83,9 @@ def get_team_ff(team, ff_df, home):
     ff_list = br_references.four_factors
     team_ff = ff_df[ff_df.team_name.str.lower() == team.lower()][ff_list]
     if home:
-        team_ff = team_ff.rename(lm.append_h, axis='columns')
+        team_ff = team_ff.rename(ff_reg.append_h, axis='columns')
     else:
-        team_ff = team_ff.rename(lm.append_a, axis='columns')
+        team_ff = team_ff.rename(ff_reg.append_a, axis='columns')
     return team_ff
 
 
@@ -142,70 +142,8 @@ def prediction_result_console_output(home_tm, away_tm, line, prediction, probabi
             print("If the model were true, the betting line's ({}) SF, in relation to the prediction, would "
                   "be realized {}% of the time".format(line, probability))
 
-# ToDo: Delete
-# def create_odds_table(database, data, tbl_name):
-#     """Create a prediction table from the data and with the table name in the database.
-#
-#     Args:
-#         database: An initialized DBInterface class from database.dbinterface.py
-#         data: An initialized DataOperator object, from database.manipulator, with prediction data
-#         tbl_name: The desired table name (with year as the last four characters)
-#     """
-#     # Create columns from data
-#     sql_types = data.get_sql_type()
-#     # Add new columns
-#     year = tbl_name[-4:]
-#     schedule_name = "sched_{}".format(year)
-#     additional_cols = [{'game_id': [Integer, ForeignKey(schedule_name + ".id")]},
-#                        {"odds_id": [Integer, ForeignKey("odds_{}.id".format(year))]},
-#                        {"home_team_score": Integer},
-#                        {"away_team_score": Integer},
-#                        {"bet_result": String}]
-#     for col in additional_cols:
-#         sql_types.update(col)
-#     constraint = {UniqueConstraint: ["start_time", "home_team", "away_team"]}
-#     # Map prediction table
-#     database.map_table(tbl_name, sql_types, constraint)
-#
-#     # Get tables for relationships
-#     sched_tbl = database.get_table_mappings(schedule_name)
-#     odds_tbl = database.get_table_mappings("odds_{}".format(year))
-#     # Create Relationships
-#     if "predictions" not in sched_tbl.__mapper__.relationships.keys():
-#         sched_tbl.predictions = relationship(database.Template)
-#     if "predictions" not in odds_tbl.__mapper__.relationships.keys():
-#         odds_tbl.predictions = relationship(database.Template)
-#
-#     database.create_tables()
-#     database.clear_mappers()
 
-
-def get_sample_prediction(database, odds_tbl, session, regression):
-    """Generate and return a sample prediction to create a prediction table from.
-
-    # ToDO: Will need this function, or equivalent, but does not need DB
-    Args:
-        database: An initialized DBInterface class from database.dbinterface.py
-        odds_tbl: A mapped odds table
-        session: A SQLalchemy session object
-        regression: A regression object from four_factor_regression.py
-
-    Returns:
-        A DataOperator object initialized with a prediction from regression
-    """
-    first_game_odds = session.query(odds_tbl).order_by(odds_tbl.start_time).first()
-
-    home_tm = first_game_odds.home_team
-    away_tm = first_game_odds.away_team
-    start_time = first_game_odds.start_time
-    line = first_game_odds.spread
-
-    sample_prediction = predict_game(database, session, regression, home_tm, away_tm, start_time, line)
-    data = DataOperator(sample_prediction)
-    return data
-
-
-def insert_predictions(rows, session, pred_tbl, sched_tbl, odds_tbl):
+def insert_predictions(rows, session, pred_tbl, sched_tbl):
     """Add rows into the prediction table in session with additional information from sched_tbl and odds_tbl.
 
     # ToDo: Will need equivalent function, but it won't look like this
@@ -220,7 +158,6 @@ def insert_predictions(rows, session, pred_tbl, sched_tbl, odds_tbl):
     for row in rows:
         row_obj = pred_tbl(**row)
         row_objects.append(row_obj)
-    row_objects = update_odds_id(row_objects, session, odds_tbl)
     row_objects = update_schedule_attributes(row_objects, session, sched_tbl)
 
     session.add_all(row_objects)
@@ -266,12 +203,7 @@ def update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl):
     """
     score_update_objs = session.query(pred_tbl).filter(or_(pred_tbl.home_team_score == 0,
                                                            pred_tbl.away_team_score == 0)).all()
-    score_update_objs = update_schedule_attributes(score_update_objs, session, sched_tbl)
     session.add_all(score_update_objs)
-
-    odds_update_objs = session.query(pred_tbl).filter(pred_tbl.odds_id.is_(None))
-    odds_update_objs = update_odds_id(odds_update_objs, session, odds_tbl)
-    session.add_all(odds_update_objs)
 
     bet_update_objs = session.query(pred_tbl).filter(pred_tbl.bet_result.is_(None), pred_tbl.home_team_score > 0).all()
     bet_update_objs = update_bet_results(bet_update_objs)
@@ -303,95 +235,37 @@ def update_bet_results(bet_update_objects):
             row.bet_result = "LOSS"
     return bet_update_objects
 
-# ToDo: Delete
-# def get_game_identifiers(row_objects):
-#     """Return a dictionary of home_team, start_team, and start_time that forms a unique identifier
-#
-#     The unique identifier works for every table in the database as home_team, away_team, and start_time are unique
-#     constrained for every table which involves games in the database
-#
-#     Args:
-#         row_objects: row objects from an .all() query with home_team, away_team, and start_time columns
-#     """
-#     query_dict = {"home_team": [], "away_team": [], "start_time": []}
-#     for row in row_objects:
-#         query_dict["home_team"].append(row.home_team)
-#         query_dict["away_team"].append(row.away_team)
-#         query_dict["start_time"].append(row.start_time)
-#     return query_dict
 
-# ToDo: Delete
-# def update_odds_id(row_objects, session, odds_tbl):
-#     """Take row_objects, containing games, match them to rows in odds_tbl, and updates the odds_id column in rows.
-#
-#     Args:
-#         row_objects:
-#         session:
-#         odds_tbl:
-#
-#     Returns:
-#         row_objects updated with an odds_id which corresponds to a game in odds_tbl. If a match can't be made between
-#         the row objects and odds_tbl, set odds_id to None.
-#     """
-#     identifiers = get_game_identifiers(row_objects)
-#     odds_query = session.query(odds_tbl).filter(odds_tbl.home_team.in_(identifiers["home_team"]),
-#                                                 odds_tbl.away_team.in_(identifiers["away_team"]),
-#                                                 odds_tbl.start_time.in_(identifiers["start_time"])).all()
-#     for row in row_objects:
-#         id_found = False
-#         for odds in odds_query:
-#             if row.home_team == odds.home_team and row.away_team == odds.away_team \
-#                     and row.start_time == odds.start_time:
-#                 row.odds_id = odds.id
-#                 id_found = True
-#                 break
-#         if not id_found:
-#             row.odds_id = None
-#
-#     return row_objects
-
-
-def update_schedule_attributes(row_objects, session, sched_tbl):
-    """Match a row object with a game from schedule, add the game's information to the object, and return the objects
-
-    Note: This matches game.id with the row_object. This is necessary for insertions, but the attribute should already
-    be present on updates. Therefore, it's a superfluous action when the function is called by update functions. Use
-    KWARGS to fix?
+def get_sample_prediction(session, regression, sched_tbl):
+    """Generate and return a sample prediction to create a prediction table from.
 
     Args:
-        row_objects: query.all() objects to update. Expects objects to contain table rows that do not have an
-        updated score and/or game.id.
-        session: A SQLalchemy Session object
-        sched_tbl: Mapped schedule table object
+        session: A SQLalchemy session object
+        regression: A regression object from four_factor_regression.py
+        sched_tbl: A mapped schedule table
 
     Returns:
-        row_objects with updated home and away scores and game_ids as dictated by the schedule table.
+        A DataOperator object initialized with a prediction from regression
     """
-    identifiers = get_game_identifiers(row_objects)
-    sched_query = session.query(sched_tbl).filter(sched_tbl.home_team.in_(identifiers["home_team"]),
-                                                  sched_tbl.away_team.in_(identifiers["away_team"]),
-                                                  sched_tbl.start_time.in_(identifiers["start_time"])).all()
-    for row in row_objects:
-        for game in sched_query:
-            if row.home_team == game.home_team and row.away_team == game.away_team \
-                    and row.start_time == game.start_time:
-                row.game_id = game.id
-                row.home_team_score = game.home_team_score
-                row.away_team_score = game.away_team_score
-                break
-    return row_objects
+    first_game = session.query(sched_tbl).first()
+
+    home_tm = first_game.home_team
+    away_tm = first_game.away_team
+    start_time = first_game.start_time
+
+    sample_prediction = predict_game(session, regression, home_tm, away_tm, start_time, line)
+    data = DataOperator(sample_prediction)
+    return data
 
 
-def predict_game(database, session, regression, home_tm, away_tm, start_time, line, year=2019, console_out=False):
+def predict_game(session, regression, home_tm, away_tm, start_time, line, year=2019, console_out=False):
     """Predict a game versus the line, and return the information in a dictionary.
 
     Use console out for human readable output if desired.Cdf is a cumulative density function. SF is a survival
     function. CDF is calculated when the betting line's prediction is below the model's prediction. SF is calculated
     when the betting line's prediction is above the model's prediction.
 
-    ToDo: Take tables instead of DB
     Args:
-        database: an instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
         regression: A regression object
         start_time: Date.datetime with the date and start time of the game
@@ -405,8 +279,8 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
     away_tm = get_team_name(away_tm)
 
     # Get Misc stats for year
-    ff_list = lm.four_factors_list()
-    # ToDo Pass tables instead of DB (A surprisingly good function, make sure to move out of database.getters folder)
+    ff_list = ff_reg.four_factors_list()
+    ff_df = conversion.convert_sql_statement_to_table(session)
     ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
 
     pred_df = create_prediction_df(home_tm, away_tm, ff_df)
@@ -421,17 +295,16 @@ def predict_game(database, session, regression, home_tm, away_tm, start_time, li
             "prediction": prediction, "probability": probability, "function": function}
 
 
-def predict_games_in_odds(database, session, regression):
+def predict_games_in_odds(session, regression, odds_tbl):
     """Generate and return predictions for all games with odds in the odds_tbl
 
     ToDo: Take tables as inputs vs. DB
     Args:
-        database: An instantiated DBInterface class from database.dbinterface.py
         session: A SQLalchemy session object
         regression: A linear regression object generated from four_factor_regression
+        odds_tbl: Mapped sqlalchemy odds table
 
     """
-    odds_tbl = database.get_table_mappings("odds_{}".format(Config.get_property("league_year")))
     all_odds = session.query(odds_tbl).all()
     predictions = []
     for odds in all_odds:
@@ -439,7 +312,7 @@ def predict_games_in_odds(database, session, regression):
         away_team = odds.away_team
         start_time = odds.start_time
         line = odds.spread
-        predictions.append(predict_game(database, session, regression, home_team, away_team, start_time, line))
+        predictions.append(predict_game(session, regression, home_team, away_team, start_time, line))
     return predictions
 
 
@@ -454,7 +327,7 @@ def predict_games_on_day(database, session, games, console_out=False):
         console_out: A bool. True to print prediction outputs
     """
     results = []
-    regression = lm.main(database=database, session=session, year=year)
+    regression = ff_reg.main(database=database, session=session, year=year)
     try:
         for game in games:
             prediction = predict_game(database=database, session=session, regression=regression, home_tm=game.home_team,
@@ -494,8 +367,6 @@ def predict_games_on_date(database, session, league_year, date, console_out):
 
     prediction_tbl = "predictions_{}".format(league_year)
     data = DataOperator(results)
-    if not database.table_exists(prediction_tbl):
-        create_odds_table(database, data, prediction_tbl)
 
     sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
     pred_tbl = database.get_table_mappings("predictions_{}".format(league_year))
@@ -519,36 +390,38 @@ def predict_all(database):
     """
     session = Session(bind=db.engine)
     league_year = Config.get_property("league_year")
-    # Reconfigure this to take tables
-    regression = lm.main(database=database, session=session)
+    regression = ff_reg.main(session=session)
+
     pred_tbl_name = "predictions_{}".format(league_year)
 
-    # ToDo: Odds tbl created in ETL. Probably don't need any of this?
-    odds_tbl = database.get_table_mappings("odds_{}".format(league_year))
-    if not database.table_exists(pred_tbl_name):
-        data = get_sample_prediction(database, odds_tbl, session, regression)  # Returns a data manipulator class
-        create_odds_table(database, data, pred_tbl_name)
-
+    pred_tbl = database.table_mappings[pred_tbl_name]
+    sched_tbl = database.table_mappings["sched_{}".format(league_year)]
     results = predict_games_in_odds(database, session, regression, league_year)
-    pred_tbl = database.get_table_mappings(pred_tbl_name)
-    sched_tbl = database.get_table_mappings("sched_{}".format(league_year))
+
+    ### DATA OPERATOR ###
+    if not db.table_exists(pred_tbl_name):
+        sample = get_sample_prediction()
+        predictions.create_table()
+        pred_tbl = db.table_mappings[pred_tbl_name]
+        session.add_all([pred_tbl(**row) for row in pred_data.rows])
+        session.commit()
+    else:
+        # Data operator
+        schedule_tbl = db.table_mappings[pred_tbl_name]
+        update_rows = predictions.insert(session, )
+        session.add_all(update_rows)
+        session.commit()
 
     insert_new_predictions(results, session, pred_tbl, sched_tbl, odds_tbl)
 
     session.commit()  # Commit here b/c update_prediction_tbl() needs the inserted values
 
-    # Reconcile ensures the sched_tbl has appropriate start_times; Need to add logic so its not called every run
-    reconcile(sched_tbl, pred_tbl, "start_time", "id", "game_id", session)
-    session.commit()
-
     update_prediction_table(session, pred_tbl, sched_tbl, odds_tbl)
 
 
 if __name__ == "__main__":
-    # ToDo: Don't need DBInterface; Copy ETL setup?
-    # ToDo: A lot of this probably needs to exist in
     db = Database('test', "../management")
     predict_all(db)
     predict_game("Sacramento Kings", "Orlando Magic", line=-5.5, year=2019, console_out=True)
     date = datetime(2019, 3, 26)
-    predict_games_on_date(database, session, league_year=2019, date=date, console_out=True)
+    predict_games_on_date(db, session, league_year=2019, date=date, console_out=True)
