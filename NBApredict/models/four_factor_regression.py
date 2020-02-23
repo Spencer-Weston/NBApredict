@@ -156,8 +156,19 @@ def create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list):
     return df
 
 
-def alt_regression_df(session, team_stats_tbl, sched_tbl, ff_list):
-    """Alternate regression df where the latest team_stats are applied to all games in schedule"""
+def alt_regression_df(session, team_stats_tbl, sched_tbl, ff_list, qualifiers=None):
+    """Alternate regression df where the latest team_stats are applied to all games in schedule.
+
+    Args:
+        session: A sqlalchemy session object
+        team_stats_tbl: A mapped team stats table object
+        sched_tbl: a mapped schedule table object'
+        qualifiers: Optional qualifiers to apply to the returned regression dataframe. Can be columns to subset from the
+        regression dataframe or a function
+
+    Returns:
+        A regression dataframe, modified by qualifiers if specified, with the four factors
+    """
     team_stats = session.query(team_stats_tbl).group_by(team_stats_tbl.team_id).having(func.max(team_stats_tbl.id)).\
         subquery()
     home_stats = alias(team_stats, name='home')
@@ -172,8 +183,12 @@ def alt_regression_df(session, team_stats_tbl, sched_tbl, ff_list):
 
     sched_stats = session.query(sched_stats_query)
 
-    df = conversion.convert_sql_statement_to_table(session, sched_stats.statement)
+    if qualifiers:
+        df = conversion.convert_sql_statement_to_table(session, sched_stats.statement, qualifiers)
+    else:
+        df = conversion.convert_sql_statement_to_table(session, sched_stats.statement)
     return(df)
+
 
 def get_team_ff(ff_df, team, ff_list, home):
     """Extract the four factors for a specific team from the ff_df and return the result.
@@ -243,7 +258,6 @@ def main(session, graph=False):
     """Create a regression data frame, run a regression through the LinearRegression class, and return the class
 
     Args:
-        database: An instantiated DBInterface object from dbinterface.py
         session: An instantiated Session object from sqlalchemy
         graph: A boolean that creates graphs if true
 
@@ -261,8 +275,9 @@ def main(session, graph=False):
     # Convert database tables to pandas
     team_stats_tbl = db.table_mappings['team_stats_{}'.format(league_year)]
     sched_tbl = db.table_mappings['schedule_{}'.format(league_year)]
-    #regression_df = create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
+    # regression_df = create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
     regression_df = alt_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
+    print('using alternative/old regression_df')
 
     # Separate DF's into them into X (predictors) and y (target)
     predictors = regression_df[regression_df.columns.drop(list(regression_df.filter(regex='sched')))]
