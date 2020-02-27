@@ -266,6 +266,7 @@ def main(session, team_stats_tbl, sched_tbl, graph=False):
     Returns:
         A LinearRegression class
     """
+    league_year = Config.get_property("league_year")
     graph_dir = Config.get_property("graph_dir")
     if not os.path.exists(graph_dir) and graph:
         os.mkdir(graph_dir)
@@ -285,7 +286,7 @@ def main(session, team_stats_tbl, sched_tbl, graph=False):
 
     # Note: On Windows, graphs will not appear to update
     # To change that, go to folder properties -> customize -> optimize for: Documents
-    if Config.get_property("graph"):
+    if graph:
         ff_reg.predicted_vs_actual(out_path=os.path.join(graph_dir, "pred_vs_actual_{}.png".format(league_year)))
         ff_reg.residuals_vs_fitted(out_path=os.path.join(graph_dir, "residuals_vs_fitted_{}.png".format(league_year)))
         ff_reg.qqplot(out_path=os.path.join(graph_dir, "qqplot_{}.png".format(league_year)))
@@ -295,7 +296,7 @@ def main(session, team_stats_tbl, sched_tbl, graph=False):
 
     # Multicollinearity
     # vif_df = ff_reg.vif()
-    ff_reg.residual_distribution()
+    # ff_reg.residual_distribution()
 
     return ff_reg
 
