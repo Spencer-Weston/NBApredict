@@ -254,17 +254,18 @@ def four_factors_list():
     return ff_list
 
 
-def main(session, graph=False):
+def main(session, team_stats_tbl, sched_tbl, graph=False):
     """Create a regression data frame, run a regression through the LinearRegression class, and return the class
 
     Args:
         session: An instantiated Session object from sqlalchemy
+        team_stats_tbl: A mapped team stats table class
+        sched_tbl: A mapped schedule table class
         graph: A boolean that creates graphs if true
 
     Returns:
         A LinearRegression class
     """
-    league_year = Config.get_property("league_year")
     graph_dir = Config.get_property("graph_dir")
     if not os.path.exists(graph_dir) and graph:
         os.mkdir(graph_dir)
@@ -272,9 +273,6 @@ def main(session, graph=False):
     # Import and specify a list of factors to extract from database
     ff_list = four_factors_list()
 
-    # Convert database tables to pandas
-    team_stats_tbl = db.table_mappings['team_stats_{}'.format(league_year)]
-    sched_tbl = db.table_mappings['schedule_{}'.format(league_year)]
     # regression_df = create_ff_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
     regression_df = alt_regression_df(session, team_stats_tbl, sched_tbl, ff_list)
     print('using alternative/old regression_df')
@@ -305,5 +303,8 @@ def main(session, graph=False):
 if __name__ == "__main__":
     db = Database('test', "../management")
     session = Session(db.engine)
+    year = Config.get_property('league_year')
+    sched_tbl = db.table_mappings['schedule_{}'.format(year)]
+    team_stats_tbl = db.table_mappings['team_stats_{}'.format(year)]
     test = main(session, graph=True)
     t=2
