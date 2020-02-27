@@ -46,27 +46,27 @@ def get_team_name(team):
             return team_name.value
 
 
-def create_prediction_df(home_tm, away_tm, ff_df):
-    """Create and return a dataframe that merges the four factors for the home and away team.
-    TODO: Replace with ff_reg.alt_regression_df/getregression_df
-
-    Args:
-        home_tm: The home team
-        away_tm: The away team
-        ff_df: Dataframe of the four factors for all teams
-
-    Returns:
-        A single row four factors data frame of the home and away team's four factors
-    """
-    home_ff = get_team_ff(home_tm, ff_df, home=True)
-    away_ff = get_team_ff(away_tm, ff_df, home=False)
-    home_ff["key"] = 1
-    home_ff["const"] = 1.0  # sm.add_const does not add a constant for whatever reason
-    away_ff["key"] = 1
-    merged = pd.merge(home_ff, away_ff, on="key", sort=True)
-    merged = merged.drop(["key"], axis=1)
-    merged = merged.sort_index(axis=1)
-    return merged
+# def create_prediction_df(home_tm, away_tm, ff_df):
+#     """Create and return a dataframe that merges the four factors for the home and away team.
+#     TODO: Replace with ff_reg.alt_regression_df/getregression_df
+#
+#     Args:
+#         home_tm: The home team
+#         away_tm: The away team
+#         ff_df: Dataframe of the four factors for all teams
+#
+#     Returns:
+#         A single row four factors data frame of the home and away team's four factors
+#     """
+#     home_ff = get_team_ff(home_tm, ff_df, home=True)
+#     away_ff = get_team_ff(away_tm, ff_df, home=False)
+#     home_ff["key"] = 1
+#     home_ff["const"] = 1.0  # sm.add_const does not add a constant for whatever reason
+#     away_ff["key"] = 1
+#     merged = pd.merge(home_ff, away_ff, on="key", sort=True)
+#     merged = merged.drop(["key"], axis=1)
+#     merged = merged.sort_index(axis=1)
+#     return merged
 
 
 def get_team_ff(team, ff_df, home):
@@ -253,7 +253,7 @@ def get_sample_prediction(session, regression, sched_tbl):
     away_tm = first_game.away_team
     start_time = first_game.start_time
 
-    sample_prediction = predict_game(session, regression, home_tm, away_tm, start_time, line)
+    sample_prediction = predict_game(session, regression, home_tm, away_tm, start_time)
     data = DataOperator(sample_prediction)
     return data
 
@@ -280,8 +280,7 @@ def predict_game(session, regression, home_tm, away_tm, start_time, line, year=2
 
     # Get Misc stats for year
     ff_list = ff_reg.four_factors_list()
-    ff_df = conversion.convert_sql_statement_to_table(session)
-    ff_df = getters.get_pandas_df_from_table(database, session, "misc_stats_{}".format(year), ff_list)
+    ff_df = conversion.convert_sql_statement_to_table(session)[ff_list]
 
     pred_df = create_prediction_df(home_tm, away_tm, ff_df)
     prediction = get_prediction(regression, pred_df)
@@ -383,32 +382,34 @@ def predict_games_on_date(database, session, league_year, date, console_out):
         session.close()
 
 
-def predict_all(database):
+def predict_all(db):
     """Generate and store predictions for all games available in the odds table.
 
     Checks if the table exists. If it doesn't, generate a table in the database.
     """
     session = Session(bind=db.engine)
     league_year = Config.get_property("league_year")
-    regression = ff_reg.main(session=session)
+    sched_tbl = db.table_mappings["schedule_{}".format(league_year)]
+    team_stats_tbl = db.table_mappings['team_stats_{}'.format(league_year)]
+    odds_tbl = db.table_mappings['odds_{}'.format(league_year)]
+
+    regression = ff_reg.main(session, team_stats_tbl, sched_tbl)
 
     pred_tbl_name = "predictions_{}".format(league_year)
 
-    pred_tbl = database.table_mappings[pred_tbl_name]
-    sched_tbl = database.table_mappings["sched_{}".format(league_year)]
-    results = predict_games_in_odds(database, session, regression, league_year)
-
-    ### DATA OPERATOR ###
     if not db.table_exists(pred_tbl_name):
-        sample = get_sample_prediction()
+        sample = get_sample_prediction(session, regression, sched_tbl)
+        pred_data = predictions.format_data()
         predictions.create_table()
         pred_tbl = db.table_mappings[pred_tbl_name]
         session.add_all([pred_tbl(**row) for row in pred_data.rows])
         session.commit()
     else:
         # Data operator
+        pred_tbl = db.table_mappings[pred_tbl_name]
         schedule_tbl = db.table_mappings[pred_tbl_name]
         update_rows = predictions.insert(session, )
+        results = predict_games_in_odds(session, regression, odds_tbl)
         session.add_all(update_rows)
         session.commit()
 
