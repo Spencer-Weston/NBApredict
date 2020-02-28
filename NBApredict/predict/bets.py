@@ -152,7 +152,6 @@ def insert_predictions(rows, session, pred_tbl, sched_tbl):
         session: A SQLalchemy session object
         pred_tbl: A mapped prediction table object
         sched_tbl: A mapped scheduled table object
-        odds_tbl: A mapped odds_tbl object
     """
     row_objects = []
     for row in rows:
@@ -236,30 +235,25 @@ def update_bet_results(bet_update_objects):
     return bet_update_objects
 
 
-def get_sample_prediction(session, regression, sched_tbl):
-    """Generate and return a sample prediction to create a prediction table from.
+def get_sample_prediction(session, regression):
+    """Generate and return a sample prediction formatted specifically for table creation.
 
     Args:
         session: A SQLalchemy session object
         regression: A regression object from four_factor_regression.py
-        sched_tbl: A mapped schedule table
 
     Returns:
         A DataOperator object initialized with a prediction from regression
     """
-    first_game = session.query(sched_tbl).first()
+    one_row_dataframe = regression.predictors.loc[[0]]
 
-    home_tm = first_game.home_team
-    away_tm = first_game.away_team
-    start_time = first_game.start_time
-
-    sample_prediction = predict_game(session, regression, home_tm, away_tm, start_time)
+    sample_prediction = predict_game(session, regression, one_row_dataframe)
     data = DataOperator(sample_prediction)
     return data
 
 
-def predict_game(session, regression, home_tm, away_tm, start_time, line, year=2019, console_out=False):
-    """Predict a game versus the line, and return the information in a dictionary.
+def predict_game(session, regression, x_df, console_out=False):
+    """Predict a game and return the information in a dictionary.
 
     Use console out for human readable output if desired.Cdf is a cumulative density function. SF is a survival
     function. CDF is calculated when the betting line's prediction is below the model's prediction. SF is calculated
@@ -268,30 +262,17 @@ def predict_game(session, regression, home_tm, away_tm, start_time, line, year=2
     Args:
         session: A SQLalchemy session object
         regression: A regression object
-        start_time: Date.datetime with the date and start time of the game
-        home_tm: The home team
-        away_tm: The away team
-        line: The betting line
-        year: The year to use stats from in predicting the game
+
         console_out: If true, print the prediction results. Ignore otherwise
     """
-    home_tm = get_team_name(home_tm)
-    away_tm = get_team_name(away_tm)
 
-    # Get Misc stats for year
-    ff_list = ff_reg.four_factors_list()
-    ff_df = conversion.convert_sql_statement_to_table(session)[ff_list]
+    prediction = get_prediction(regression, x_df)
+    # probability, function = line_probability(prediction, line, np.std(regression.residuals))
 
-    pred_df = create_prediction_df(home_tm, away_tm, ff_df)
-    prediction = get_prediction(regression, pred_df)
-    probability, function = line_probability(prediction, line, np.std(regression.residuals))
+    # if console_out:
+    #     prediction_result_console_output(home_tm, away_tm, prediction, probability)
 
-    if console_out:
-        prediction_result_console_output(home_tm, away_tm, line, prediction, probability)
-
-    # ToDo Update this to return a dictionary commensurate with the prediction table
-    return {"start_time": start_time, "home_team": home_tm, "away_team": away_tm, "line": line,
-            "prediction": prediction, "probability": probability, "function": function}
+    return {"prediction": prediction}
 
 
 def predict_games_in_odds(session, regression, odds_tbl):
