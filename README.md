@@ -6,9 +6,9 @@ NBApredict is a package for predicting NBA games against betting lines. It has t
 
 
 ## Status
-I have effectively archived this project. Work on the project was sponsored by a benefactor, but monetary support dried up with the pause of the NBA season due to COVID-19 in March 2020. That pause occured in the middle of a significant reorganization which was perhaps 90% finished. Those changes are now stored in "main" as people continued to clone the master branch which had not yet incorporated the reorganization. And to be frank, the work in that branch sucked hence the reorganization. 
+I have effectively archived this project. Given that, I thought it would be relevant to update the code and README to reflect the state of the project where it left off. Work on the project was previously sponsored by a benefactor, but monetary support dried up with the pause of the NBA season due to COVID-19 in March 2020. That pause occured in the middle of a significant reorganization which was perhaps 90% finished. Those changes are now stored in "main" as people continued to clone the master branch, and the code in that branch was trash. Hence why I started the reorganization. The old master branch is stored as "archive". (Note: "main" is now the equivalent of "master" if that's not clear above.)
 
-Thus, this project will not run if you just clone it. However, there's hundreds of hours of work here! So, if you want to get this project to run for you, get in contact, and I'd be happy to iron out the few remaining kinks. Otherwise, I feel no real incentive to work on this for myself at the moment. 
+This project will not run if you just clone it. However, there's hundreds of hours of work here! So, if you want to get this project to run for you, get in contact, and I'd be happy to iron out the few remaining kinks. Otherwise, I feel no real incentive to work on this for myself at the moment. 
 
 In the rest of this README, I'll try to describe the state of the project so that you may have some idea of what utility you may derive from the work I've done. Hopefully this will be of some help in your own pursuits. 
 
@@ -49,7 +49,7 @@ In comparison, the moneyline states the likelihood of a team winning or losing i
 
 ### Generating Predictions
 
-Before comparing predictions to betting lines, we need to ensure the model meets the assumptions of regression. For now, assume assumptions are met, and refer to [Additional Reading](#additional-reading) for further model discussion. To compare the model's predictions to betting lines, we look at the prediction's distance from the betting line. In the model, the prediction is the expected value, or the mean, of the matchup. All possible outcomes of the game are normally distributed around this mean with a standard deviation, which as of 04/07/2019, is approximately thirteen. 
+Before comparing predictions to betting lines, we need to ensure the model meets the assumptions of regression. For now, assume assumptions are met, and refer to [Additional Reading](#additional-reading) for further model discussion. To compare the model's predictions to betting lines, we look at the prediction's distance from the betting line. In the model, the prediction is the expected value, or the mean, of the matchup. All possible outcomes of the game are normally distributed around this mean with a standard deviation, which as of March 2020, is approximately thirteen. 
 
 Continuing the Bucks-Hawks example, lets say the model predicts the Bucks to win by 6 in comparison to the betting line of 8. To compare the betting line to the prediction, we want to evaluate the likelihood of a Bucks win by 8 or more given a normal distribution with a mean of 6 and standard deviation of 13. Thus, we calculate the survival function* of 8 based on the distribution. The result is approximately 0.44 which means we'd expect the home MOV to be greater than or equal to 8 44% of the time. Inversely, we expect the home MOV to be less than 8 approximately 56% of the time. 
 
@@ -60,6 +60,7 @@ To compare moneylines instead of spreads, simply set the spread to 0, and the ou
 
 ## Usage
 (Outdated: This usage hasn't been recreated in the reorganization yet.) 
+
 Clone this repo to your local machine: https://github.com/Spencer-Weston/NBA_bet.git
 
 To set the project to run daily:
@@ -71,15 +72,23 @@ Or to run the project once:
 ```~\NBApredict>python -m run.all```
 
 
-## Status: Minimum Viable Product (V0.1)
+## Version: V0.2 - Reorganization
 
-In its current status, the project operates as a concurrent whole. From the run directory, the user can either run the project at their leisure with run.all, or they can set the project to run daily with run.daily which schedules run.all to run each day. Either method builds all databases and tables, scrapes all data, and predicts all games. In this sense, it's a viable product.
+This version isn't finished as described in the [Status](#status) section. Still, here is a rough approximation of V0.2:
 
-The project is minimal because it doesn't do anything else. First, it contains no other functionality and/or no method for propogating functionality through the project at run time. For example, the regression model has graphing functions available, but the user cannot specify graph generation unless they run the regression script on its own. Second, the project only generates predictions with a linear model on a specific subset of data. A better product would allow the user to choose their desired data and model. Finally, the current product lacks infrastructure. There are no tests, and there is no setup.py. Thus, the project is not particularly resiliant to bugs nor automatically reproducible for users across environments. 
+### Why the Reorganization?
+In short, the project sucked before this point (check the archive branch). The project strucure was not pythonic, so namespaces were messy. Modules were more agglomerations of random behaviors than coherent units of related functionality. The project structure now follows standard python package design principles. The initial database design did not incorporate normalized databases. Given that many tables stored the same data, such as game times, keeping tables in sync required adding unique update functions for every table. The new tables are normalized with cascades to avoid this. Various other quality of life improvements have been implemented or will be if I ever pick this project back up.
 
-Plenty of other limitations or drawbacks exist. For example, the four factors update every day which means it is inappropriate to predict a game earlier in the season with current data. Further, playoff games are predicted with the regular season four factors. However, the availability of odds is the biggest drawback. When odds are scraped, they are stored. But for odds before the odd scraping module was available, I need to find another data source. Most of these appear to require money to access. And since the database is not in the cloud (yet), each user only has the odds they scrape themselves. 
+### Finished
+* Project organized into a pythonic package structure
+* All tables are normalized
+* Database operations exported to [DatatoTable](https://github.com/Spencer-Weston/DatatoTable) with much improved usability
+* All scrapers (schedule, betting lines, team stats, and teams) and their associated table modules use the normalized format 
 
-Yet, to the best of my ability, the project was designed to be extendable. With any luck, it should, fingers-crossed, serve as a framework that can be easily extended with further functionality. 
+### Unfinished
+* Predictions and the associated table (The models still work; they'r just not threaded into the full workflow)
+* Predictions and data interfaces. When completed, these functions would allow some degree of analysis for individual games or stats from the command line
+* "Run All" functionality. Once the above is finished, the project will be left to run daily to keep up to date data and predictions.
 
 ## Author
 Spencer Weston
@@ -87,7 +96,8 @@ Spencer Weston
 personal website: [Crockpot Thoughts](https://crockpotthoughts.wordpress.com/)
 
 ## Additional Reading
-* Will be added as published 
+* [How and Why](https://crockpotthoughts.wordpress.com/2019/07/23/an-nba-prediction-model-part-2-the-how-and-why/) 
+* [Model Evaluation and Explanation](https://crockpotthoughts.wordpress.com/2019/08/05/predicting-nba-games-part-3-the-model/)
 
 ## Credits
 Jae Bradley: https://github.com/jaebradley/basketball_reference_web_scraper
