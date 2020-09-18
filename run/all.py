@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from database.database import Database
 from predict import predict
 from scrapers import scraper
+# from configuration import Config
+import Config
 
 
 def run_all():
@@ -26,8 +28,6 @@ def run_all():
     predict.predict_all(db, session, year)
     session.commit()
     session.close()
-
-    return True
 
 
 if __name__ == "__main__":

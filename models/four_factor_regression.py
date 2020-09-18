@@ -12,7 +12,6 @@ Returns:
     Returns a LinearRegression class
 """
 
-from stats import graphing
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -26,7 +25,8 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor as vi
 from database import getters
 from database.database import Database
 from helpers import br_references as br
-import path
+from models import graphing
+import configuration
 
 
 class LinearRegression:
@@ -266,7 +266,7 @@ def main(database, session, year=2019, graph=False):
     Returns:
         A LinearRegression class
     """
-    graph_dir = path.graphs_directory()
+    graph_dir = configuration.graphs_directory()
     if not os.path.exists(graph_dir) and graph:
         os.mkdir(graph_dir)
 
@@ -286,7 +286,7 @@ def main(database, session, year=2019, graph=False):
     ff_reg = LinearRegression(target, predictors)
 
     # Note that on Windows graphs will not appear to be updated
-    # To change that, go to properties -> customize -> optimize for: Documents
+    # To change that, go to folder properties -> customize -> optimize for: Documents
     if graph:
         ff_reg.predicted_vs_actual(out_path=os.path.join(graph_dir, "pred_vs_actual_{}.png".format(year)))
         ff_reg.residuals_vs_fitted(out_path=os.path.join(graph_dir, "residuals_vs_fitted_{}.png".format(year)))

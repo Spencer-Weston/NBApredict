@@ -69,7 +69,7 @@ def update_season_table(session, sched_tbl, season_df):
     update_rows = session.query(sched_tbl).filter(sched_tbl.start_time < date,
                                                   sched_tbl.home_team_score == 0).order_by(sched_tbl.start_time)
     if update_rows.count() == 0:
-        print("Season is up to date; Returning without performing an update.")
+        # print("Season is up to date; Returning without performing an update.") Test/logging statement
         return
 
     all_update_rows = update_rows.all()
